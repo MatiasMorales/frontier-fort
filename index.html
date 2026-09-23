@@ -1,11 +1,29 @@
 <!DOCTYPE html>
+<html lang="en">
 <meta charset="utf-8">
-<title>Frontier Fort</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frontier prototypes</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%23b8322a'/%3E%3Ctext x='32' y='45' font-size='38' text-anchor='middle' fill='%23f6e9d3' font-family='serif'%3E%E8%BE%B9%3C/text%3E%3C/svg%3E">
-<meta name="description" content="Build by day, defend by night. Hold a Ming frontier fort against Mongol raids — a browser prototype.">
-<meta property="og:title" content="Frontier Fort">
-<meta property="og:description" content="Build by day, defend by night. Hold a Ming frontier fort against Mongol raids — a browser prototype.">
-<meta property="og:type" content="website">
-<meta http-equiv="refresh" content="0; url=frontier-fort.html">
-<link rel="canonical" href="frontier-fort.html">
-<a href="frontier-fort.html">Play Frontier Fort</a>
+<meta name="description" content="Two browser prototypes set on the Ming northern frontier.">
+<meta property="og:title" content="Frontier prototypes">
+<meta property="og:description" content="The Wagon Road — carry grain across a valley of raiders and circle the wagons each night. Frontier Fort — build by day, defend by night.">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{ --ink:#1a1210; --paper:#eadbc0; --gold:#d8b46a; --lac:#43201a; --lac2:#2a1411; --edge:#6b3226; }
+  html,body{ margin:0; min-height:100%; background:var(--ink); color:var(--paper); font-family:Spectral, Georgia, serif; }
+  main{ max-width:760px; margin:0 auto; padding:56px 20px; }
+  h1{ font-weight:600; font-size:clamp(30px,6vw,44px); margin:0 0 6px; }
+  p.lede{ color:#cdb996; margin:0 0 28px; }
+  a.card{ display:block; text-decoration:none; color:inherit; padding:20px 22px; margin:0 0 16px; border:1px solid var(--edge); border-radius:6px; background:linear-gradient(180deg,var(--lac),var(--lac2)); }
+  a.card:hover, a.card:focus-visible{ border-color:var(--gold); outline:none; }
+  a.card b{ display:block; color:var(--gold); font-size:22px; font-weight:600; margin-bottom:6px; }
+  a.card span{ color:#dccaa6; }
+  small{ display:block; margin-top:6px; color:#9c8250; font-style:italic; }
+</style>
+<main>
+  <h1>The northern frontier, 1550</h1>
+  <p class="lede">Two browser prototypes. Best in a desktop browser with a keyboard.</p>
+  <a class="card" href="wagon-road.html"><b>The Wagon Road</b><span>Carry grain across a valley of raiders to a starving garrison. Choose each day's road, circle the wagons wherever dusk finds you, and run down the raiders who grab a sack and flee.</span><small>The current direction</small></a>
+  <a class="card" href="frontier-fort.html"><b>Frontier Fort</b><span>Build by day, defend by night. Hold a castle in a mountain valley against the autumn raids.</span><small>The earlier prototype</small></a>
+</main>
+</html>
