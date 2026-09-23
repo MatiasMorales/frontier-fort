@@ -169,7 +169,39 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #smapSvg .node.opt circle{ stroke:#a3352c; stroke-width:3.5; }
 #smapSvg .node.opt.sel circle{ fill:#f7d98c; stroke-width:4.5; }
 #smapOpts{ grid-template-columns:1fr; }
-#shopOpts{ grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); }
+.shopSheet{ max-width:1120px; width:100%; max-height:94vh; overflow:auto; }
+.resbar{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:0 0 14px; position:sticky; top:-20px; z-index:2; padding:6px 0; background:linear-gradient(180deg,rgba(38,20,16,.97),rgba(38,20,16,.9)); }
+.resbar .rc{ position:relative; display:grid; grid-template-columns:auto auto; align-items:center; column-gap:7px; padding:6px 14px 5px; border:1px solid var(--lacquer-edge); border-radius:5px; background:rgba(20,12,10,.6); min-width:92px; transition:background .3s; }
+.resbar .rc b{ font-size:22px; color:var(--paper); font-weight:600; }
+.resbar .rc small{ grid-column:1/-1; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); }
+.resbar .rc .ic{ width:18px; height:18px; }
+.resbar .rc em{ position:absolute; right:6px; top:3px; font-style:normal; font-size:13px; font-weight:700; animation:resPop 1.1s ease-out forwards; }
+.resbar .rc.up{ background:rgba(90,120,50,.35); } .resbar .rc.up em{ color:#b9e07a; }
+.resbar .rc.down{ background:rgba(140,50,40,.35); } .resbar .rc.down em{ color:#f0a08a; }
+@keyframes resPop{ from{ opacity:1; transform:translateY(0); } to{ opacity:0; transform:translateY(-10px); } }
+.cards{ display:grid; grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); gap:12px; }
+.cards h3.sec{ grid-column:1/-1; margin:8px 0 -2px; font-size:14px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-dim); font-weight:600; border-bottom:1px solid var(--lacquer-edge); padding-bottom:4px; }
+.card{ font-family:var(--serif); color:var(--paper); cursor:pointer; text-align:center; padding:0 0 12px; border-radius:8px; border:1px solid var(--lacquer-edge); background:linear-gradient(180deg,#5a2b22,var(--lacquer)); box-shadow:0 0 0 3px rgba(26,18,16,.6), 0 8px 20px rgba(0,0,0,.4); transition:transform .15s, border-color .15s; display:flex; flex-direction:column; align-items:center; overflow:hidden; }
+.card:hover, .card.sel{ transform:translateY(-3px); border-color:var(--gold); box-shadow:0 0 0 3px rgba(216,180,106,.4), 0 10px 24px rgba(0,0,0,.45); }
+.card .art{ width:100%; aspect-ratio:24/17; object-fit:cover; background:radial-gradient(ellipse at 50% 60%,#efe1c2,#cdb88f); border-bottom:1px solid var(--lacquer-edge); display:block; }
+.card .t{ font-size:17px; font-weight:600; color:var(--gold); margin:9px 8px 4px; line-height:1.2; }
+.card .cost{ display:flex; gap:10px; justify-content:center; font-size:16px; font-weight:600; min-height:20px; }
+.card .cost .free{ color:#b9e07a; font-size:13px; letter-spacing:.08em; text-transform:uppercase; }
+.card .e{ font-size:13.5px; color:#dccaa6; line-height:1.35; margin:5px 10px 0; }
+.card .why{ color:#e59a82; font-weight:600; }
+.card.off{ opacity:.55; } .card.off .art{ filter:grayscale(.7); }
+.shopFoot{ display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+.shopFoot .go{ margin:0; }
+.shopFoot .go.sel{ box-shadow:0 0 0 3px var(--gold); }
+.tablet .art{ display:block; width:100%; border-radius:4px; margin:0 0 8px; background:radial-gradient(ellipse at 50% 60%,#efe1c2,#cdb88f); }
+.ic.men{ background:none; } .ic.men::before{ content:'兵'; font-family:var(--brush); color:var(--gold); font-size:16px; line-height:18px; }
+.wtag, .rtag{ position:fixed; z-index:6; transform:translate(-50%,-100%); pointer-events:none; padding:4px 9px 5px; font-size:13px; white-space:nowrap; background:rgba(38,20,16,.88); color:var(--paper); border:1px solid var(--gold); border-left-width:4px; border-radius:4px; }
+.wtag b{ color:var(--gold); margin:0 4px 0 2px; } .wtag .ic{ width:14px; height:14px; vertical-align:-2px; }
+.rtag{ border-color:#d2462f; text-align:center; } .rtag b{ display:block; color:#ff7a5a; font-size:14px; letter-spacing:.06em; text-transform:uppercase; }
+.rtag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:rgba(38,20,16,.88); border-right:1px solid #d2462f; border-bottom:1px solid #d2462f; }
+.rtag.edge i{ display:none; } .rtag.edge{ background:rgba(120,30,20,.9); }
+.is-paused .wtag, .is-paused .rtag{ display:none !important; }
+#shopOpts{ }
 #smapOpts .cn{ font-family:var(--brush); font-size:20px; }
 .tablet .cost{ display:flex; gap:10px; justify-content:center; font-size:14px; margin:2px 0; }
 .tablet.done{ border-color:var(--gold); }
@@ -223,7 +255,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <div id="hurt" style="position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(170,20,10,.55) 100%);transition:opacity .15s"></div>
 <div id="banner"><b id="bannerT"></b><span id="bannerS"></span></div>
 <div id="prompt" class="panel" hidden></div>
-<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp;  <kbd>F</kbd> bow / sabre &nbsp; <kbd>Space</kbd> at dusk circles the wagons &nbsp; at night: stop to shoot, ride close to cut, <kbd>Space</kbd> volley<span id="abHelp"></span></div>
+<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp;  <kbd>F</kbd> bow / sabre &nbsp; <kbd>Space</kbd> hold to act: circle, move carts, bar roads, post soldiers &nbsp; at night: stop to shoot, ride close to cut, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
   <div class="sheet" style="max-width:440px">
@@ -245,7 +277,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
   <div class="sheet">
     <div class="bigseal">边<br>堡</div>
     <h1>The Wagon Road</h1>
-    <p>Autumn, 1550. Your convoy must cross three regions of raided frontier to the Great Wall. In each region's camp, send out farmers, woodcutters and miners, build carts and level up the column. Then choose your road on the map: longer roads mean more days, and every day your soldiers eat. When the food runs out they weaken and die. Where raiders wait, ride to the ground you want and <b>circle the wagons</b>. At night they come for the food: run down the thieves.</p>
+    <p>Autumn, 1550. Your convoy must cross three regions of raided frontier to the Great Wall. Choose your road on each region's map, and reach and hold the border fort at its end. Longer roads mean more days, and every day your soldiers eat. Every fight is on new ground: <b>circle the wagons</b>, then set the field. Move your war carts, barricade the roads the raiders will use, post your soldiers, and guard the <b>food</b>, <b>wood</b> and <b>stone</b> wagons. Beat the drum, and hold until dawn.</p>
     <div class="keys">
       <span><kbd>WASD</kbd>Ride</span>
       <span><kbd>Shift</kbd>Sprint</span>
@@ -260,6 +292,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <div id="smap" class="overlay" hidden>
   <div class="sheet" style="max-width:1040px">
     <h2 id="smapT">Choose the road</h2>
+    <div class="resbar" id="smapRes"></div>
     <p id="smapP" style="margin:0 0 10px"></p>
     <div class="smapWrap">
       <svg id="smapSvg" viewBox="0 0 600 600" aria-label="Region map"></svg>
@@ -269,11 +302,12 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
   </div>
 </div>
 <div id="shop" class="overlay" hidden>
-  <div class="sheet" style="max-width:900px">
+  <div class="sheet shopSheet">
     <h2 id="shopT"></h2>
-    <p id="shopSub" style="margin:0 0 4px"></p>
-    <p id="shopP" style="margin:0 0 14px;font-size:14px"></p>
-    <div class="tablets" id="shopOpts"></div>
+    <p id="shopSub" style="margin:0 0 10px"></p>
+    <div class="resbar" id="shopRes"></div>
+    <div class="cards" id="shopOpts"></div>
+    <div class="shopFoot"><span class="hintv">Arrow keys and Space to buy, or click. R takes the road.</span><button class="go" id="shopGo" type="button">Take the road →</button></div>
   </div>
 </div>
 <div id="dawn" class="overlay" hidden>
@@ -439,20 +473,25 @@ const riverDist = (x, z) => { let d = Infinity; for (let i = 0; i < RIVER.length
 function crossesRiver(ax, az, bx, bz) { for (let i = 0; i < RIVER.length - 1; i++) if (segHit([ax, az], [bx, bz], RIVER[i], RIVER[i + 1])) return true; return false; }
 const keyOf0 = (a, b) => [a, b].sort().join('|');
 // every road that meets the river becomes a crossing: one ford, the rest bridges (one of them starts in ruins)
-const CROSSINGS = [];
-for (const [a, b] of EDGE_DEF) {
-  const A = NODE_DEF[a], Bp = NODE_DEF[b];
-  for (let i = 0; i < RIVER.length - 1; i++) { const h = segHit(A, Bp, RIVER[i], RIVER[i + 1]); if (h) CROSSINGS.push({ a, b, x: h.x, z: h.z, dir: Math.atan2(Bp[1] - A[1], Bp[0] - A[0]) }); }
+const CROSSINGS = [], ROAD_SEGS = [];
+// pick(crossing, index) says what each crossing is: 'ford' (cannot burn), 'bridge', or 'ruin'
+function computeCrossings(pick) {
+  CROSSINGS.length = 0;
+  for (const [a, b] of EDGE_DEF) {
+    const A = NODE_DEF[a], Bp = NODE_DEF[b];
+    for (let i = 0; i < RIVER.length - 1; i++) { const h = segHit(A, Bp, RIVER[i], RIVER[i + 1]); if (h) CROSSINGS.push({ a, b, x: h.x, z: h.z, dir: Math.atan2(Bp[1] - A[1], Bp[0] - A[0]) }); }
+  }
+  CROSSINGS.forEach((c, i) => {
+    c.key = [c.a, c.b].sort().join('|');
+    const t = pick(c, i);
+    c.ford = t === 'ford'; c.bridge = !c.ford; c.intact = t === 'bridge'; c.name = c.ford ? 'ford' : 'bridge';
+  });
+  ROAD_SEGS.length = 0;
+  for (const [a, b] of EDGE_DEF) ROAD_SEGS.push([...NODE_DEF[a], ...NODE_DEF[b]]);
 }
 const FORD_KEY = keyOf0('GW', 'W2'), RUIN_KEY = keyOf0('J4', 'W1');   // the rest start standing
-for (const c of CROSSINGS) {
-  const k = [c.a, c.b].sort().join('|');
-  c.key = k;
-  c.ford = k === FORD_KEY;                 // a ford cannot be burned: the west is never sealed off
-  c.bridge = !c.ford; c.intact = !c.ford && k !== RUIN_KEY;
-  c.name = c.ford ? 'ford' : 'bridge';
-}
-const ROAD_SEGS = EDGE_DEF.map(([a, b]) => [...NODE_DEF[a], ...NODE_DEF[b]]);
+const VALLEY_PICK = c => c.key === FORD_KEY ? 'ford' : c.key === RUIN_KEY ? 'ruin' : 'bridge';
+computeCrossings(VALLEY_PICK);
 const roadDist = (x, z) => { let d = Infinity; for (const s of ROAD_SEGS) d = Math.min(d, segDist(x, z, ...s)); return d; };
 function hash2(i, j) { const v = Math.sin(i * 127.1 + j * 311.7) * 43758.5453; return v - Math.floor(v); }
 function vnoise(x, z) {
@@ -461,19 +500,23 @@ function vnoise(x, z) {
 }
 function ridged(x, z) { let s = 0, a = 1, f = 1, w = 0; for (let o = 0; o < 4; o++) { const n = 1 - Math.abs(vnoise(x * f, z * f)); s += n * n * a; w += a; a *= 0.5; f *= 2.1; } return s / w; }
 const VALLEY = { cx: -2, cz: -38, rx: 68, rz: 60 };
+// which of the fixed valley's landmarks exist: the convoy generates new ground for most fights
+const FIELD = { castle: true, southWall: true, greatWall: true };
 function mountainAmount(x, z) {
   const dx = (x - VALLEY.cx) / VALLEY.rx, dz = (z - VALLEY.cz) / VALLEY.rz, e = Math.hypot(dx, dz), ang = Math.atan2(dz, dx);
   const wob = 0.06 * Math.sin(ang * 5 + 1) + 0.04 * Math.sin(ang * 11);
-  return { amt: Math.max(smooth(0.9, 1.1, e + wob), smooth(13, 24, z)), far: smooth(1.1, 1.8, e) + smooth(24, 70, z) };
+  return { amt: Math.max(smooth(0.9, 1.1, e + wob), FIELD.southWall ? smooth(13, 24, z) : 0), far: smooth(1.1, 1.8, e) + (FIELD.southWall ? smooth(24, 70, z) : 0) };
 }
 function hgt(x, z) {
   const rd = roadDist(x, z), rv = riverDist(x, z);
   const { amt, far } = mountainAmount(x, z);
   let m = amt * (16 + 34 * ridged(x * 0.021 + 3.1, z * 0.021 + 7.7)) + far * 22;
   m *= smooth(2.5, 9, rd) * smooth(3, 10, rv);
+  // the camera looks north: on generated ground the southern rim is kept low so it never walls off the view
+  if (!FIELD.southWall) m *= lerp(1, 0.32, smooth(VALLEY.cz + VALLEY.rz * 0.2, VALLEY.cz + VALLEY.rz * 1.1, z));
   let hill = 2.6 * Math.max(0, vnoise(x * 0.045 + 11, z * 0.045 + 5)) * (1 - amt) * smooth(2, 6, rd) * smooth(2.5, 6, rv);
   let h = m + hill + 0.3 * vnoise(x * 0.2, z * 0.2) * smooth(2, 6, rd) * (1 - amt);
-  h *= smooth(CASTLE_R + 1, CASTLE_R + 4, Math.hypot(x, z));
+  if (FIELD.castle) h *= smooth(CASTLE_R + 1, CASTLE_R + 4, Math.hypot(x, z));
   const w = 1 - smooth(RIVER_HALF - 0.4, RIVER_HALF + 0.8, rv);
   return h - 1.1 * w;
 }
@@ -637,7 +680,7 @@ const OCCL_PX = 165;                       // radius of the clear circle, in CSS
 const occl = new THREE.Vector4(-1e4, -1e4, 0, 0);
 const OCCL_BIAS = 6.0;                    // only cut what is well in front of him, never the ground at his feet
 const avoid = [];
-(function buildTerrain() {
+function buildTerrain() {
   const geo = new THREE.PlaneGeometry(360, 360, 230, 230);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, cols = [];
@@ -660,7 +703,7 @@ const avoid = [];
       c.lerp(ny > 0.86 ? alp : rock, smooth(1.2, 5, y));
       c.lerp(cSnow, smooth(28, 36, y) * smooth(0.55, 0.8, ny) + smooth(40, 46, y) * 0.7);
     }
-    if (r < CASTLE_R + 0.5) c.copy(cCourt);
+    if (FIELD.castle && r < CASTLE_R + 0.5) c.copy(cCourt);
     c.lerp(cRoad, 1 - smooth(1.1, 2.0, roadDist(x, z)));
     const rv = riverDist(x, z); c.lerp(cBank, (1 - smooth(RIVER_HALF, RIVER_HALF + 1.2, rv)) * 0.8); c.lerp(cBed, 1 - smooth(RIVER_HALF - 0.8, RIVER_HALF, rv));
     cols.push(c.r, c.g, c.b);
@@ -700,7 +743,7 @@ const avoid = [];
   // The Great Wall along the northern ridge, breached where the road comes through
   const segGeo = B(2.7, 1.7, 1.3), capGeo = B(2.7, 0.2, 1.5), merGeo = B(0.45, 0.4, 0.25), beaconGeo = B(2.6, 3.4, 2.6), beaconTop = B(2.9, 0.3, 2.9);
   let n = 0;
-  for (let x = -56; x <= 56; x += 2.5, n++) {
+  if (FIELD.greatWall) for (let x = -56; x <= 56; x += 2.5, n++) {
     const z = ridgeZ(x), y = hgt(x, z), rot = Math.atan2(-(ridgeZ(x + 0.5) - ridgeZ(x - 0.5)), 1);
     if (riverDist(x, z) < 5 || (y < 4 && roadDist(x, z) > 3.5)) continue;
     const seg = new THREE.Group(); seg.position.set(x, y, z); seg.rotation.y = rot; scene.add(seg);
@@ -716,18 +759,18 @@ const avoid = [];
   // castle walls: gateways north, east and west; the south wall backs onto the mountain
   const wallGeo = B(2.4, 2.4, 1.1), capG = B(2.5, 0.25, 1.3), mer = B(0.45, 0.45, 0.28);
   const wallSegs = Math.round(TAU * CASTLE_R / 1.23);  // keep the spacing the ring had at CASTLE_R 11
-  for (let a = 0; a < TAU; a += TAU / wallSegs) {
+  if (FIELD.castle) for (let a = 0; a < TAU; a += TAU / wallSegs) {
     const x = Math.cos(a) * CASTLE_R, z = Math.sin(a) * CASTLE_R;
     if (Math.min(Math.abs(x), Math.abs(z)) < 2.6 && Math.max(Math.abs(x), Math.abs(z)) > 5 && z < 5) continue;
     const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = -a - Math.PI / 2; scene.add(g);
     part(wallGeo, C.brick, 0, 1.2, 0, g); part(capG, C.stone, 0, 2.5, 0, g); part(mer, C.brick, 0, 2.85, -0.45, g);
   }
-  for (const [x, z] of [[0, -1], [1, 0], [-1, 0]]) for (const s of [-1, 1]) {
+  if (FIELD.castle) for (const [x, z] of [[0, -1], [1, 0], [-1, 0]]) for (const s of [-1, 1]) {
     const tx = x * CASTLE_R + (z ? s * 2.9 : 0), tz = z * CASTLE_R + (x ? s * 2.9 : 0);
     const t = new THREE.Group(); t.position.set(tx, 0, tz); scene.add(t);
     part(B(1.8, 3.4, 1.8), C.brick, 0, 1.7, 0, t); hipRoof(2.3, 0.8, C.tile, t, 3.4);
   }
-})();
+}
 // Is a ridge standing between the camera and the rider? March the ray against the analytic
 // terrain rather than raycasting 53k triangles every frame.
 const _occlA = new V3(), _occlB = new V3();
@@ -755,8 +798,8 @@ function updateOcclusion(dt) {
 }
 function decorate() {
   const clear = (x, z, pad) => {
-    if (riverDist(x, z) < RIVER_HALF + 1.2 || Math.hypot(x, z) < CASTLE_R + 3) return false;
-    if (roadDist(x, z) < 2.6 || Math.abs(z - ridgeZ(x)) < 3) return false;
+    if (riverDist(x, z) < RIVER_HALF + 1.2 || (FIELD.castle && Math.hypot(x, z) < CASTLE_R + 3)) return false;
+    if (roadDist(x, z) < 2.6 || (FIELD.greatWall && Math.abs(z - ridgeZ(x)) < 3)) return false;
     for (const p of avoid) if (Math.hypot(p.x - x, p.z - z) < pad) return false;
     return true;
   };
@@ -1121,8 +1164,11 @@ function makeLancerModel() {
 /* ================= graph ================= */
 const NODES = {}, EDGES = [];
 const keyOf = (a, b) => [a, b].sort().join('|');
-for (const id in NODE_DEF) { const [x, z] = NODE_DEF[id]; NODES[id] = { id, pos: new V3(x, Math.max(hgt(x, z), 0), z), adj: [] }; }
-for (const [a, b] of EDGE_DEF) { const e = { a, b, key: keyOf(a, b), len: NODES[a].pos.distanceTo(NODES[b].pos), cross: CROSSINGS.find(c => c.key === keyOf(a, b)) || null }; EDGES.push(e); NODES[a].adj.push(e); NODES[b].adj.push(e); }
+function buildGraph() {
+  for (const id in NODES) delete NODES[id]; EDGES.length = 0;
+  for (const id in NODE_DEF) { const [x, z] = NODE_DEF[id]; NODES[id] = { id, pos: new V3(x, Math.max(hgt(x, z), 0), z), adj: [] }; }
+  for (const [a, b] of EDGE_DEF) { const e = { a, b, key: keyOf(a, b), len: NODES[a].pos.distanceTo(NODES[b].pos), cross: CROSSINGS.find(c => c.key === keyOf(a, b)) || null }; EDGES.push(e); NODES[a].adj.push(e); NODES[b].adj.push(e); }
+}
 let DIST0 = {}, distDirty = true, routeDirty = true, DIST_TARGET = 'K';   // every raider can lash a crossing together, so every edge is passable
 function edgeCost(e) {
   let c = e.len;
@@ -1159,6 +1205,9 @@ function decide(u, nodeId, cameFrom) {
    redirects the flow without ever telling the player which passes are coming. */
 const routeGroup = new THREE.Group(); scene.add(routeGroup);
 const routeRibbons = {};
+function buildRibbons() {
+for (const m of [...routeGroup.children]) { routeGroup.remove(m); m.geometry.dispose(); m.material.dispose(); }
+for (const k in routeRibbons) delete routeRibbons[k];
 for (const e of EDGES) {
   const A = NODE_DEF[e.a], Bp = NODE_DEF[e.b];
   const dx = Bp[0] - A[0], dz = Bp[1] - A[1], L = Math.hypot(dx, dz), nx = -dz / L, nz = dx / L, w = 1.35;
@@ -1173,9 +1222,10 @@ for (const e of EDGES) {
   const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: '#c8452e', transparent: true, opacity: 0, depthWrite: false }));
   m.visible = false; routeGroup.add(m); routeRibbons[e.key] = m;
 }
+}
 function pathFrom(startId) {          // the same greedy rule the raiders themselves follow
   const used = []; let cur = startId, came = null, guard = 0;
-  while (cur !== 'K' && guard++ < 40) {
+  while (cur !== DIST_TARGET && guard++ < 40) {
     let best = null, bc = Infinity, fallback = null, fc = Infinity;
     for (const e of NODES[cur].adj) {
       const o = e.a === cur ? e.b : e.a;
@@ -1193,17 +1243,18 @@ function refreshRoutes() {
   if (!routeDirty) return;
   routeDirty = false;
   const count = {};
-  for (const en of ENTRIES) for (const k of pathFrom(en.id)) count[k] = (count[k] || 0) + 1;
+  const from = WAGON ? (S.preEntries || S.entries || []) : ENTRIES.map(x => x.id);
+  for (const id of from) if (NODES[id]) for (const k of pathFrom(id)) count[k] = (count[k] || 0) + 1;
   for (const e of EDGES) {
     const m = routeRibbons[e.key], n = count[e.key] || 0;
-    m.visible = n > 0; m.material.opacity = Math.min(0.13 + n * 0.1, 0.46);
+    m.visible = n > 0; m.material.opacity = WAGON ? Math.min(0.32 + n * 0.12, 0.6) : Math.min(0.13 + n * 0.1, 0.46);
   }
 }
 
 /* ================= world ================= */
 /* ---- the courtyard floor: flagstones, with paved ways from each gate to the keep ----
    Painted once into a canvas, so it costs one texture and one draw call and stays one file. */
-(function paveCourtyard() {
+function paveCourtyard() {
   const S = 1024, cv = document.createElement('canvas'); cv.width = cv.height = S;
   const g = cv.getContext('2d'), R = CASTLE_R - 0.6, px = S / (2 * R);   // pixels per world unit
   let seed = 7; const rr = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -1259,7 +1310,7 @@ function refreshRoutes() {
   // circle UVs map the disc onto the unit square; line them up with world x / z so the paths point at the gates
   floor.rotation.z = 0;
   floor.receiveShadow = true; scene.add(floor);
-})();
+}
 const keepModel = makeKeep(); scene.add(keepModel);
 const keep = { pos: new V3(0, 0, 0), radius: 3.4, hp: KEEP_HP, max: KEEP_HP, isKeep: true, alive: true, barY: 8.6, cd: 0, recent: 0 };
 const bell = makeBell(); bell.position.set(-2.4, 0, 4.6); scene.add(bell);
@@ -1280,6 +1331,7 @@ function addPlot(kind, x, z, rotY, options, extra) {
 }
 const faceKeep = (x, z) => Math.atan2(-x, -z);
 const clearOf = (x, z, d) => plots.every(p => Math.hypot(p.x - x, p.z - z) >= d);
+if (!WAGON) {
 // castle gateways and the inner ward
 for (const id of ['GN', 'GE', 'GW']) {
   const n = NODE_DEF[id], L = Math.hypot(n[0], n[1]), x = n[0] / L * (CASTLE_R - 0.9), z = n[1] / L * (CASTLE_R - 0.9);
@@ -1334,6 +1386,7 @@ for (const p of plots) {
     p.spots.push([x - Math.cos(a) * 1.0, z - Math.sin(a) * 1.0, x, z]);
   }
 }
+}
 /* bridges */
 function makeBridge(c) {
   const g = new THREE.Group(); g.position.set(c.x, 0, c.z); g.rotation.y = Math.PI / 2 - c.dir;
@@ -1345,7 +1398,26 @@ function makeBridge(c) {
   for (const z of [-L / 2, 0, L / 2]) for (const x of [1.15, -1.15]) { part(CYL(0.09, 0.09, 0.7, 5), deckMat, x, 0.45, z, deck); part(CYL(0.12, 0.12, 1.3, 5), '#3d2b1c', x, -0.35, z, g); }
   scene.add(g); c.model = { g, deck, deckMat }; c.burnT = 0; deck.visible = c.intact;
 }
-for (const c of CROSSINGS) if (c.bridge) makeBridge(c);
+/* ---- the world as one rebuildable group: the convoy fights on new ground most nights ----
+   Everything the terrain, river, walls, trees and bridges add goes into one group, so a fresh
+   battlefield is: change the valley data, throw the group away, build it again. */
+const world = new THREE.Group(); scene.add(world);
+function buildWorld() {
+  for (const o of [...world.children]) { world.remove(o); o.traverse(n => { if (n.geometry) n.geometry.dispose(); }); }
+  treeSpots.length = 0; avoid.length = 0;
+  scene.add = function (...o) { return world.add(...o); };
+  try {
+    buildGraph(); buildTerrain();
+    if (FIELD.castle) paveCourtyard();
+    decorate();
+    for (const c of CROSSINGS) if (c.bridge) makeBridge(c);
+  } finally { delete scene.add; }
+  buildRibbons();
+  keepModel.visible = bell.visible = FIELD.castle;
+  distDirty = true; routeDirty = true;
+}
+if (WAGON) buildWorld();
+else { buildGraph(); buildTerrain(); paveCourtyard(); for (const c of CROSSINGS) if (c.bridge) makeBridge(c); buildRibbons(); }
 
 const enemies = [], soldiers = [], workers = [], shots = [], puffs = [], rockets = [];
 const heroM = makeHeroModel(); scene.add(heroM.g);
@@ -1450,8 +1522,8 @@ function refreshGoal() {
 }
 function updateBellTag() {
   const el = document.getElementById('bellTag');
-  if (WAGON) { el.hidden = true; bellMark.visible = false; return; }
-  const show = S.state === 'day' && !(active && active.key === 'bell');
+  if (WAGON && S.phase !== 'prep') { el.hidden = true; bellMark.visible = false; return; }
+  const show = S.state === 'day' && !(active && active.key === 'bell') && !paused;
   el.hidden = !show; if (!show) { bellMark.visible = false; return; }
   bellMark.visible = true;
   bellMark.position.set(bellPos.x, 4.2 + Math.sin(clock * 3) * 0.25, bellPos.z); bellMark.rotation.y = clock * 1.4;
@@ -1492,7 +1564,7 @@ function refreshHUD() {
   ui.day.textContent = WAGON ? `Region ${S.region + 1} \u00b7 day ${S.day}` : `Day ${S.day} of ${NIGHTS}`;
   ui.phase.textContent = S.state === 'night'
     ? (S.waves > 1 ? `Night \u2014 assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}` : 'Night, hold the valley')
-    : WAGON ? ({ map: 'Choose the road', shop: 'Making ready', dusk: 'Dusk: make camp', circling: 'Circling the wagons' }[S.phase] || 'Daylight') : 'Daylight, build';
+    : WAGON ? ({ map: 'Choose the road', shop: 'Making ready', dusk: 'Dusk: make camp', circling: 'Circling the wagons', prep: 'Set the field' }[S.phase] || 'Daylight') : 'Daylight, build';
 }
 let bannerTimer = 0, shake = 0, freeze = 0;
 function hitStop(ms) { freeze = Math.max(freeze, ms / 1000); }
@@ -1577,7 +1649,7 @@ function removeBuilding(b) {
   setTimeout(refreshHUD, 0);   // the dawn estimate drops the moment a farm or camp burns
   b.alive = false; scene.remove(b.g); if (b.bar) scene.remove(b.bar);
   const p = b.plot; p.building = null;
-  if (b.kind === 'supply') supplyLost(b);
+  if (WAGON && isSupply(b.kind)) supplyLost(b);
   const i = buildings.indexOf(b); if (i >= 0) buildings.splice(i, 1);
   for (const w of b.workers) { scene.remove(w.m.g); workers.splice(workers.indexOf(w), 1); }
   b.workers = [];
@@ -1628,7 +1700,7 @@ const tmp = new V3(), tmp2 = new V3(), tmp3 = new V3();
 const crossLateral = (c, x, z) => Math.abs(-(x - c.x) * Math.sin(c.dir) + (z - c.z) * Math.cos(c.dir));
 function blocked(x, z, forHero) {
   const r = Math.hypot(x, z);
-  if (Math.abs(r - CASTLE_R) < 0.9 && (Math.min(Math.abs(x), Math.abs(z)) > 1.9 || z > 5)) return true;
+  if (FIELD.castle && Math.abs(r - CASTLE_R) < 0.9 && (Math.min(Math.abs(x), Math.abs(z)) > 1.9 || z > 5)) return true;
   if (riverDist(x, z) < RIVER_HALF + 0.1) {
     if (forHero && S.fordMarker) return false;
     for (const c of CROSSINGS) if ((c.ford || c.intact) && Math.hypot(x - c.x, z - c.z) < RIVER_HALF + 2 && crossLateral(c, x, z) < 1.4) return false;
@@ -1851,7 +1923,7 @@ function spawnEnemy(type, entry) {
   e.bar = makeBar('#d2462f', type === 'captain' ? 1.8 : 0.9);
   scene.add(m.g); enemies.push(e);
   if (!S.announced.has(entry)) {
-    S.announced.add(entry); flare(entry);
+    S.announced.add(entry); if (!WAGON) flare(entry);
     const name = ENTRIES.find(x => x.id === entry).name;
     banner(`Raiders at ${name}!`, S.announced.size > 1 ? 'Another warband is coming down from the mountains.' : 'Watch which roads they take.', 3);
     Sound.play('horn'); kick(0.3);
@@ -1893,7 +1965,7 @@ function lancerTurn(e, dt) { // returns true while the lancer is winding up, cha
   return false;
 }
 function killEnemy(e) {
-  if (e.carry) { dropSack(e.pos, e.carry); e.carry = 0; }
+  if (e.carry) { dropSack(e.pos, e.carry, e.carryRes); e.carry = 0; }
   e.alive = false; e.dying = 0.4; S.kills++; scene.remove(e.bar); Sound.play('death');
   if (S.ashes && e.fireT > 0) { firePool(e.pos.x, e.pos.z, 2.4, 3); puff(e.pos, '#ff6a1a', 4, 2); }
 }
@@ -2282,6 +2354,7 @@ function currentPrompt() {
   const held = k => (lastKey === k ? 0.9 : 0);   // same hysteresis for the bell and the bridges
   if (!hero.alive) return null;
   if (WAGON && S.state === 'day') return convoyPrompt();
+  if (WAGON && S.state === 'night') { const cp = convoyPrompt(); if (cp) return cp; }
   for (const c of CROSSINGS) {
     if (!c.bridge || hero.pos.distanceTo(tmp2.set(c.x, hero.pos.y, c.z)) > RIVER_HALF + 2.6 + held('burn' + c.key) + held('fix' + c.key)) continue;
     const anchor = new V3(c.x, 0.3, c.z);
@@ -3198,35 +3271,56 @@ bb.addEventListener('pointerup', bbUp); bb.addEventListener('pointerleave', bbUp
 /* ============================ THE WAGON ROAD ============================
    A run is a journey through regions. Each region is a branching map in the manner of Slay the
    Spire: a camp at the bottom, six floors of choices, a border fort at the top. Between nodes the
-   convoy travels for days and eats; at fight nodes it circles its wagons on new ground in the
-   valley and holds until dawn. Each cart is a *moving plot*, so the building lifecycle - damage,
-   wrecks, repair, ground bonuses, the command aura - works on carts unchanged. */
-const CONVOY = { regions: 3, floors: 6, cols: 7, sack: 8, ring: 8, ringR: 5.6, spacing: 3.6 };
+   convoy travels for days and eats. Every fight is on freshly generated ground: circle the
+   wagons, then set the field - move carts, bar the roads, post soldiers - and beat the drum.
+   The border fort is the old castle valley, and its keep must stand.
+   Each cart is a *moving plot*, so the building lifecycle - damage, wrecks, repair, ground
+   bonuses, the command aura - works on carts unchanged. */
+const CONVOY = { regions: 3, floors: 6, cols: 7, sack: 8, ring: 8, ringR: 5.6, spacing: 3.6, campReach: 30 };
 const REGION_NAME = ['The Xuanfu marches', 'The Datong corridor', 'The Great Wall breach'];
 const NODE_INFO = {
   camp:   { g: '营', n: 'Region camp',   d: 'Gather, build, trade, level up' },
-  fight:  { g: '战', n: 'Raiders',       d: 'Circle the wagons and hold the night' },
+  fight:  { g: '战', n: 'Raiders',       d: 'New ground. Circle the wagons and hold the night' },
   elite:  { g: '将', n: 'A chief’s warband', d: 'A hard night. Two rewards' },
   market: { g: '市', n: 'Horse market',  d: 'Trade, recruit and build' },
   village:{ g: '村', n: 'Village',       d: 'Recruits and a little food' },
   rest:   { g: '堡', n: 'Friendly fort', d: 'Heal the men, mend the carts' },
   cache:  { g: '仓', n: 'Supply cache',  d: 'Abandoned stores, free for the taking' },
-  boss:   { g: '关', n: 'The border fort', d: 'Break through to the next region' },
+  boss:   { g: '关', n: 'The border fort', d: 'Reach the fort and hold it through the night. Its keep must stand' },
 };
-const FOOD_PER_SOLDIER = 1, FOOD_BASE = 2, SPOIL_CHANCE = 0.08;
+const FOOD_BASE = 2, SPOIL_CHANCE = 0.08;
 const HUNGER_HIT = 0.34;        // share of a soldier's max HP lost for each day without food
-const REPAIR = { tower: 4, rockets: 5, bombard: 6, barricade: 2, supply: 3 };   // in wood
+const REPAIR = { tower: 4, rockets: 5, bombard: 6, barricade: 3 };   // in wood
 const LEVELS = [   // convoy level: what each level unlocks, and what it costs to reach
-  { cost: null,                   soldiers: 6,  hp: 1.0,  carts: ['tower', 'barricade'] },
-  { cost: { wood: 14, stone: 6 }, soldiers: 9,  hp: 1.2,  carts: ['tower', 'barricade', 'rockets'] },
-  { cost: { wood: 20, stone: 14 }, soldiers: 12, hp: 1.45, carts: ['tower', 'barricade', 'rockets', 'bombard'] },
+  { cost: null,                    soldiers: 14, hp: 1.0,  carts: ['tower', 'barricade'] },
+  { cost: { wood: 14, stone: 6 },  soldiers: 20, hp: 1.2,  carts: ['tower', 'barricade', 'rockets'] },
+  { cost: { wood: 20, stone: 14 }, soldiers: 26, hp: 1.45, carts: ['tower', 'barricade', 'rockets', 'bombard'] },
 ];
-const CART_COST = { tower: { wood: 6, stone: 2 }, rockets: { wood: 7, stone: 4 }, bombard: { wood: 6, stone: 9 }, barricade: { wood: 4 }, supply: { wood: 6 } };
+const CART_COST = { tower: { wood: 6, stone: 2 }, rockets: { wood: 7, stone: 4 }, bombard: { wood: 6, stone: 9 }, barricade: { wood: 5 } };
+// the three supply wagons: what they carry, and what it looks like when raiders run off with it
+const SUPPLY = {
+  food:  { res: 'grain', name: 'Food wagon',  word: 'food',  col: '#d9b45a', sack: '#c9a466', per: 15 },
+  wood:  { res: 'wood',  name: 'Wood wagon',  word: 'wood',  col: '#b0784a', sack: '#8b6039', per: 6 },
+  stone: { res: 'stone', name: 'Stone wagon', word: 'stone', col: '#b9b4aa', sack: '#a39d92', per: 4 },
+};
+const isSupply = k => k in SUPPLY;
+const foodPerDay = () => Math.max(1, FOOD_BASE + Math.ceil(S.roster.length / 2) - S.rationCut);
+const daysOfFood = () => Math.floor(S.res.grain / foodPerDay());
+const rationToday = foodPerDay;
+
+Object.assign(DEFS, {
+  food:  { name: 'Food wagon',  cart: true, cost: {}, hp: 190, desc: 'Every sack of food you carry. Lose it and the convoy is finished' },
+  wood:  { name: 'Wood wagon',  cart: true, cost: {}, hp: 170, desc: 'Timber for carts, barricades and repairs' },
+  stone: { name: 'Stone wagon', cart: true, cost: {}, hp: 170, desc: 'Stone for levels, spikes and cannon' },
+});
+Object.assign(DEFS.barricade, { hp: 260, block: true, desc: 'A heavy wagon of stakes and planks. Park it across a road and raiders must hack through it' });
 
 // no fixed construction sites in this game
 for (const p of plots) scene.remove(p.marker);
 plots.length = 0;
 keep.alive = false; keep.hp = Infinity;
+const ORIG = JSON.parse(JSON.stringify({ NODE_DEF, EDGE_DEF, RIVER, ENTRIES, VALLEY }));
+const ORIG_BELL = bellPos.clone();
 
 /* ---------------- the carts ---------------- */
 function wagonBed(g, col) {
@@ -3247,43 +3341,63 @@ function makeXbowCart(level) {
   part(B(0.7, 0.05, 0.08), C.woodDark, 0, 0.46, 0.3, archer);
   g.userData.archer = archer; g.userData.fireY = 1.45; return g;
 }
-function makeSupplyWagon() {
+function supplyBed(kind) {
   const g = new THREE.Group(); wagonBed(g, '#76532f');
-  const hood = part(new THREE.CylinderGeometry(0.78, 0.78, 2.2, 8, 1, true, 0, Math.PI), '#cdb98e', 0, 0.8, 0, g);
-  hood.rotation.set(Math.PI / 2, 0, Math.PI / 2); hood.material = M('#cdb98e', { side: THREE.DoubleSide });
-  const sacks = [];
-  for (let i = 0; i < 4; i++) sacks.push(part(new THREE.DodecahedronGeometry(0.3, 0), '#b8955a', (i % 2 - 0.5) * 0.6, 0.98, -0.75 + Math.floor(i / 2) * 0.7, g));
-  g.userData.sacks = sacks; g.userData.fireY = 1.2; return g;
+  const sp = SUPPLY[kind], load = [];
+  // a pennant in the wagon's colour, so each one reads from across the field
+  part(CYL(0.035, 0.035, 2.2, 4), C.woodDark, 0.62, 1.6, -1.05, g);
+  part(B(0.04, 0.5, 0.75), sp.col, 0.62, 2.45, -0.7, g).userData.flag = true;
+  if (kind === 'food') {
+    const hood = part(new THREE.CylinderGeometry(0.78, 0.78, 2.2, 8, 1, true, 0, Math.PI), '#cdb98e', 0, 0.8, 0, g);
+    hood.rotation.set(Math.PI / 2, 0, Math.PI / 2); hood.material = M('#cdb98e', { side: THREE.DoubleSide });
+    for (let i = 0; i < 4; i++) load.push(part(new THREE.DodecahedronGeometry(0.3, 0), '#b8955a', (i % 2 - 0.5) * 0.6, 0.98, -0.75 + Math.floor(i / 2) * 0.7, g));
+  } else if (kind === 'wood') {
+    for (let i = 0; i < 4; i++) { const m = part(CYL(0.2, 0.2, 2.3, 7), i % 2 ? '#8b6039' : '#7a5230', (i % 2 - 0.5) * 0.46, 0.98 + Math.floor(i / 2) * 0.36, 0, g); m.rotation.x = Math.PI / 2; load.push(m); }
+  } else {
+    for (let i = 0; i < 4; i++) { const m = part(new THREE.DodecahedronGeometry(0.34, 0), i % 2 ? '#a39d92' : '#8f897e', (i % 2 - 0.5) * 0.6, 1.0, -0.7 + Math.floor(i / 2) * 0.8, g); m.scale.set(1.2, 0.8, 1); load.push(m); }
+  }
+  g.userData.load = load; g.userData.fireY = 1.2; return g;
 }
 function makeBarricadeWagon() {
   const g = new THREE.Group(); wagonBed(g, '#5d4a33');
   for (const x of [0.72, -0.72]) for (let i = 0; i < 4; i++) part(B(0.08, 1.1, 0.5), C.woodDark, x, 1.3, -0.9 + i * 0.6, g).rotation.z = x > 0 ? -0.2 : 0.2;
+  for (let i = 0; i < 5; i++) part(CYL(0.05, 0.08, 1.5, 4), '#a58a64', -0.8 + i * 0.4, 1.2, 1.2, g).rotation.x = 0.9;   // stakes set outward
   return g;
 }
-MODEL2.tower = makeXbowCart; MODEL2.supply = makeSupplyWagon; MODEL2.barricade = makeBarricadeWagon;
+MODEL2.tower = makeXbowCart; MODEL2.barricade = makeBarricadeWagon;
+MODEL2.food = () => supplyBed('food'); MODEL2.wood = () => supplyBed('wood'); MODEL2.stone = () => supplyBed('stone');
+function makeDrum() {
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++) { const a = i / 3 * TAU; part(CYL(0.05, 0.06, 1.1, 4), C.woodDark, Math.sin(a) * 0.5, 0.5, Math.cos(a) * 0.5, g).rotation.set(Math.cos(a) * 0.25, 0, -Math.sin(a) * 0.25); }
+  part(CYL(0.62, 0.62, 0.72, 12), C.lacquer, 0, 1.25, 0, g);
+  part(CYL(0.6, 0.6, 0.04, 12), '#d9c7a0', 0, 1.62, 0, g);
+  part(CYL(0.64, 0.64, 0.06, 12), C.gold, 0, 1.0, 0, g); part(CYL(0.64, 0.64, 0.06, 12), C.gold, 0, 1.5, 0, g);
+  return g;
+}
+const drum = makeDrum(); drum.visible = false; scene.add(drum);
 
 const convoy = [];
 function addWagon(kind, level, x, z, rot) {
-  const p = { kind: 'cart', cart: true, cartKind: kind, x: x || 0, z: z || 0, rotY: rot || 0, pos: new V3(), options: [], building: null, ruin: null, spots: [] };
+  const p = { kind: 'cart', cart: true, cartKind: kind, x: x || 0, z: z || 0, rotY: rot || 0, pos: new V3(), options: [], building: null, ruin: null, spots: [], edgeKey: null };
   p.pos.set(p.x, Math.max(groundY(p), 0), p.z);
   convoy.push(p);
   const b = build(p, kind, true, level || 0); b.barY = 2.5; b.radius = 1.45;
   return p;
 }
+function rebuildCart(p) { const b = build(p, p.ruin.kind, true, p.ruin.level); b.barY = 2.5; b.radius = 1.45; return b; }
 function wagonAt(p, x, z, rot) {
   p.x = x; p.z = z; p.rotY = rot; p.pos.set(x, Math.max(groundY({ x, z }), 0), z);
   const b = p.building;
   if (b) { b.pos.copy(p.pos); b.g.position.copy(p.pos); b.g.rotation.y = rot; }
   if (p.ruin) p.ruin.g.position.copy(p.pos);
 }
-const combatCarts = () => convoy.filter(p => p.building && p.cartKind !== 'supply');
-const supplyWagons = () => convoy.filter(p => p.building && p.cartKind === 'supply');
-function foodPerDay() { return Math.max(1, FOOD_BASE + S.roster.length * FOOD_PER_SOLDIER - S.rationCut); }
-function daysOfFood() { return Math.floor(S.res.grain / foodPerDay()); }
-function rationToday() { return foodPerDay(); }
+const combatCarts = () => convoy.filter(p => p.building && !isSupply(p.cartKind));
+const supplyWagons = () => convoy.filter(p => p.building && isSupply(p.cartKind));
 function refreshSacks() {
-  const sw = supplyWagons(), share = sw.length ? S.res.grain / sw.length : 0;
-  for (const p of sw) { const n = Math.min(4, Math.ceil(share / 10)); p.building.g.userData.sacks.forEach((s, i) => s.visible = i < n); }
+  for (const p of supplyWagons()) {
+    const sp = SUPPLY[p.cartKind], n = Math.min(4, Math.ceil(S.res[sp.res] / sp.per));
+    p.building.g.userData.load.forEach((s, i) => s.visible = i < n);
+  }
 }
 function layoutColumn(x, z, rot) {
   const ux = Math.sin(rot), uz = Math.cos(rot);
@@ -3292,20 +3406,24 @@ function layoutColumn(x, z, rot) {
 
 /* ---------------- the men ---------------- */
 Object.assign(S, { roster: [], soldierStr: 1, soldierHpMul: 1, level: 0, workers: 3, gathers: 0, region: 0, floor: 0,
-  map: null, at: null, phase: 'map', camp: null, stolen: 0, site: null, fought: 0, starved: 0 });
+  map: null, at: null, phase: 'map', camp: null, stolen: 0, site: null, fought: 0, starved: 0, path: [], towing: null, roadPlots: [] });
 function addSoldiers(n) {
   const cap = LEVELS[S.level].soldiers; let added = 0;
   while (n-- > 0 && S.roster.length < cap) { const max = Math.round(SOLDIER.hp * S.soldierHpMul); S.roster.push({ hp: max, max }); added++; }
   return added;
 }
-// soldiers exist as fighters only while the wagons are circled; between camps they are a roster
+// on a battlefield the men are on the ground and follow the commander until he posts them;
+// between fields they are a roster of names and wounds
+const post = { alive: true, pos: new V3(), plot: { rotY: 0 }, soldiers: [], kind: 'camp' };
 function musterSoldiers() {
-  const c = S.camp, post = { alive: true, pos: new V3(c.cx, 0, c.cz), plot: { rotY: 0 }, soldiers: [], kind: 'camp' };
+  if (soldiers.length) dismissSoldiers();
+  post.soldiers = [];
   S.roster.forEach((r, i) => {
-    const a = i / Math.max(1, S.roster.length) * TAU, rr = 2.9 + (i % 2) * 0.6;
-    const home = new V3(c.cx + Math.sin(a) * rr, 0, c.cz + Math.cos(a) * rr); home.y = Math.max(groundY(home), 0);
+    const a = i / Math.max(1, S.roster.length) * TAU, rr = 2.5 + (i % 3) * 0.7;
+    const home = new V3(hero.pos.x + Math.sin(a) * rr, 0, hero.pos.z + Math.cos(a) * rr); home.y = Math.max(groundY(home), 0);
     const m = makeSoldierModel();
-    const s = { isSoldier: true, alive: true, hp: r.hp, max: r.max, pos: home.clone(), home, m, cd: Math.random() * 0.5, bob: Math.random() * 6, barY: 1.9, atkT: 0, house: post, roster: r, hungry: r.hungry };
+    const s = { isSoldier: true, alive: true, hp: r.hp, max: r.max, pos: home.clone(), home, m, cd: Math.random() * 0.5, bob: Math.random() * 6, barY: 1.9, atkT: 0,
+      house: post, roster: r, hungry: r.hungry, following: true, followT: Infinity };
     s.bar = makeBar('#9fc166', 0.7); m.g.position.copy(home); scene.add(m.g);
     post.soldiers.push(s); soldiers.push(s);
   });
@@ -3323,12 +3441,23 @@ function dismissSoldiers() {
   soldiers.length = 0;
   return { lost, wounded };
 }
+const followers = () => soldiers.filter(s => s.alive && s.following);
+function postSoldiers(n) {
+  const f = followers().sort((a, b) => a.pos.distanceTo(hero.pos) - b.pos.distanceTo(hero.pos)).slice(0, n);
+  f.forEach((s, i) => {
+    const a = i / f.length * TAU, r = f.length > 1 ? 1.1 + Math.floor(i / 8) * 0.9 : 0;
+    s.following = false; s.posted = true;
+    s.home = new V3(hero.pos.x + Math.sin(a) * r, 0, hero.pos.z + Math.cos(a) * r);
+  });
+  banner(`${f.length} soldier${f.length > 1 ? 's' : ''} posted`, 'They hold this ground and fight whatever comes near.', 1.8);
+}
+function recallSoldiers(list) { for (const s of list) { s.following = true; s.followT = Infinity; s.posted = false; } banner('They fall in behind you', '', 1.4); }
 
 /* ---------------- the map: a Slay the Spire region ----------------
    Paths start on distinct columns and step up one floor at a time, left, straight or right, and
    may not cross an existing path. Elites and forts stay off the early floors, a fort always sits
    on the last floor before the border, and every last-floor node leads to the border fort. */
-function genRegion(r) {
+function genRegion() {
   const F = CONVOY.floors, W = CONVOY.cols, nodes = {}, key = (f, c) => f + ':' + c;
   // two diagonal steps cross when one goes c -> nc and another already went nc -> c
   const edge = new Set(), crosses = (f, c, nc) => c !== nc && edge.has(f + ':' + nc + '>' + c);
@@ -3348,7 +3477,6 @@ function genRegion(r) {
   nodes.start = { f: 0, c: 3, next: new Set(Object.keys(nodes).filter(k => nodes[k].f === 1)), type: 'camp' };
   nodes.boss = { f: F + 1, c: 3, next: new Set(), type: 'boss' };
   for (const k in nodes) if (nodes[k].f === F) nodes[k].next.add('boss');
-  // rooms, with Slay the Spire's spirit of rules: fights first, no elite/fort early, fort before the border
   const pick = f => {
     if (f === 1) return 'fight';
     if (f === F) return 'rest';
@@ -3365,24 +3493,72 @@ function genRegion(r) {
   }
   // every road on the map takes days; longer roads mean more mouths fed for longer
   for (const k in nodes) { nodes[k].days = {}; for (const nx of nodes[k].next) nodes[k].days[nx] = k === 'start' ? 1 : 1 + Math.floor(Math.random() * Math.random() * 3.2); }
-  for (const k in nodes) nodes[k].site = pickSite();
   return nodes;
 }
-// a fresh stretch of ground in the valley for each place on the map
-function pickSite() {
-  for (let i = 0; i < 60; i++) {
-    const ids = Object.keys(NODES).filter(id => id[0] !== 'P' && id !== 'K' && id[0] !== 'G');
-    const n = NODES[ids[Math.floor(Math.random() * ids.length)]].pos;
-    const a = Math.random() * TAU, r = 6 + Math.random() * 12, x = n.x + Math.sin(a) * r, z = n.z + Math.cos(a) * r;
-    if (!blocked(x, z) && riverDist(x, z) > 5) return { x, z, rot: Math.random() * TAU };
+
+/* ---------------- new ground for every fight ----------------
+   A valley of a new shape, three to five passes spread round its rim, junctions scattered over
+   the floor and joined by a Gabriel graph (planar and always connected, so it reads as roads),
+   and often a river with a ford and bridges. The terrain code is the same; only its data changes. */
+const COMPASS = ['eastern', 'north-eastern', 'northern', 'north-western', 'western', 'south-western', 'southern', 'south-eastern'];
+function genField(nPass) {
+  const R = Math.random;
+  Object.assign(FIELD, { castle: false, southWall: false, greatWall: false });
+  Object.assign(VALLEY, { cx: 0, cz: -4, rx: 58 + R() * 14, rz: 50 + R() * 12 });
+  for (const k in NODE_DEF) delete NODE_DEF[k];
+  EDGE_DEF.length = 0; RIVER.length = 0; ENTRIES.length = 0;
+  const ell = (x, z) => Math.hypot((x - VALLEY.cx) / VALLEY.rx, (z - VALLEY.cz) / VALLEY.rz);
+  if (R() < 0.6) {                       // a river right across the valley
+    const a = R() * Math.PI, dx = Math.cos(a), dz = Math.sin(a), off = (R() - 0.5) * 36;
+    for (let t = -150; t <= 150; t += 30) { const w = Math.abs(t) < 140 ? (R() - 0.5) * 16 : 0; RIVER.push([VALLEY.cx - dz * (off + w) + dx * t, VALLEY.cz + dx * (off + w) + dz * t]); }
   }
-  return { x: 0, z: -40, rot: 0 };
+  const J = [];
+  for (let i = 0; i < 600 && J.length < 9; i++) {
+    const x = VALLEY.cx + (R() * 2 - 1) * VALLEY.rx, z = VALLEY.cz + (R() * 2 - 1) * VALLEY.rz;
+    if (ell(x, z) > 0.76 || riverDist(x, z) < 8 || J.some(p => Math.hypot(p[0] - x, p[1] - z) < 19)) continue;
+    J.push([x, z]);
+  }
+  J.forEach((p, i) => NODE_DEF['J' + (i + 1)] = p);
+  const segs = [];
+  const clearOfSegs = (a, b) => segs.every(s => (s[0] === a || s[1] === a || s[0] === b || s[1] === b) || !segHit(NODE_DEF[a], NODE_DEF[b], NODE_DEF[s[0]], NODE_DEF[s[1]]));
+  for (let i = 0; i < J.length; i++) for (let k = i + 1; k < J.length; k++) {
+    const mx = (J[i][0] + J[k][0]) / 2, mz = (J[i][1] + J[k][1]) / 2, r = Math.hypot(J[i][0] - J[k][0], J[i][1] - J[k][1]) / 2;
+    if (J.some((p, m) => m !== i && m !== k && Math.hypot(p[0] - mx, p[1] - mz) < r)) continue;
+    segs.push(['J' + (i + 1), 'J' + (k + 1)]);
+  }
+  const used = new Set(), a0 = R() * TAU;
+  for (let i = 0; i < nPass; i++) {
+    let a = a0 + i * TAU / nPass + (R() - 0.5) * 0.5, x, z, tries = 0;
+    do { x = VALLEY.cx + Math.cos(a) * VALLEY.rx * 1.32; z = VALLEY.cz + Math.sin(a) * VALLEY.rz * 1.32; a += 0.15; } while (riverDist(x, z) < 10 && tries++ < 20);
+    const id = 'P' + (i + 1); NODE_DEF[id] = [x, z];
+    const byDist = Object.keys(NODE_DEF).filter(k => k[0] === 'J').sort((p, q) => Math.hypot(NODE_DEF[p][0] - x, NODE_DEF[p][1] - z) - Math.hypot(NODE_DEF[q][0] - x, NODE_DEF[q][1] - z));
+    const to = byDist.find(j => clearOfSegs(id, j)) || byDist[0];
+    segs.push([id, to]);
+    let name = COMPASS[((Math.round(Math.atan2(-(z - VALLEY.cz), x - VALLEY.cx) / (TAU / 8)) % 8) + 8) % 8];
+    if (used.has(name)) name = 'far ' + name; used.add(name);
+    ENTRIES.push({ id, name: `the ${name} pass` });
+  }
+  EDGE_DEF.push(...segs);
+  computeCrossings((c, i) => i === 0 ? 'ford' : 'bridge');
+  buildWorld();
+}
+function loadFort() {
+  Object.assign(FIELD, { castle: true, southWall: true, greatWall: true });
+  for (const k in NODE_DEF) delete NODE_DEF[k];
+  Object.assign(NODE_DEF, JSON.parse(JSON.stringify(ORIG.NODE_DEF)));
+  EDGE_DEF.length = 0; EDGE_DEF.push(...ORIG.EDGE_DEF.map(e => e.slice()));
+  RIVER.length = 0; RIVER.push(...ORIG.RIVER.map(p => p.slice()));
+  ENTRIES.length = 0; ENTRIES.push(...ORIG.ENTRIES.map(e => Object.assign({}, e)));
+  Object.assign(VALLEY, ORIG.VALLEY);
+  computeCrossings(VALLEY_PICK);
+  buildWorld();
 }
 
 /* ---------------- travelling the map ---------------- */
-function nextOptions() { return [...S.map[S.at].next].sort((a, b) => S.map[a].c - S.map[b].c); }
+function nextOptions() { return S.at ? [...S.map[S.at].next].sort((a, b) => S.map[a].c - S.map[b].c) : ['start']; }
 function travelTo(k) {
-  const from = S.map[S.at], days = from.days[k] || 1, notes = [];
+  const days = S.at ? S.map[S.at].days[k] || 1 : 0, notes = [];
+  clearField();
   for (let d = 0; d < days; d++) {
     S.day++;
     if (Math.random() < SPOIL_CHANCE && S.res.grain > 4) { const lost = Math.ceil(S.res.grain * 0.12); S.res.grain -= lost; notes.push(`Rain got into the sacks: ${lost} food spoiled.`); }
@@ -3395,54 +3571,111 @@ function travelTo(k) {
       notes.push(died ? `Day ${S.day}: no food. ${died} soldier${died > 1 ? 's' : ''} died of hunger.` : `Day ${S.day}: no food. The men go hungry and weaken.`);
     }
   }
-  S.at = k; S.floor = S.map[k].f;
-  const n = S.map[k];
-  layoutColumn(n.site.x, n.site.z, n.site.rot);
-  hero.pos.set(n.site.x + Math.cos(n.site.rot) * 2.4, 0, n.site.z - Math.sin(n.site.rot) * 2.4); hero.face = n.site.rot;
-  camFocus.set(hero.pos.x, 0, hero.pos.z);
+  S.at = k; S.floor = S.map[k].f; S.path.push(k);
   $('#smap').hidden = true; refreshHUD(); refreshSacks();
   if (notes.length) banner(days > 1 ? `${days} days on the road` : 'A day on the road', notes.join(' '), 4.5);
-  arrive(n);
+  arrive(S.map[k]);
 }
 function arrive(n) {
-  S.site = n.site;
-  if (n.type === 'fight' || n.type === 'elite' || n.type === 'boss') return toDusk(n.type);
+  if (n.type === 'fight' || n.type === 'elite' || n.type === 'boss') return enterField(n.type);
+  if (n.type === 'camp') return openShop('camp');
   if (n.type === 'rest') {
     for (const r of S.roster) { r.hp = r.max; r.hungry = false; }
     for (const b of buildings) b.hp = b.max;
-    for (const p of convoy) if (p.ruin) { build(p, p.ruin.kind, true, p.ruin.level); p.building.barY = 2.5; p.building.radius = 1.45; }
+    for (const p of convoy) if (p.ruin) rebuildCart(p);
     banner('Behind the walls of a friendly fort', 'The men are fed and healed, every cart mended.', 3.5);
     return openShop('rest');
   }
   if (n.type === 'cache') {
-    const f = 10 + Math.floor(Math.random() * 10), w = 4 + Math.floor(Math.random() * 6), s = 2 + Math.floor(Math.random() * 4);
+    const f = 14 + Math.floor(Math.random() * 12), w = 5 + Math.floor(Math.random() * 6), s = 2 + Math.floor(Math.random() * 4);
     S.res.grain += f; S.res.wood += w; S.res.stone += s; refreshHUD(); refreshSacks();
     banner('An abandoned supply cache', `+${f} food, +${w} wood, +${s} stone.`, 3.5);
     return setTimeout(openMap, 1400);
   }
   openShop(n.type);
 }
-function toDusk(type) {
-  S.nightType = type; S.phase = 'dusk'; S.state = 'day'; refreshHUD();
-  banner(type === 'boss' ? 'The border fort' : type === 'elite' ? 'A chief’s warband is near' : 'Dusk',
-    'Ride to the ground you want and hold Space to circle the wagons.', 3.5);
+function nearestNode(x, z, ok) {
+  let nn = null, nd = Infinity;
+  for (const id in NODES) { if (ok && !ok(id)) continue; const d = Math.hypot(NODES[id].pos.x - x, NODES[id].pos.z - z); if (d < nd) { nd = d; nn = id; } }
+  return nn;
+}
+function enterField(type) {
+  S.nightType = type; S.state = 'day';
+  while (flareGroup.children.length) flareGroup.remove(flareGroup.children[0]);
+  for (const k in fleeCache) delete fleeCache[k];
+  const W = waveFor();
+  if (type === 'boss') loadFort(); else genField(S.region >= 1 ? 5 : 4);
+  S.preEntries = pickEntries(W.entries);
+  let x, z, rot;
+  if (type === 'boss') { x = 0; z = -22; rot = 0; }
+  else {
+    // start at the junction farthest from tonight's passes, the column strung back along a road
+    const far = id => S.preEntries.reduce((a, p) => a + NODES[id].pos.distanceTo(NODES[p].pos), 0);
+    const js = Object.keys(NODES).filter(id => id[0] === 'J').sort((a, b) => far(b) - far(a));
+    const j = NODES[js[0]], e = j.adj.find(ed => (ed.a === j.id ? ed.b : ed.a)[0] === 'J') || j.adj[0], o = NODES[e.a === j.id ? e.b : e.a];
+    x = j.pos.x; z = j.pos.z; rot = Math.atan2(x - o.pos.x, z - o.pos.z);
+  }
+  S.site = { x, z, rot };
+  for (const p of convoy) if (p.ruin) { scene.remove(p.ruin.g); p.ruin = null; }
+  layoutColumn(x, z, rot);
+  hero.pos.set(x + Math.cos(rot) * 2.6, 0, z - Math.sin(rot) * 2.6); hero.face = rot; hero.alive = true; hero.m.g.visible = true;
+  camFocus.set(hero.pos.x, 0, hero.pos.z);
+  for (const id of S.preEntries) flare(id);
+  musterSoldiers();
+  DIST_TARGET = type === 'boss' ? 'K' : nearestNode(x, z, id => id[0] !== 'P'); distDirty = true;
+  refreshSacks(); refreshHUD();
+  const names = S.preEntries.map(p => ENTRIES.find(e => e.id === p).name);
+  if (type === 'boss') return toFortPrep(names);
+  S.phase = 'dusk'; refreshHUD();
+  banner(type === 'elite' ? 'A chief’s warband is near' : 'New ground', `Raiders will come from ${names.join(' and ')}. Ride to the ground you want and hold Space to circle the wagons.`, 5);
+}
+// the border fort: the old castle valley. The wagons pull into the courtyard and the keep must stand.
+function toFortPrep(names) {
+  keep.alive = true; keep.pos.set(0, 0, 0);
+  keep.max = keep.hp = Math.round(KEEP_HP * (0.7 + S.region * 0.2));
+  S.camp = null;
+  const sw = supplyWagons(), cc = combatCarts();
+  sw.forEach((p, i) => { const a = Math.PI + (i - 1) * 0.7; wagonAt(p, Math.sin(a) * 7, Math.cos(a) * 7 + 1, a + Math.PI / 2); });
+  const gates = [[0, -1], [1, 0], [-1, 0]];
+  cc.forEach((p, i) => { const [gx, gz] = gates[i % 3], side = (Math.floor(i / 3) % 2 ? -1 : 1) * (1 + Math.floor(i / 6)) * 2.2, r = CASTLE_R + 3.5;
+    wagonAt(p, gx * r + (gz ? side : 0), gz * r + (gx ? side : 0), Math.atan2(gx, gz) + Math.PI / 2); });
+  hero.pos.set(0, 0, -12); camFocus.set(0, 0, -12);
+  toPrep(ORIG_BELL, false);
+  banner('The border fort', `Raiders will come from ${names.join(' and ')}. Set the carts, bar the roads, post your soldiers, then ring the bell. The keep must stand.`, 6);
+}
+function toPrep(at, drumOn) {
+  S.phase = 'prep';
+  bellPos.set(at.x, 0, at.z);
+  drum.visible = drumOn; if (drumOn) drum.position.set(at.x, Math.max(groundY(at), 0), at.z);
+  $('#bellTag').innerHTML = drumOn ? '<b>The war drum</b>Hold Space here to begin the night<i></i>' : '<b>The bell</b>Hold Space here to begin the night<i></i>';
+  distDirty = true; routeDirty = true; refreshHUD();
 }
 function waveFor() {
   const g = S.region * CONVOY.floors + S.floor, d = Math.min(7, 1 + g * 0.42);
   const W = WAVES[Math.min(Math.round(d) - 1, WAVES.length - 1)];
-  const k = (S.nightType === 'boss' ? 0.75 : S.nightType === 'elite' ? 0.55 : 0.38) * (0.9 + S.region * 0.15);
-  return { foot: Math.max(5, Math.round(W.foot * k)), horse: Math.round(W.horse * k * 0.8), lancer: Math.round(W.lancer * k),
-    shield: Math.round(W.shield * k), torch: Math.round(W.torch * 0.6), ironcoat: Math.round(W.ironcoat * k),
-    spearhedge: Math.round(W.spearhedge * k), captain: S.nightType === 'boss' ? 1 + S.region : S.nightType === 'elite' ? 1 : 0,
-    entries: S.nightType === 'boss' ? 3 : 2, waves: S.nightType === 'boss' ? 4 : S.nightType === 'elite' ? 3 : Math.min(3, 1 + Math.floor(g / 4)) };
+  const t = S.nightType, k = (t === 'boss' ? 1.25 : t === 'elite' ? 0.95 : 0.65) * (0.9 + S.region * 0.15);
+  return { foot: Math.max(10, Math.round(W.foot * k)), horse: Math.round(W.horse * k * 0.8), lancer: Math.round(W.lancer * k),
+    shield: Math.round(W.shield * k), torch: Math.round(W.torch * 0.8), ironcoat: Math.round(W.ironcoat * k),
+    spearhedge: Math.round(W.spearhedge * k), captain: t === 'boss' ? 1 + S.region : t === 'elite' ? 1 : 0,
+    entries: t === 'boss' || t === 'elite' || S.region >= 2 ? 3 : 2, waves: t === 'boss' ? 4 : t === 'elite' ? 3 : Math.min(3, 2 + Math.floor(g / 7)) };
 }
 function pickEntries(n) { return ENTRIES.map(x => x.id).sort(() => Math.random() - 0.5).slice(0, n); }
+// everything built for one night stays on that ground
+function clearField() {
+  for (const p of S.roadPlots) { if (p.building) { const b = p.building; b.alive = false; scene.remove(b.g); if (b.bar) scene.remove(b.bar); buildings.splice(buildings.indexOf(b), 1); } if (p.ruin) scene.remove(p.ruin.g); }
+  S.roadPlots = [];
+  for (const g of gapMarks) scene.remove(g); gapMarks.length = 0;
+  while (flareGroup.children.length) flareGroup.remove(flareGroup.children[0]);
+  drum.visible = false; S.towing = null; S.camp = null; S.preEntries = null; S.entries = null;
+  for (const p of convoy) p.edgeKey = null;
+  if (keep.alive) { keep.alive = false; keep.hp = Infinity; }
+}
 
 /* ---------------- circling the wagons ---------------- */
 function ringPlan(cx, cz) {
   const R = CONVOY.ringR, slots = [];
   if (blocked(cx, cz)) return { ok: false, why: 'Too rough to make camp on' };
-  if (Math.hypot(cx - S.site.x, cz - S.site.z) > 18) return { ok: false, why: 'Too far from the column' };
+  if (Math.hypot(cx - S.site.x, cz - S.site.z) > CONVOY.campReach) return { ok: false, why: 'Too far from the column' };
   for (let k = 0; k < CONVOY.ring; k++) {
     const a = k / CONVOY.ring * TAU, x = cx + Math.sin(a) * R, z = cz + Math.cos(a) * R;
     slots.push({ a, x, z, wall: blocked(x, z) || riverDist(x, z) < RIVER_HALF + 0.6, plot: null });
@@ -3458,24 +3691,27 @@ function circleWagons(plan) {
   S.camp = plan; S.phase = 'circling';
   const extra = combatCarts().filter(p => !plan.slots.some(s => s.plot === p));
   const inside = [...supplyWagons(), ...extra], inner = [];
-  inside.forEach((p, i) => { const a = i / Math.max(1, inside.length) * TAU + 0.4, r = inside.length > 1 ? 2.1 : 0; inner.push({ p, x: plan.cx + Math.sin(a) * r, z: plan.cz + Math.cos(a) * r, rot: a }); });
+  inside.forEach((p, i) => { const a = i / Math.max(1, inside.length) * TAU + 0.4, r = inside.length > 1 ? 2.5 : 0; inner.push({ p, x: plan.cx + Math.sin(a) * r, z: plan.cz + Math.cos(a) * r, rot: a }); });
   const moves = [...plan.slots.filter(s => s.plot).map(s => ({ p: s.plot, x: s.x, z: s.z, rot: s.a + Math.PI / 2 })), ...inner];
   circling = { t: 0, dur: 2.4, moves: moves.map(m => ({ ...m, sx: m.p.x, sz: m.p.z, sr: m.p.rotY })) };
   Sound.play('build'); ringPreview.visible = false;
+}
+function refreshGaps() {
+  for (const g of gapMarks) scene.remove(g); gapMarks.length = 0;
+  if (!S.camp) return;
+  for (const s of S.camp.slots) if (!s.wall && !s.plot) { const g = gapMark.clone(); g.position.set(s.x, Math.max(groundY(s), 0), s.z); scene.add(g); gapMarks.push(g); }
 }
 function updateCircling(dt) {
   circling.t += dt; const k = smooth(0, 1, circling.t / circling.dur);
   for (const m of circling.moves) wagonAt(m.p, lerp(m.sx, m.x, k), lerp(m.sz, m.z, k), m.sr + angDiff(m.rot, m.sr) * k);
   if (circling.t >= circling.dur + 0.4) {
     circling = null;
-    let nn = null, nd = Infinity;
-    for (const id in NODES) { if (id[0] === 'P' || id === 'K') continue; const d = Math.hypot(NODES[id].pos.x - S.camp.cx, NODES[id].pos.z - S.camp.cz); if (d < nd) { nd = d; nn = id; } }
-    DIST_TARGET = nn; distDirty = true; for (const k2 in fleeCache) delete fleeCache[k2];
+    DIST_TARGET = nearestNode(S.camp.cx, S.camp.cz, id => id[0] !== 'P' && id !== 'K'); for (const k2 in fleeCache) delete fleeCache[k2];
     keep.pos.set(S.camp.cx, 0, S.camp.cz);
     campfire.position.set(S.camp.cx, 1.2, S.camp.cz);
-    for (const s of S.camp.slots) if (!s.wall && !s.plot) { const g = gapMark.clone(); g.position.set(s.x, Math.max(groundY(s), 0), s.z); scene.add(g); gapMarks.push(g); }
-    musterSoldiers();
-    S.phase = 'night'; startNight();
+    refreshGaps();
+    toPrep({ x: S.camp.cx, z: S.camp.cz }, true);
+    banner('The wagons are circled', 'Now set the field: move carts, bar the roads, post soldiers. Beat the drum in the ring when you are ready.', 5);
   }
 }
 const ringPreview = new THREE.Group(); ringPreview.visible = false; scene.add(ringPreview);
@@ -3503,6 +3739,43 @@ function updatePreview() {
     m.scale.y = s.wall ? 0.6 : s.plot ? 1 : 1.25;
   });
   pvCircle.position.set(plan.cx, Math.max(groundY({ x: plan.cx, z: plan.cz }), 0) + 0.1, plan.cz);
+}
+
+/* ---------------- setting the field ---------------- */
+function nearestEdgeKey(x, z, lim) {
+  let best = null, bd = lim;
+  for (const e of EDGES) { const A = NODES[e.a].pos, Bn = NODES[e.b].pos, d = segDist(x, z, A.x, A.z, Bn.x, Bn.z); if (d < bd) { bd = d; best = e; } }
+  return best;
+}
+function hitch(p) {
+  S.towing = p; p.edgeKey = null;
+  if (S.camp) for (const s of S.camp.slots) if (s.plot === p) s.plot = null;
+  refreshGaps(); distDirty = true; Sound.play('build');
+}
+function setDown() {
+  const p = S.towing; if (!p) return;
+  S.towing = null;
+  // dropped on an open side of the ring, it closes that side again
+  if (S.camp) {
+    const s = S.camp.slots.find(s => !s.wall && !s.plot && Math.hypot(s.x - p.x, s.z - p.z) < 2.4);
+    if (s) { s.plot = p; wagonAt(p, s.x, s.z, s.a + Math.PI / 2); }
+  }
+  const e = nearestEdgeKey(p.x, p.z, 2.6);
+  p.edgeKey = e && !(S.camp && Math.hypot(p.x - S.camp.cx, p.z - S.camp.cz) < CONVOY.ringR + 1.5) ? e.key : null;
+  refreshGaps(); distDirty = true; Sound.play('build'); puff(p.pos, '#d9c7a0', 4);
+}
+function roadBuild(kind) {
+  const e = nearestEdgeKey(hero.pos.x, hero.pos.z, 3); if (!e) return;
+  const A = NODES[e.a].pos, Bn = NODES[e.b].pos;
+  const p = { kind: 'road', x: hero.pos.x, z: hero.pos.z, rotY: Math.atan2(-(Bn.x - A.x), -(Bn.z - A.z)), options: [], building: null, ruin: null, spots: [], edgeKey: e.key, roadBuilt: true };
+  p.pos = new V3(p.x, Math.max(groundY(p), 0), p.z);
+  S.roadPlots.push(p); build(p, kind);
+  if (!p.building) S.roadPlots.pop();
+}
+function beginNight() {
+  if (S.towing) setDown();
+  drum.visible = false; S.phase = 'night';
+  startNight();
 }
 
 /* ---------------- what the raiders do about it ---------------- */
@@ -3544,8 +3817,8 @@ function convoyEnemy(e, dt) {
   return { attacking: null, look: null };
 }
 function lootOrFight(e, dt, step) {
-  const sup = nearest(buildings, e.pos, b => b.alive && b.kind === 'supply');
-  if (!sup || S.res.grain <= 0) {
+  const sup = nearest(buildings, e.pos, b => b.alive && isSupply(b.kind) && S.res[SUPPLY[b.kind].res] > 0);
+  if (!sup) {
     const t = nearest(buildings, e.pos, b => b.alive && b.plot.cart); if (!t) return null;
     if (t.pos.distanceTo(e.pos) < t.radius + e.t.rad + 0.4) return { attacking: t, look: t.pos };
     moveDirect(e.pos, t.pos, step); return { attacking: null, look: t.pos };
@@ -3553,43 +3826,44 @@ function lootOrFight(e, dt, step) {
   if (sup.pos.distanceTo(e.pos) > sup.radius + e.t.rad + 0.4) { e.lootT = 0; moveDirect(e.pos, sup.pos, step); return { attacking: null, look: sup.pos }; }
   e.lootT = (e.lootT || 0) + dt; e.atkT = 0.3;
   if (e.lootT >= 1.3) {
-    const take = Math.min(CONVOY.sack, S.res.grain);
-    S.res.grain -= take; e.carry = take; e.lootT = 0;
-    e.sackMesh = part(new THREE.DodecahedronGeometry(0.3, 0), '#b8955a', 0, 1.35, -0.32, e.m.g);
+    const sp = SUPPLY[sup.kind], take = Math.min(CONVOY.sack, S.res[sp.res]);
+    S.res[sp.res] -= take; e.carry = take; e.carryRes = sp.res; e.lootT = 0;
+    e.sackMesh = part(new THREE.DodecahedronGeometry(0.3, 0), sp.sack, 0, 1.35, -0.32, e.m.g);
     startFlee(e); refreshHUD(); refreshSacks(); Sound.play('crash', 0.5);
   }
   return { attacking: null, look: sup.pos };
 }
 function startFlee(e) {
   e.fleeing = true; e.inCamp = false; e.inside = false; e.speed *= 0.92; e.opp = null;
-  let nn = null, nd = Infinity;
-  for (const id in NODES) { if (id[0] === 'P') continue; const d = NODES[id].pos.distanceTo(e.pos); if (d < nd) { nd = d; nn = id; } }
+  const nn = nearestNode(e.pos.x, e.pos.z, id => id[0] !== 'P');
   let best = null, bc = Infinity;
   for (const en of ENTRIES) { const D = fleeDist(en.id); if (D[nn] < bc) { bc = D[nn]; best = en.id; } }
   e.fleeTo = best; e.from = nn; e.to = nn;
 }
+const resWord = r => r === 'grain' ? 'food' : r;
 function escaped(e) {
   e.alive = false; e.dying = 0.01; scene.remove(e.bar);
-  if (e.carry) { S.stolen += e.carry; banner(`${e.carry} food gone over the pass`, 'Run them down before they reach the mountains.', 2.2); }
+  if (e.carry) { S.stolen += e.carry; banner(`${e.carry} ${resWord(e.carryRes)} gone over the pass`, 'Run them down before they reach the mountains.', 2.2); }
   e.carry = 0;
 }
 const sacks = [];
-function dropSack(pos, n) {
-  const m = part(new THREE.DodecahedronGeometry(0.34, 0), '#c9a466', pos.x, Math.max(groundY(pos), 0) + 0.3, pos.z, scene);
-  sacks.push({ m, n, x: pos.x, z: pos.z });
+function dropSack(pos, n, res) {
+  res = res || 'grain';
+  const col = { grain: SUPPLY.food.sack, wood: SUPPLY.wood.sack, stone: SUPPLY.stone.sack }[res];
+  const m = part(new THREE.DodecahedronGeometry(0.34, 0), col, pos.x, Math.max(groundY(pos), 0) + 0.3, pos.z, scene);
+  sacks.push({ m, n, res, x: pos.x, z: pos.z });
 }
 function supplyLost(b) {
-  const left = supplyWagons().length;
-  const spill = Math.round(S.res.grain / (left + 1));
-  S.res.grain -= spill; refreshHUD(); refreshSacks();
-  banner('A supply wagon is burning', `${spill} food lost with it.`, 2.6);
-  if (!left) convoyLose('The convoy is broken', 'Every supply wagon is burned. Without them there is no road west.');
+  const sp = SUPPLY[b.kind], lost = S.res[sp.res];
+  S.res[sp.res] = 0; refreshHUD(); refreshSacks();
+  if (b.kind === 'food') return convoyLose('The food wagon is burned', `Every sack went up with it. There is no road to the Wall on an empty stomach.`);
+  banner(`The ${sp.word} wagon is burning`, `${lost} ${sp.word} lost with it. It will be patched up at dawn, empty.`, 3);
 }
 function updateSacks(dt) {
   for (let i = sacks.length - 1; i >= 0; i--) {
     const s = sacks[i]; s.m.rotation.y += dt;
     if (hero.alive && Math.hypot(hero.pos.x - s.x, hero.pos.z - s.z) < 1.9) {
-      S.res.grain += s.n; scene.remove(s.m); sacks.splice(i, 1); refreshHUD(); refreshSacks();
+      S.res[s.res] += s.n; scene.remove(s.m); sacks.splice(i, 1); refreshHUD(); refreshSacks();
       Sound.play('build'); puff(hero.pos, '#d9c7a0', 3);
     }
   }
@@ -3601,28 +3875,31 @@ function convoyDawn() {
   for (const g of gapMarks) scene.remove(g); gapMarks.length = 0;
   campfire.intensity = 0;
   const { lost: fell, wounded } = dismissSoldiers();
-  let found = 0, lostSacks = 0;
-  for (const s of sacks) { if (S.camp && Math.hypot(s.x - S.camp.cx, s.z - S.camp.cz) < 24) found += s.n; else lostSacks += s.n; scene.remove(s.m); }
-  sacks.length = 0; S.res.grain += found;
-  let repaired = 0, abandoned = [];
+  const found = { grain: 0, wood: 0, stone: 0 }; let far = 0;
+  const cx = S.camp ? S.camp.cx : 0, cz = S.camp ? S.camp.cz : 0;
+  for (const s of sacks) { if (Math.hypot(s.x - cx, s.z - cz) < 26) found[s.res] += s.n; else far += s.n; scene.remove(s.m); }
+  sacks.length = 0; for (const r of RES) S.res[r] += found[r];
+  let repaired = 0; const abandoned = [];
   for (const p of convoy) {
     if (!p.ruin) continue;
+    if (isSupply(p.cartKind)) { rebuildCart(p); continue; }
     const cost = { wood: REPAIR[p.cartKind] };
-    if (afford(cost)) { pay(cost); build(p, p.ruin.kind, true, p.ruin.level); p.building.barY = 2.5; p.building.radius = 1.45; repaired++; }
+    if (afford(cost)) { pay(cost); rebuildCart(p); repaired++; }
     else abandoned.push(DEFS[p.cartKind].name);
   }
   for (let i = convoy.length - 1; i >= 0; i--) if (!convoy[i].building) { if (convoy[i].ruin) scene.remove(convoy[i].ruin.g); convoy.splice(i, 1); }
   for (const b of buildings) if (b.hp < b.max) b.hp = Math.min(b.max, b.hp + b.max * 0.3);
   for (const r of S.roster) r.hp = Math.min(r.max, r.hp + r.max * 0.15);
   const boss = S.nightType === 'boss', elite = S.nightType === 'elite';
-  const spoils = { grain: 4 + Math.floor(Math.random() * 5) + (elite ? 6 : 0), wood: 3 + Math.floor(Math.random() * 4) + (elite ? 4 : 0), stone: 1 + Math.floor(Math.random() * 3) + (elite ? 3 : 0) };
-  S.res.grain += spoils.grain; S.res.wood += spoils.wood; S.res.stone += spoils.stone;
-  S.camp = null; refreshHUD(); refreshSacks();
-  $('#dawnT').textContent = boss ? 'The border fort has fallen' : 'Dawn';
+  const spoils = { grain: 2 + Math.floor(Math.random() * 4) + (elite ? 6 : 0), wood: 4 + Math.floor(Math.random() * 4) + (elite ? 4 : 0), stone: 2 + Math.floor(Math.random() * 3) + (elite ? 3 : 0) };
+  for (const r of RES) S.res[r] += spoils[r];
+  refreshHUD(); refreshSacks();
+  const foundTxt = RES.filter(r => found[r]).map(r => `${found[r]} ${resWord(r)}`).join(', ');
+  $('#dawnT').textContent = boss ? 'The border fort held' : 'Dawn';
   $('#ledger').innerHTML = [
     `<div>Stripped from the fallen: <b>+${spoils.grain} food</b>, <b>+${spoils.wood} wood</b>, <b>+${spoils.stone} stone</b>.</div>`,
-    found ? `<div>You cut back <b>${found} food</b> from the thieves.</div>` : '',
-    lostSacks ? `<div>${lostSacks} food lay too far out on the steppe to recover.</div>` : '',
+    foundTxt ? `<div>You cut back <b>${foundTxt}</b> from the thieves.</div>` : '',
+    far ? `<div>${far} more lay too far out on the steppe to recover.</div>` : '',
     fell ? `<div>${fell} soldier${fell > 1 ? 's' : ''} fell in the night.</div>` : '',
     wounded ? `<div>${wounded} who went down ${wounded > 1 ? 'were' : 'was'} found alive, badly wounded.</div>` : '',
     repaired ? `<div>${repaired} wrecked cart${repaired > 1 ? 's were' : ' was'} mended with wood.</div>` : '',
@@ -3639,7 +3916,7 @@ function offerRewards() {
   const tabs = $('#tablets'); tabs.innerHTML = '';
   picks.forEach((u, i) => {
     const b = document.createElement('button'); b.className = 'tablet'; b.type = 'button';
-    b.innerHTML = `<span class="k">${i + 1}</span><span class="t">${u.name}</span>${u.tags ? tagHTML(u) : '<span class="tags"><i class="tg tg-ab">convoy</i></span>'}<span class="e">${u.desc}</span>`;
+    b.innerHTML = `<span class="k">${i + 1}</span>${u.img ? `<img class="art" alt="" src="${thumb(u.img)}">` : ''}<span class="t">${u.name}</span>${u.tags ? tagHTML(u) : '<span class="tags"><i class="tg tg-ab">convoy</i></span>'}<span class="e">${u.desc}</span>`;
     b.addEventListener('click', () => choose(u)); b.addEventListener('mouseenter', () => focusTablet(i)); tabs.appendChild(b);
   });
   S.dawnPicks = picks; $('#dawn').hidden = false; Sound.play('dawn');
@@ -3651,78 +3928,113 @@ choose = function (u) {
   refreshHUD(); refreshSacks();
   if (--S.picksLeft > 0) return offerRewards();
   $('#dawn').hidden = true;
+  reviveHero();
   if (S.nightType === 'boss') return nextRegion();
-  S.state = 'day'; reviveHero(); openShop('after');
+  S.state = 'day'; openShop('after');
 };
 // power-ups that belong to the convoy rather than the commander
 const BOONS = [
-  { name: 'Drill the ranks', desc: 'Every soldier hits 25% harder', apply: () => { S.soldierStr *= 1.25; } },
-  { name: 'Lamellar for the men', desc: 'Every soldier gains 30% max HP, and is healed', apply: () => { S.soldierHpMul *= 1.3; for (const r of S.roster) { r.max = Math.round(r.max * 1.3); r.hp = r.max; } } },
-  { name: 'Volunteers', desc: 'Two men join the column', apply: () => addSoldiers(2), ok: () => S.roster.length < LEVELS[S.level].soldiers },
-  { name: 'A captured cart', desc: 'A crossbow cart joins the convoy', apply: () => joinConvoy('tower') },
-  { name: 'Millet from the raiders', desc: '+18 food', apply: () => { S.res.grain += 18; } },
-  { name: 'Salvage', desc: '+8 wood, +5 stone', apply: () => { S.res.wood += 8; S.res.stone += 5; } },
-  { name: 'Field hospital', desc: 'Every soldier healed to full', apply: () => { for (const r of S.roster) r.hp = r.max; } },
+  { name: 'Drill the ranks', img: 'drill', desc: 'Every soldier hits 25% harder', apply: () => { S.soldierStr *= 1.25; } },
+  { name: 'Lamellar for the men', img: 'coats', desc: 'Every soldier gains 30% max HP, and is healed', apply: () => { S.soldierHpMul *= 1.3; for (const r of S.roster) { r.max = Math.round(r.max * 1.3); r.hp = r.max; } } },
+  { name: 'Volunteers', img: 'recruit', desc: 'Four men join the column', apply: () => addSoldiers(4), ok: () => S.roster.length < LEVELS[S.level].soldiers },
+  { name: 'A captured cart', img: 'tower', desc: 'A crossbow cart joins the convoy', apply: () => joinConvoy('tower') },
+  { name: 'Millet from the raiders', img: 'food', desc: '+18 food', apply: () => { S.res.grain += 18; } },
+  { name: 'Salvage', img: 'salvage', desc: '+10 wood, +6 stone', apply: () => { S.res.wood += 10; S.res.stone += 6; } },
+  { name: 'Field hospital', img: 'coats', desc: 'Every soldier healed to full', apply: () => { for (const r of S.roster) r.hp = r.max; } },
 ];
 function nextRegion() {
+  clearField();
   if (S.region + 1 >= CONVOY.regions) return convoyWin();
-  S.region++; startRegion();
+  S.region++; S.map = genRegion(); S.at = null; S.floor = 0; S.gathers = 0; S.path = [];
+  S.state = 'day'; refreshHUD();
+  banner(REGION_NAME[S.region], 'A new region. Choose the road.', 4);
+  openMap();
 }
-function startRegion() {
-  S.map = genRegion(S.region); S.at = 'start'; S.floor = 0; S.gathers = 0;
-  const n = S.map.start; layoutColumn(n.site.x, n.site.z, n.site.rot);
-  hero.pos.set(n.site.x + 2.4, 0, n.site.z); camFocus.set(hero.pos.x, 0, hero.pos.z);
-  S.state = 'day'; refreshHUD(); refreshSacks();
-  banner(REGION_NAME[S.region], S.region ? 'A new region. Rest, gather and prepare.' : 'Gather, build, then choose your road.', 4);
-  openShop('camp');
+function reviveHero() {
+  if (!hero.alive) { const p = convoy.find(q => q.building) || { x: 0, z: 0 }; hero.pos.set(p.x + 2, 0, p.z + 2); }
+  hero.alive = true; hero.hp = hero.max; hero.m.g.visible = true; ui.heroLine.textContent = '';
+  S.morale = 1;
+}
+
+/* ---------------- drawings: every card shows what it buys ----------------
+   The game's own models, rendered once each into a small picture with the same toon shading. */
+let thumbR = null; const thumbCache = {};
+const group = (...list) => { const g = new THREE.Group(); list.forEach(([o, x, z, r]) => { o.position.set(x || 0, 0, z || 0); o.rotation.y = r || 0; g.add(o); }); return g; };
+const pile = (col, geo, n) => { const g = new THREE.Group(); for (let i = 0; i < n; i++) { const m = part(geo, col, (i % 3 - 1) * 0.55, 0.3 + Math.floor(i / 3) * 0.42, (Math.floor(i / 3) % 2) * 0.2, g); m.rotation.set(i, i * 2, 0); } return g; };
+const logs = n => { const g = new THREE.Group(); for (let i = 0; i < n; i++) { const m = part(CYL(0.22, 0.22, 1.9, 7), i % 2 ? '#8b6039' : '#7a5230', (i % 3 - 1) * 0.46, 0.22 + Math.floor(i / 3) * 0.4, 0, g); m.rotation.x = Math.PI / 2; } return g; };
+const THUMBS = {
+  farmers: () => group([makeWorkerModel('hoe').g, -0.5, 0, 0.4], [makeWorkerModel('hoe').g, 0.5, 0.3, -0.3], [pile(C.milletRipe, new THREE.DodecahedronGeometry(0.28, 0), 4), 0, -1]),
+  woodcutters: () => group([makeWorkerModel('axe').g, -0.5, 0, 0.5], [makeWorkerModel('axe').g, 0.6, 0.2, -0.4], [logs(3), 0, -1.1]),
+  miners: () => group([makeWorkerModel('pick').g, -0.5, 0, 0.5], [makeWorkerModel('pick').g, 0.6, 0.2, -0.4], [pile('#a39d92', new THREE.DodecahedronGeometry(0.34, 0), 5), 0, -1.1]),
+  crew: () => group([makeWorkerModel('hoe').g, -0.8, 0, 0.3], [makeWorkerModel('axe').g, 0, 0.3, 0], [makeWorkerModel('pick').g, 0.8, 0, -0.3]),
+  level: () => { const g = makeXbowCart(1); part(CYL(0.04, 0.04, 2.6, 4), C.woodDark, 0.6, 1.8, -1, g); part(B(0.04, 0.7, 1), C.lacquer, 0.6, 2.8, -0.5, g); return g; },
+  recruit: () => group([makeSoldierModel().g, -0.7, 0, 0.3], [makeSoldierModel().g, 0, 0.35, 0], [makeSoldierModel().g, 0.7, 0, -0.3]),
+  drill: () => group([makeSoldierModel().g, -0.4, 0, 0.8], [makeSoldierModel().g, 0.45, 0, -0.8]),
+  coats: () => group([makeSoldierModel().g, 0, 0, 0.3]),
+  tower: () => makeXbowCart(0), rockets: () => makeRockets(0), bombard: () => makeBombard(0), barricade: () => makeBarricadeWagon(),
+  food: () => pile('#c9a466', new THREE.DodecahedronGeometry(0.3, 0), 6),
+  sell: () => group([logs(3), -0.6, 0], [pile('#a39d92', new THREE.DodecahedronGeometry(0.3, 0), 3), 0.8, 0]),
+  salvage: () => group([logs(3), -0.6, 0], [pile('#a39d92', new THREE.DodecahedronGeometry(0.3, 0), 3), 0.8, 0]),
+  timber: () => logs(6),
+};
+function thumb(key) {
+  if (thumbCache[key] !== undefined) return thumbCache[key];
+  const make = THUMBS[key]; if (!make) return (thumbCache[key] = '');
+  try {
+    if (!thumbR) { thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); thumbR.setSize(240, 170); thumbR.toneMapping = renderer.toneMapping; thumbR.outputColorSpace = renderer.outputColorSpace; }
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight(0xfff1dc, 0x5a4a3a, 1.5));
+    const sun2 = new THREE.DirectionalLight(0xffe2b8, 2.6); sun2.position.set(4, 6, 5); sc.add(sun2);
+    const g = make(); sc.add(g);
+    const box = new THREE.Box3().setFromObject(g), c = box.getCenter(new V3()), sz = box.getSize(new V3()).length();
+    const cam = new THREE.PerspectiveCamera(28, 240 / 170, 0.1, 100);
+    cam.position.copy(c).addScaledVector(new V3(1.1, 0.8, 1.3).normalize(), sz * 1.9); cam.lookAt(c);
+    thumbR.render(sc, cam);
+    return (thumbCache[key] = thumbR.domElement.toDataURL('image/png'));
+  } catch (err) { return (thumbCache[key] = ''); }
 }
 
 /* ---------------- shops: region camp, markets, villages, forts, and after every fight ---------------- */
 let shopSel = 0, shopOpts = [], shopKind = '';
 function cartOpts() {
-  return [...LEVELS[S.level].carts, 'supply'].map(k => ({ n: `Build: ${DEFS[k].name}`, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), again: true }));
+  return LEVELS[S.level].carts.map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), sec: 'Wagons' }));
 }
 function soldierOpts() {
   return [
-    { n: 'Forge spearheads', c: { stone: 4 }, d: 'Every soldier hits 15% harder', run: () => { S.soldierStr *= 1.15; }, again: true },
-    { n: 'Stitch padded coats', c: { wood: 3, grain: 4 }, d: 'Every soldier gains 15% max HP', run: () => { S.soldierHpMul *= 1.15; for (const r of S.roster) { r.max = Math.round(r.max * 1.15); r.hp = Math.min(r.max, r.hp + 8); } }, again: true },
+    { n: 'Forge spearheads', img: 'drill', c: { stone: 4 }, d: 'Every soldier hits 15% harder', run: () => { S.soldierStr *= 1.15; }, sec: 'Soldiers' },
+    { n: 'Stitch padded coats', img: 'coats', c: { wood: 3, grain: 4 }, d: 'Every soldier gains 15% max HP', run: () => { S.soldierHpMul *= 1.15; for (const r of S.roster) { r.max = Math.round(r.max * 1.15); r.hp = Math.min(r.max, r.hp + 8); } }, sec: 'Soldiers' },
   ];
 }
 function recruitOpt(cost) {
-  return { n: 'Recruit a soldier', c: { grain: cost }, d: `A spearman joins (${S.roster.length}/${LEVELS[S.level].soldiers}). He eats 1 food a day`, run: () => addSoldiers(1), again: true, ok: () => S.roster.length < LEVELS[S.level].soldiers };
+  return { n: 'Recruit two soldiers', img: 'recruit', c: { grain: cost }, d: `Two spearmen join the column. Every two eat 1 food a day`, run: () => addSoldiers(2), ok: () => S.roster.length < LEVELS[S.level].soldiers, sec: 'Soldiers' };
 }
 function openShop(kind) {
-  shopKind = kind; S.phase = 'shop';
+  shopKind = kind; S.phase = 'shop'; S.state = 'day';
   const title = { camp: `${REGION_NAME[S.region]} — the region camp`, market: 'Horse market', village: 'Village', rest: 'Friendly fort', after: 'Morning in the ring' }[kind];
   const sub = { camp: 'Send your crews out, build, trade and level up before the road.', market: 'Trade, recruit, and build with what you carry.', village: 'They have little, and share some of it.', rest: 'Build and repair while you are safe.', after: 'Build with what you took from the fallen.' }[kind];
   $('#shopT').textContent = title; $('#shopSub').textContent = sub;
   shopOpts = [];
   if (kind === 'camp') {
     shopOpts.push(
-      { n: 'Farmers', c: null, d: '+10 food', run: () => { S.res.grain += 10; S.gathers++; }, work: true },
-      { n: 'Woodcutters', c: null, d: '+8 wood', run: () => { S.res.wood += 8; S.gathers++; }, work: true },
-      { n: 'Miners', c: null, d: '+5 stone', run: () => { S.res.stone += 5; S.gathers++; }, work: true },
-      { n: 'Hire a crew', c: { grain: 10 }, d: 'One more crew to send out, here and in every region camp', run: () => { S.workers++; }, again: true });
+      { n: 'Farmers', img: 'farmers', c: null, d: '+12 food', run: () => { S.res.grain += 12; S.gathers++; }, work: true, sec: 'Send out a crew' },
+      { n: 'Woodcutters', img: 'woodcutters', c: null, d: '+10 wood', run: () => { S.res.wood += 10; S.gathers++; }, work: true, sec: 'Send out a crew' },
+      { n: 'Miners', img: 'miners', c: null, d: '+6 stone', run: () => { S.res.stone += 6; S.gathers++; }, work: true, sec: 'Send out a crew' },
+      { n: 'Hire a crew', img: 'crew', c: { grain: 10 }, d: 'One more crew to send out, here and in every region camp', run: () => { S.workers++; }, sec: 'Send out a crew' });
     const L = LEVELS[S.level + 1];
-    if (L) shopOpts.push({ n: `Level up the convoy (${S.level + 2})`, c: L.cost, d: `Room for ${L.soldiers} soldiers, carts ${Math.round(L.hp * 100 - 100)}% tougher, and ${L.carts.filter(k => !LEVELS[S.level].carts.includes(k)).map(k => DEFS[k].name).join(', ')} unlocked`, run: levelUp });
-    shopOpts.push(recruitOpt(6), ...cartOpts(), ...soldierOpts());
+    if (L) shopOpts.push({ n: `Convoy level ${S.level + 2}`, img: 'level', c: L.cost, d: `Room for ${L.soldiers} soldiers, carts ${Math.round(L.hp * 100 - 100)}% tougher, and the ${L.carts.filter(k => !LEVELS[S.level].carts.includes(k)).map(k => DEFS[k].name.toLowerCase()).join(', ')} unlocked`, run: levelUp, sec: 'Wagons' });
+    shopOpts.push(...cartOpts(), recruitOpt(8), ...soldierOpts());
   } else if (kind === 'market') {
     shopOpts.push(
-      { n: 'Buy food', c: { wood: 4 }, d: '+8 food for 4 wood', run: () => { S.res.grain += 8; }, again: true },
-      { n: 'Sell food', c: { grain: 8 }, d: '+4 wood, +2 stone for 8 food', run: () => { S.res.wood += 4; S.res.stone += 2; }, again: true },
-      recruitOpt(8), ...cartOpts(), ...soldierOpts());
+      { n: 'Buy food', img: 'food', c: { wood: 4 }, d: '+10 food', run: () => { S.res.grain += 10; }, sec: 'Trade' },
+      { n: 'Sell food', img: 'sell', c: { grain: 8 }, d: '+4 wood, +2 stone', run: () => { S.res.wood += 4; S.res.stone += 2; }, sec: 'Trade' },
+      ...cartOpts(), recruitOpt(10), ...soldierOpts());
   } else if (kind === 'village') {
     shopOpts.push(
-      { n: 'Share their harvest', c: null, d: '+14 food', run: () => { S.res.grain += 14; }, gift: true },
-      { n: 'Their sons join you', c: null, d: 'Two recruits, if you have room', run: () => addSoldiers(2), gift: true },
-      { n: 'Timber from the barns', c: null, d: '+7 wood, +3 stone', run: () => { S.res.wood += 7; S.res.stone += 3; }, gift: true },
-      recruitOpt(5));
-  } else if (kind === 'rest') {
-    shopOpts.push(...cartOpts(), ...soldierOpts());
-  } else {
-    shopOpts.push(...cartOpts(), ...soldierOpts());
-  }
-  shopOpts.push({ n: kind === 'camp' || kind === 'after' || kind === 'rest' || kind === 'market' || kind === 'village' ? 'Take the road' : 'Leave', c: null, d: 'Open the map', done: true });
+      { n: 'Share their harvest', img: 'food', c: null, d: '+14 food', run: () => { S.res.grain += 14; }, gift: true, sec: 'They offer one gift' },
+      { n: 'Their sons join you', img: 'recruit', c: null, d: 'Four recruits, if you have room', run: () => addSoldiers(4), gift: true, sec: 'They offer one gift' },
+      { n: 'Timber from the barns', img: 'timber', c: null, d: '+8 wood, +4 stone', run: () => { S.res.wood += 8; S.res.stone += 4; }, gift: true, sec: 'They offer one gift' },
+      recruitOpt(6));
+  } else shopOpts.push(...cartOpts(), ...soldierOpts());
   shopSel = 0; S.gifted = false; renderShop(); $('#shop').hidden = false;
 }
 function levelUp() {
@@ -3732,35 +4044,55 @@ function levelUp() {
 function shopBlocked(o) {
   if (o.work) return S.gathers >= S.workers ? 'No crews left to send' : '';
   if (o.gift) return S.gifted ? 'They have given what they can' : '';
-  if (o.ok && !o.ok()) return 'No room';
-  if (o.c && !afford(o.c)) return 'Needs ' + missing(o.c) + ' more';
+  if (o.ok && !o.ok()) return 'No room: level up the convoy';
+  if (o.c && !afford(o.c)) return 'Needs ' + missing(o.c).replace('grain', 'food') + ' more';
   return '';
 }
+// the counters sit on the screen you buy from, and flash when they change
+let lastRes = null;
+function resBar(el) {
+  const now = { grain: S.res.grain, wood: S.res.wood, stone: S.res.stone, men: S.roster.length };
+  const chip = (k, ic, label, val, sub) => {
+    const d = lastRes ? now[k] - lastRes[k] : 0;
+    return `<div class="rc${d > 0 ? ' up' : d < 0 ? ' down' : ''}"><i class="ic ${ic}"></i><b>${val}</b><small>${label}${sub ? ` · ${sub}` : ''}</small>${d ? `<em>${d > 0 ? '+' : ''}${d}</em>` : ''}</div>`;
+  };
+  el.innerHTML = chip('grain', 'grain', 'Food', S.res.grain, `${daysOfFood()} days`) + chip('wood', 'wood', 'Wood', S.res.wood) + chip('stone', 'stone', 'Stone', S.res.stone) +
+    chip('men', 'men', 'Soldiers', `${S.roster.length}/${LEVELS[S.level].soldiers}`, `eat ${foodPerDay()}/day`) +
+    `<div class="rc"><b>${S.level + 1}</b><small>Convoy level</small></div>` + (shopKind === 'camp' && el.id === 'shopRes' ? `<div class="rc"><b>${S.workers - S.gathers}/${S.workers}</b><small>Crews free</small></div>` : '');
+  lastRes = now;
+}
 function renderShop() {
-  $('#shopP').innerHTML = `<b>${S.res.grain}</b> food (${daysOfFood()} days) · <b>${S.res.wood}</b> wood · <b>${S.res.stone}</b> stone · ${S.roster.length}/${LEVELS[S.level].soldiers} soldiers · convoy level ${S.level + 1}` +
-    (shopKind === 'camp' ? ` · crews ${S.workers - S.gathers}/${S.workers}` : '');
+  resBar($('#shopRes'));
   const box = $('#shopOpts'); box.innerHTML = '';
+  let sec = '';
   shopOpts.forEach((o, i) => {
+    if (o.sec !== sec) { sec = o.sec; const h = document.createElement('h3'); h.className = 'sec'; h.textContent = sec; box.appendChild(h); }
     const why = shopBlocked(o), b = document.createElement('button');
-    b.type = 'button'; b.className = 'tablet' + (i === shopSel ? ' sel' : '') + (o.done ? ' done' : '');
-    b.innerHTML = `<span class="k">${i + 1 <= 9 ? i + 1 : ''}</span><span class="t">${o.n}</span>${o.c ? `<span class="cost">${costHTML(o.c)}</span>` : ''}<span class="e">${why || o.d}</span>`;
-    if (why) b.disabled = true;
+    b.type = 'button'; b.className = 'card' + (i === shopSel ? ' sel' : '');
+    b.innerHTML = `${o.img ? `<img class="art" alt="" src="${thumb(o.img)}">` : ''}<span class="t">${o.n}</span><span class="cost">${o.c ? costHTML(o.c) : o.gift || o.work ? '<span class="free">free</span>' : ''}</span><span class="e">${why ? `<b class="why">${why}</b>` : o.d}</span>`;
+    if (why) b.classList.add('off');
     b.addEventListener('click', () => { shopSel = i; pickShop(); });
-    b.addEventListener('mouseenter', () => { shopSel = i; box.querySelectorAll('.tablet').forEach((t, k) => t.classList.toggle('sel', k === shopSel)); });
+    b.addEventListener('mouseenter', () => { shopSel = i; markShop(); });
     box.appendChild(b);
   });
+  markShop();
+}
+function markShop() {
+  $('#shopOpts').querySelectorAll('.card').forEach((t, k) => t.classList.toggle('sel', k === shopSel));
+  $('#shopGo').classList.toggle('sel', shopSel === shopOpts.length);
 }
 function pickShop() {
+  if (shopSel === shopOpts.length) { $('#shop').hidden = true; return openMap(); }
   const o = shopOpts[shopSel]; if (!o) return;
-  if (o.done) { $('#shop').hidden = true; return openMap(); }
-  if (shopBlocked(o)) return;
+  if (shopBlocked(o)) { Sound.play('clang'); return; }
   if (o.c) pay(o.c);
   o.run(); if (o.gift) S.gifted = true;
   Sound.play('build'); refreshHUD(); refreshSacks(); renderShop();
 }
+$('#shopGo').addEventListener('click', () => { shopSel = shopOpts.length; pickShop(); });
 function joinConvoy(kind) {
   const live = convoy.filter(p => p.building), last = live[live.length - 1];
-  const rot = last ? last.rotY : 0, x = last ? last.x - Math.sin(rot) * CONVOY.spacing : S.site.x, z = last ? last.z - Math.cos(rot) * CONVOY.spacing : S.site.z;
+  const rot = last ? last.rotY : 0, x = last ? last.x - Math.sin(rot) * CONVOY.spacing : 0, z = last ? last.z - Math.cos(rot) * CONVOY.spacing : 0;
   addWagon(kind, 0, x, z, rot); refreshHUD();
 }
 
@@ -3772,7 +4104,7 @@ function openMap() {
   mapOpts = nextOptions(); mapSel = 0;
   const m = S.map; let h = '';
   for (const k in m) for (const nx of m[k].next) {
-    const a = m[k], b = m[nx], taken = k === S.at || false, days = a.days[nx];
+    const a = m[k], b = m[nx], days = a.days[nx];
     const x1 = MX(a.c), y1 = MY(a.f), x2 = MX(b.c), y2 = MY(b.f);
     h += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${S.path.includes(k) && S.path.includes(nx) ? 'walked' : k === S.at ? 'live' : ''}"/>`;
     for (let d = 0; d < days; d++) { const t = (d + 1) / (days + 1); h += `<circle class="day" cx="${lerp(x1, x2, t)}" cy="${lerp(y1, y2, t)}" r="3"/>`; }
@@ -3784,19 +4116,20 @@ function openMap() {
   $('#smapSvg').innerHTML = h;
   $('#smapSvg').querySelectorAll('.node.opt').forEach(g => g.addEventListener('click', () => { mapSel = mapOpts.indexOf(g.dataset.k); confirmMap(); }));
   $('#smapT').textContent = REGION_NAME[S.region] + ` · region ${S.region + 1} of ${CONVOY.regions}`;
+  resBar($('#smapRes'));
   renderMapOpts(); $('#smap').hidden = false;
 }
 function forecast(k) {
-  const days = S.map[S.at].days[k] || 1, eat = foodPerDay() * days, short = Math.max(0, eat - S.res.grain);
+  const days = S.at ? S.map[S.at].days[k] || 1 : 0, eat = foodPerDay() * days, short = Math.max(0, eat - S.res.grain);
   return { days, eat, short, hungryDays: short ? Math.ceil(short / foodPerDay()) : 0 };
 }
 function renderMapOpts() {
   const box = $('#smapOpts'); box.innerHTML = '';
-  $('#smapP').innerHTML = `<b>${S.res.grain}</b> food · the column eats <b>${foodPerDay()}</b> a day (${S.roster.length} soldiers + the carters) · food for <b>${daysOfFood()}</b> day${daysOfFood() === 1 ? '' : 's'}`;
+  $('#smapP').innerHTML = S.at ? `Choose the next stop. The border fort 关 at the top is where the region ends: reach it and hold it.` : `Your convoy waits at the region camp 营. Start there: gather, build and trade, then choose your road north to the border fort 关.`;
   mapOpts.forEach((k, i) => {
     const n = S.map[k], info = NODE_INFO[n.type], fc = forecast(k), b = document.createElement('button');
     b.type = 'button'; b.className = 'tablet' + (i === mapSel ? ' sel' : '');
-    b.innerHTML = `<span class="k">${i + 1}</span><span class="t"><span class="cn">${info.g}</span> ${info.n}</span><span class="e">${info.d}<br>${fc.days} day${fc.days > 1 ? 's' : ''} on the road · eats ${fc.eat} food${fc.hungryDays ? `<br><b style="color:#d9826a">Food runs out: ${fc.hungryDays} hungry day${fc.hungryDays > 1 ? 's' : ''}</b>` : ''}</span>`;
+    b.innerHTML = `<span class="k">${i + 1}</span><span class="t"><span class="cn">${info.g}</span> ${info.n}</span><span class="e">${info.d}${fc.days ? `<br>${fc.days} day${fc.days > 1 ? 's' : ''} on the road · eats ${fc.eat} food` : ''}${fc.hungryDays ? `<br><b style="color:#d9826a">Food runs out: ${fc.hungryDays} hungry day${fc.hungryDays > 1 ? 's' : ''}</b>` : ''}</span>`;
     b.addEventListener('click', () => { mapSel = i; confirmMap(); });
     b.addEventListener('mouseenter', () => { mapSel = i; highlightMap(); });
     box.appendChild(b);
@@ -3807,7 +4140,7 @@ function highlightMap() {
   $('#smapOpts').querySelectorAll('.tablet').forEach((t, i) => t.classList.toggle('sel', i === mapSel));
   $('#smapSvg').querySelectorAll('.node.opt').forEach(g => g.classList.toggle('sel', g.dataset.k === mapOpts[mapSel]));
 }
-function confirmMap() { const k = mapOpts[mapSel]; if (k === undefined) return; S.path.push(k); travelTo(k); }
+function confirmMap() { const k = mapOpts[mapSel]; if (k === undefined) return; travelTo(k); }
 
 /* ---------------- endings ---------------- */
 function convoyWin() {
@@ -3823,68 +4156,137 @@ function convoyLose(t, p) {
   $('#endP').textContent = `${p} You reached region ${S.region + 1}, floor ${S.floor}. ${S.kills} raiders fell.`;
   $('#end').hidden = false;
 }
-win = convoyWin; lose = () => convoyLose('The convoy is lost', '');
-function reviveHero() {
-  if (!hero.alive) { const p = convoy.find(q => q.building) || { x: S.site.x, z: S.site.z }; hero.pos.set(p.x + 2, 0, p.z + 2); }
-  hero.alive = true; hero.hp = hero.max; hero.m.g.visible = true; ui.heroLine.textContent = '';
-  while (flareGroup.children.length) flareGroup.remove(flareGroup.children[0]);
-  S.morale = 1; for (const b of buildings) b.rallied = false;
-}
-// called once, when the player takes the road from the title screen
+win = convoyWin; lose = () => convoyLose('The keep has fallen', 'The border fort is lost, and the convoy with it.');
 function convoyDay() {
-  reviveHero(); camFocus.set(hero.pos.x, 0, hero.pos.z);
-  S.state = 'day'; refreshHUD();
-  banner(REGION_NAME[0], 'Gather, build, then choose your road.', 4);
-  openShop('camp');
+  reviveHero(); S.state = 'day'; refreshHUD();
+  banner(REGION_NAME[0], 'Choose where to go on the map.', 3);
+  openMap();
 }
 
 /* ---------------- input, prompt, goal, per-frame ---------------- */
 function convoyKeys(e) {
   const n = /^Digit[1-9]$/.test(e.code) ? +e.code.slice(5) - 1 : -1;
-  const nav = (len, sel, set, render) => {
-    if (e.code === 'ArrowRight' || e.code === 'ArrowDown') set((sel + 1) % len);
-    else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') set((sel - 1 + len) % len);
-    else return false;
-    render(); return true;
-  };
   if (!$('#smap').hidden) {
-    if (n >= 0 && n < mapOpts.length) { mapSel = n; confirmMap(); }
+    const len = mapOpts.length;
+    if (n >= 0 && n < len) { mapSel = n; confirmMap(); }
     else if (e.code === 'Space' || e.code === 'Enter') confirmMap();
-    else if (!nav(mapOpts.length, mapSel, v => mapSel = v, highlightMap)) return false;
+    else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') { mapSel = (mapSel + 1) % len; highlightMap(); }
+    else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') { mapSel = (mapSel - 1 + len) % len; highlightMap(); }
+    else return false;
     e.preventDefault(); return true;
   }
   if (!$('#shop').hidden) {
-    if (n >= 0 && n < shopOpts.length) { shopSel = n; pickShop(); }
-    else if (e.code === 'Space' || e.code === 'Enter') pickShop();
-    else if (!nav(shopOpts.length, shopSel, v => shopSel = v, renderShop)) return false;
+    const len = shopOpts.length + 1;
+    if (e.code === 'Space' || e.code === 'Enter') pickShop();
+    else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') { shopSel = (shopSel + 1) % len; markShop(); }
+    else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') { shopSel = (shopSel - 1 + len) % len; markShop(); }
+    else if (e.code === 'KeyR') { shopSel = shopOpts.length; pickShop(); }
+    else return false;
     e.preventDefault(); return true;
   }
   return false;
 }
+let stillT = 0; const lastHero = new V3();
 function convoyPrompt() {
-  if (S.phase !== 'dusk') return null;
-  const plan = ringPlan(hero.pos.x, hero.pos.z), anchor = hero.pos.clone();
-  if (!plan.ok) return { key: 'nocamp' + plan.why, anchor, opts: [{ n: 'Cannot camp here', c: null, d: plan.why, run: null }] };
-  return { key: `circle${plan.walls}/${plan.gaps}`, anchor, hold: 0.9, opts: [{ n: 'Circle the wagons here', c: {},
-    d: `${plan.walls ? `The ground closes ${plan.walls} side${plan.walls > 1 ? 's' : ''}. ` : ''}${plan.gaps ? `${plan.gaps} gap${plan.gaps > 1 ? 's' : ''} left open` : 'The ring is closed'}`, run: () => circleWagons(plan) }] };
+  const anchor = hero.pos.clone();
+  if (S.state === 'day' && S.phase === 'dusk') {
+    const plan = ringPlan(hero.pos.x, hero.pos.z);
+    if (!plan.ok) return { key: 'nocamp' + plan.why, anchor, opts: [{ n: 'Cannot camp here', c: null, d: plan.why, run: null }] };
+    return { key: `circle${plan.walls}/${plan.gaps}`, anchor, hold: 0.9, opts: [{ n: 'Circle the wagons here', c: {},
+      d: `${plan.walls ? `The ground closes ${plan.walls} side${plan.walls > 1 ? 's' : ''}. ` : ''}${plan.gaps ? `${plan.gaps} gap${plan.gaps > 1 ? 's' : ''} left open` : 'The ring is closed'}. You set the rest of the field after`, run: () => circleWagons(plan) }] };
+  }
+  const prep = S.state === 'day' && S.phase === 'prep';
+  if (!prep && S.state !== 'night') return null;
+  if (prep && hero.pos.distanceTo(tmp2.set(bellPos.x, hero.pos.y, bellPos.z)) < 2.2 + (lastKey === 'bell' ? 0.9 : 0))
+    return { key: 'bell', anchor: bellPos.clone(), hold: 1.0, opts: [{ n: drum.visible ? 'Beat the war drum' : 'Ring the bell', c: {}, d: 'Bring on the night. Everything stays where you put it', run: beginNight }] };
+  const opts = [];
+  if (prep) {
+    if (S.towing) opts.push({ n: `Set the ${DEFS[S.towing.cartKind].name.toLowerCase()} down here`, c: {}, d: nearestEdgeKey(S.towing.x, S.towing.z, 2.6) ? 'Across the road: raiders must deal with it on the way' : 'It stands here for the night', run: setDown });
+    else {
+      const cart = combatCarts().filter(p => Math.hypot(p.x - hero.pos.x, p.z - hero.pos.z) < 2.8).sort((a, b) => Math.hypot(a.x - hero.pos.x, a.z - hero.pos.z) - Math.hypot(b.x - hero.pos.x, b.z - hero.pos.z))[0];
+      if (cart) opts.push({ n: `Move the ${DEFS[cart.cartKind].name.toLowerCase()}`, c: {}, d: 'Hitch it to your horse and ride it to where it should stand', run: () => hitch(cart) });
+    }
+    const rb = S.roadPlots.map(p => p.building).find(b => b && b.pos.distanceTo(hero.pos) < 2.2);
+    if (rb && !rb.level) opts.push({ n: DEFS[rb.kind].up.name, c: DEFS[rb.kind].up.cost, d: DEFS[rb.kind].up.desc, run: () => upgrade(rb) });
+    const onRoad = nearestEdgeKey(hero.pos.x, hero.pos.z, 2.3);
+    const clearHere = !S.roadPlots.some(p => Math.hypot(p.x - hero.pos.x, p.z - hero.pos.z) < 3.5) && !convoy.some(p => p !== S.towing && Math.hypot(p.x - hero.pos.x, p.z - hero.pos.z) < 2.5)
+      && !(S.camp && Math.hypot(hero.pos.x - S.camp.cx, hero.pos.z - S.camp.cz) < CONVOY.ringR + 1.5) && !(FIELD.castle && Math.hypot(hero.pos.x, hero.pos.z) < CASTLE_R + 2);
+    if (!S.towing && !rb && onRoad && clearHere) {
+      opts.push({ n: 'Barricade the road', c: DEFS.roadblock.cost, d: 'Raiders must break it, or take another road', run: () => roadBuild('roadblock') });
+      opts.push({ n: 'Scatter caltrops', c: DEFS.caltrops.cost, d: 'Iron spikes: slows raiders and wounds them', run: () => roadBuild('caltrops') });
+    }
+  }
+  // soldiers: offered when you stop, so a panel is not always hanging over the rider
+  if (stillT > 0.35 || opts.length) {
+    const f = followers();
+    if (f.length) {
+      const n = Math.min(4, f.length);
+      opts.push({ n: `Post ${n} soldier${n > 1 ? 's' : ''} here`, c: {}, d: 'They hold this ground and fight whatever comes near', run: () => postSoldiers(n) });
+      if (f.length > n) opts.push({ n: `Post all ${f.length} here`, c: {}, d: 'The whole company holds this ground', run: () => postSoldiers(f.length) });
+    }
+    const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
+    if (here.length) opts.push({ n: `Call ${here.length} back to you`, c: {}, d: 'They fall in behind you again', run: () => recallSoldiers(here) });
+  }
+  if (!opts.length) return null;
+  return { key: 'f|' + opts.map(o => o.n).join('|'), anchor, hold: 0.7, opts };
 }
 function convoyGoal(el) {
   const playing = S.state === 'day' || S.state === 'night';
-  el.hidden = !playing || !S.map; if (el.hidden) return;
-  const head = `<b>${REGION_NAME[S.region]}</b>, floor ${S.floor} of ${CONVOY.floors + 1}. Reach the border fort.<br>`;
+  el.hidden = !playing || !S.map || S.phase === 'map' || S.phase === 'shop'; if (el.hidden) return;
+  const head = `<b>${REGION_NAME[S.region]}</b>, floor ${S.floor} of ${CONVOY.floors + 1}.${keep.alive ? ` The keep: <b>${Math.max(0, Math.round(keep.hp))}</b> / ${keep.max}` : ''}<br>`;
   el.innerHTML = head + ({
-    map: 'Choose the road on the map.', shop: 'Build, trade, then take the road.',
-    dusk: 'Dusk. Ride to the ground you want and <b>hold Space to circle the wagons</b>. Cliffs and the river close sides of the ring; carts close the rest.',
+    dusk: 'Ride to the ground you want and <b>hold Space to circle the wagons</b>. Cliffs and the river close sides of the ring; carts close the rest.',
     circling: 'Circling the wagons…',
-  }[S.phase] || (S.state === 'night' ? `Hold until dawn. Raiders who grab food run for the passes: <b>run them down</b>.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}` : ''));
+    prep: `Set the field. Stand by a cart and hold Space to <b>move it</b>; on a road to <b>barricade</b> it; stop anywhere to <b>post soldiers</b>. Guard the <b>food</b>, <b>wood</b> and <b>stone</b> wagons. When ready, ${drum.visible ? 'beat the <b>war drum</b>' : 'ring the <b>bell</b>'}.`,
+  }[S.phase] || (S.state === 'night' ? `Hold until dawn. Raiders who grab a load run for the passes: <b>run them down</b>.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}` : ''));
+}
+// labels over the three supply wagons, and markers for the passes the raiders will use
+const tagBox = document.createElement('div'); document.body.appendChild(tagBox);
+const wTags = {}, rTags = {};
+function screenTag(el, p, y, pin) {
+  const s = toScreen(tmp.set(p.x, p.y + y, p.z)), behind = proj.z > 1, m = 60;
+  let x = s.x, yy = s.y; const off = behind || x < m || x > innerWidth - m || yy < m + 40 || yy > innerHeight - m;
+  if (off && !pin) { el.hidden = true; return; }
+  if (behind) { x = innerWidth - x; yy = innerHeight - m; }
+  el.hidden = false; el.classList.toggle('edge', off);
+  el.style.left = clamp(x, m + 50, innerWidth - m - 50) + 'px'; el.style.top = clamp(yy, off ? 210 : m + 70, innerHeight - m) + 'px';
+}
+function updateTags() {
+  const on = (S.state === 'day' || S.state === 'night') && ['dusk', 'circling', 'prep', 'night'].includes(S.phase) && !paused;
+  for (const k in SUPPLY) {
+    const el = wTags[k] || (wTags[k] = Object.assign(document.createElement('div'), { className: 'wtag' }));
+    if (!el.parentNode) tagBox.appendChild(el);
+    const p = convoy.find(q => q.cartKind === k);
+    if (!on || !p) { el.hidden = true; continue; }
+    const sp = SUPPLY[k], v = S.res[sp.res];
+    el.style.borderColor = sp.col;
+    el.innerHTML = p.building ? `<i class="ic ${sp.res}"></i><b>${sp.name}</b> ${v}` : `<b>${sp.name}</b> burned`;
+    screenTag(el, p.pos, { food: 3.0, wood: 4.4, stone: 5.8 }[k], false);
+  }
+  const ids = on ? (S.preEntries || S.entries || []) : [];
+  for (const id in rTags) if (!ids.includes(id)) rTags[id].hidden = true;
+  for (const id of ids) {
+    const el = rTags[id] || (rTags[id] = Object.assign(document.createElement('div'), { className: 'rtag' }));
+    if (!el.parentNode) tagBox.appendChild(el);
+    const en = ENTRIES.find(e => e.id === id); if (!en || !NODES[id]) { el.hidden = true; continue; }
+    el.innerHTML = `<b>Raiders</b>${en.name}<i></i>`;
+    screenTag(el, NODES[id].pos, 6, true);
+  }
 }
 function updateConvoy(dt) {
   if (S.state === 'title') return;
   if (circling) updateCircling(dt);
-  updatePreview(); updateSacks(dt);
+  updatePreview(); updateSacks(dt); updateTags();
+  stillT = hero.pos.distanceTo(lastHero) < 0.01 ? stillT + dt : 0; lastHero.copy(hero.pos);
+  if (S.towing) {
+    if (!S.towing.building) S.towing = null;
+    else { const r = hero.face; wagonAt(S.towing, hero.pos.x - Math.sin(r) * 3.3, hero.pos.z - Math.cos(r) * 3.3, r); }
+  }
   if (S.state === 'night' && !S.spawnQ.length) {
     S.tailT = (S.tailT || 0) + dt;
     if (S.tailT > 75) for (const e of enemies) if (e.alive && !e.fleeing && e.pos.distanceTo(hero.pos) > 14) { e.alive = false; e.dying = 0.01; scene.remove(e.bar); }
+    // and past that nobody lingers: thieves still on the loose get away with what they carry
+    if (S.tailT > 110) for (const e of enemies) if (e.alive) { if (e.fleeing) escaped(e); else { e.alive = false; e.dying = 0.01; scene.remove(e.bar); } }
   } else S.tailT = 0;
   campfire.intensity = S.state === 'night' && S.camp ? 9 * (0.9 + Math.sin(clock * 11) * 0.1) : 0;
   for (const s of soldiers) if (s.alive && s.roster) s.roster.hp = s.hp;
@@ -3900,19 +4302,18 @@ function updateConvoy(dt) {
   UPGRADES.find(u => u.id === 'toll').desc = 'Every raider the river takes leaves 2 food behind';
   UPGRADES.push(
     { id: 'axles', name: 'Spare axles and oxen', tags: ['grain'], once: true, desc: 'The column eats 1 less food a day', apply: () => { S.rationCut += 1; } },
-    { id: 'chains', name: 'Chained wheels', tags: ['wall'], once: true, desc: 'Ring carts are chained together: +40% HP, and mended now', apply: () => { S.cartHpMul *= 1.4; for (const b of buildings) { b.max *= 1.4; b.hp = b.max; } } },
+    { id: 'chains', name: 'Chained wheels', tags: ['wall'], once: true, desc: 'Carts are chained together: +40% HP, and mended now', apply: () => { S.cartHpMul *= 1.4; for (const b of buildings) { b.max *= 1.4; b.hp = b.max; } } },
   );
 }
 
 /* ---------------- the column, before the first region ---------------- */
 {
-  S.path = ['start'];
-  ['tower', 'supply', 'supply', 'barricade', 'tower'].forEach(k => addWagon(k, 0, 0, -40, 0));
-  addSoldiers(4);
-  S.res.grain = 36; S.res.wood = 6; S.res.stone = 2;
-  S.map = genRegion(0); S.at = 'start';
-  const n = S.map.start; layoutColumn(n.site.x, n.site.z, n.site.rot);
-  hero.pos.set(n.site.x + 2.4, 0, n.site.z); hero.face = n.site.rot;
+  ['tower', 'food', 'wood', 'stone', 'barricade', 'tower', 'tower'].forEach(k => addWagon(k, 0, 0, 0, 0));
+  addSoldiers(10);
+  S.res.grain = 45; S.res.wood = 10; S.res.stone = 4;
+  S.map = genRegion(); S.at = null;
+  layoutColumn(2, -46, Math.PI / 2);
+  hero.pos.set(4, 0, -43); hero.face = Math.PI / 2;
   refreshSacks();
 }
 
@@ -3971,7 +4372,7 @@ function update(dt) {
   hemi.groundColor.setRGB(lerp(0.44, 0.06, n), lerp(0.42, 0.08, n), lerp(0.27, 0.24, n));
   windowMat.emissiveIntensity = lerp(0, 1.6, n);
   waterMat.emissiveIntensity = 0.22 + Math.sin(clock * 1.6) * 0.06 + n * 0.15;
-  torches.forEach((t, i) => { t.intensity = n * (i === 2 ? 14 : 10) * (0.9 + Math.sin(clock * 12 + i * 2) * 0.1); });
+  torches.forEach((t, i) => { t.intensity = (FIELD.castle ? 1 : 0) * n * (i === 2 ? 14 : 10) * (0.9 + Math.sin(clock * 12 + i * 2) * 0.1); });
   updateAmbience(dt, n);
   bloom.strength = lerp(0.22, 0.85, n); bloom.threshold = lerp(0.95, 0.62, n);
   inkPass.uniforms.uNight.value = n;
@@ -4023,7 +4424,7 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
