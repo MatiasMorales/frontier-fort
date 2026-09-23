@@ -229,6 +229,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .ic.men{ background:none; } .ic.men::before{ content:'兵'; font-family:var(--brush); color:var(--gold); font-size:16px; line-height:18px; }
 .wtag, .rtag{ position:fixed; z-index:6; transform:translate(-50%,-100%); pointer-events:none; padding:4px 9px 5px; font-size:13px; white-space:nowrap; background:rgba(38,20,16,.88); color:var(--paper); border:1px solid var(--gold); border-left-width:4px; border-radius:4px; }
 .wtag b{ color:var(--gold); margin:0 4px 0 2px; } .wtag .ic{ width:14px; height:14px; vertical-align:-2px; }
+.wtag.group{ display:flex; gap:10px; font-weight:600; } .wtag.group[hidden]{ display:none; } .wtag.group span{ padding:0 2px 1px; } .wtag.group .ic{ margin-right:4px; }
 .rtag{ border-color:#d2462f; text-align:center; } .rtag b{ display:block; color:#ff7a5a; font-size:14px; letter-spacing:.06em; text-transform:uppercase; }
 .rtag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:rgba(38,20,16,.88); border-right:1px solid #d2462f; border-bottom:1px solid #d2462f; }
 .rtag.edge i{ display:none; } .rtag.edge{ background:rgba(120,30,20,.9); }
@@ -278,6 +279,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 </div>
 <div id="keepBox" class="panel" hidden>
   <div class="lbl">Soldiers <span id="keepN">0</span></div>
+  <div id="mix" style="font-size:12.5px;color:#dccaa6;margin:2px 0 4px"></div>
   <div class="bar"><i id="keepBar"></i></div>
   <div class="lbl" style="margin-top:8px">Commander <span id="heroN">120</span></div>
   <div class="bar"><i id="heroBarI" style="background:linear-gradient(90deg,#e6c77f,#c29a4c)"></i></div>
@@ -289,7 +291,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <div id="hurt" style="position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(170,20,10,.55) 100%);transition:opacity .15s"></div>
 <div id="banner"><b id="bannerT"></b><span id="bannerS"></span></div>
 <div id="prompt" class="panel" hidden></div>
-<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp;  <kbd>F</kbd> bow / sabre &nbsp; <kbd>Space</kbd> hold to act: circle, move carts, bar roads, post soldiers &nbsp; at night: stop to shoot, ride close to cut, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
+<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp;  <kbd>F</kbd> bow / sabre &nbsp; <kbd>Space</kbd> hold: act &nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> call spear / bow / horse &nbsp; night: stop to shoot, ride close to cut, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
   <div class="sheet" style="max-width:440px">
@@ -523,7 +525,12 @@ function computeCrossings(pick) {
   CROSSINGS.length = 0;
   for (const [a, b] of EDGE_DEF) {
     const A = NODE_DEF[a], Bp = NODE_DEF[b];
-    for (let i = 0; i < RIVER.length - 1; i++) { const h = segHit(A, Bp, RIVER[i], RIVER[i + 1]); if (h) CROSSINGS.push({ a, b, x: h.x, z: h.z, dir: Math.atan2(Bp[1] - A[1], Bp[0] - A[0]) }); }
+    for (let i = 0; i < RIVER.length - 1; i++) {
+      const h = segHit(A, Bp, RIVER[i], RIVER[i + 1]); if (!h) continue;
+      const dir = Math.atan2(Bp[1] - A[1], Bp[0] - A[0]), rdir = Math.atan2(RIVER[i + 1][1] - RIVER[i][1], RIVER[i + 1][0] - RIVER[i][0]);
+      const sin = Math.max(0.5, Math.abs(Math.sin(dir - rdir)));
+      CROSSINGS.push({ a, b, x: h.x, z: h.z, dir, span: (RIVER_HALF + 1.3) / sin });
+    }
   }
   CROSSINGS.forEach((c, i) => {
     c.key = [c.a, c.b].sort().join('|');
@@ -558,9 +565,10 @@ function hgt(x, z) {
   m *= smooth(2.5, 9, rd) * smooth(3, 10, rv);
   // the camera looks north: on generated ground the southern rim is kept low so it never walls off the view
   if (!FIELD.southWall) m *= lerp(1, 0.32, smooth(VALLEY.cz + VALLEY.rz * 0.2, VALLEY.cz + VALLEY.rz * 1.1, z));
-  let hill = 2.6 * Math.max(0, vnoise(x * 0.045 + 11, z * 0.045 + 5)) * (1 - amt) * smooth(2, 6, rd) * smooth(2.5, 6, rv);
+  let hill = (FIELD.castle ? 2.6 : 3.4) * Math.max(0, vnoise(x * 0.045 + 11, z * 0.045 + 5)) * (1 - amt) * smooth(2, 6, rd) * smooth(2.5, 6, rv);
   let h = m + hill + 0.3 * vnoise(x * 0.2, z * 0.2) * smooth(2, 6, rd) * (1 - amt);
   if (FIELD.castle) h *= smooth(CASTLE_R + 1, CASTLE_R + 4, Math.hypot(x, z));
+  if (!FIELD.castle) for (const c of CROSSINGS) { const d = Math.hypot(x - c.x, z - c.z); if (d < 9) h *= smooth((c.span || 3) + 0.5, (c.span || 3) + 5, d); }
   const w = 1 - smooth(RIVER_HALF - 0.4, RIVER_HALF + 0.8, rv);
   return h - 1.1 * w;
 }
@@ -734,11 +742,19 @@ function buildTerrain() {
   for (let i = 0; i < pos.count; i++) pos.setY(i, hgt(pos.getX(i), pos.getZ(i)));
   geo.computeVertexNormals();
   const nrm = geo.attributes.normal;
+  const cLush = new THREE.Color('#355226'), cHigh = new THREE.Color('#8d8a4a'), cSoil = new THREE.Color('#6e573a');
   const cRockA = new THREE.Color('#77705f'), cRockB = new THREE.Color('#8f8676'), cCliff = new THREE.Color('#5c554c'), cAlp = new THREE.Color('#5d7040');
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), y = pos.getY(i), r = Math.hypot(x, z), ny = nrm.getY(i);
     const n1 = vnoise(x * 0.06, z * 0.06);
     c.copy(cGrass).lerp(cGrass2, clamp(n1, 0, 1) * 0.8).lerp(cDry, clamp(-n1, 0, 1) * 0.35);
+    // height in the colour, not only in the light: hollows are deep and lush, rises dry and
+    // sunlit, and the steep sides of a hill show bare earth
+    if (!FIELD.castle) {
+      const hk = smooth(-0.2, 2.8, y);
+      c.lerp(cLush, (1 - hk) * 0.5).lerp(cHigh, hk * 0.55);
+      c.lerp(cSoil, smooth(0.95, 0.82, ny) * (1 - smooth(3, 7, y)) * 0.65);
+    }
     if (y > 1.2) {
       const band = 0.5 + 0.5 * Math.sin(y * 0.55 + vnoise(x * 0.1, z * 0.1) * 2);
       const rock = cRockA.clone().lerp(cRockB, band);
@@ -771,14 +787,14 @@ function buildTerrain() {
   };
   const ground = new THREE.Mesh(geo, groundMat);
   ground.receiveShadow = true; scene.add(ground);
-  // the river as a ribbon of water
-  const verts = [], idx = [];
-  for (let i = 0; i < RIVER.length - 1; i++) {
-    const [ax, az] = RIVER[i], [bx, bz] = RIVER[i + 1], L = Math.hypot(bx - ax, bz - az), nx = -(bz - az) / L, nz = (bx - ax) / L, w = RIVER_HALF + 0.6;
-    const base = verts.length / 3;
-    verts.push(ax + nx * w, -0.4, az + nz * w, ax - nx * w, -0.4, az - nz * w, bx + nx * w, -0.4, bz + nz * w, bx - nx * w, -0.4, bz - nz * w);
-    idx.push(base, base + 2, base + 1, base + 1, base + 2, base + 3);
-    if (i > 0) { const pb = base - 4; idx.push(pb + 2, base, pb + 3, pb + 3, base, base + 1); }
+  // the river as one mitred strip: each point's edge is pushed out along the average of its two
+  // segments' normals, so the bends join cleanly instead of leaving notches and dry corners
+  const verts = [], idx = [], w = RIVER_HALF + 0.75;
+  for (let i = 0; i < RIVER.length; i++) {
+    const p = RIVER[i], a2 = RIVER[Math.max(0, i - 1)], b2 = RIVER[Math.min(RIVER.length - 1, i + 1)];
+    let tx = b2[0] - a2[0], tz = b2[1] - a2[1]; const L = Math.hypot(tx, tz) || 1; tx /= L; tz /= L;
+    verts.push(p[0] - tz * w, -0.4, p[1] + tx * w, p[0] + tz * w, -0.4, p[1] - tx * w);
+    if (i) { const k = (i - 1) * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); }
   }
   const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); rg.setIndex(idx); rg.computeVertexNormals();
   scene.add(new THREE.Mesh(rg, waterMat));
@@ -907,7 +923,7 @@ function decorate() {
   let ti = 0;
   for (let i = 0; i < 20000 && ti < N; i++) {
     const a = rnd() * TAU, r = (FIELD.castle ? CASTLE_R + 2 : 3) + Math.pow(rnd(), 0.85) * (FIELD.castle ? 60 : 52), x = Math.cos(a) * r, z = Math.sin(a) * r + (FIELD.castle ? 0 : VALLEY.cz), h = hgt(x, z), rv = riverDist(x, z);
-    if (rv < RIVER_HALF - 0.3 || roadDist(x, z) < 1.6 || h > 4) continue;
+    if (rv < RIVER_HALF - 0.3 || roadDist(x, z) < 1.6 || h > 4 || (!FIELD.castle && rnd() < smooth(0.4, 2.6, h) * 0.75)) continue;
     let near = false; for (const p of avoid) if (Math.hypot(p.x - x, p.z - z) < 1.7) { near = true; break; }
     if (near) continue;
     const reed = rv < RIVER_HALF + 1.3;
@@ -1469,7 +1485,7 @@ function makeBridge(c) {
   const g = new THREE.Group(); g.position.set(c.x, 0, c.z); g.rotation.y = Math.PI / 2 - c.dir;
   const deckMat = toonMat({ color: '#7d5836', emissive: '#ff5a10', emissiveIntensity: 0 });
   const deck = new THREE.Group(); g.add(deck);
-  const L = RIVER_HALF * 2 + 2.4, n = Math.round(L / 0.5);
+  const L = (c.span || RIVER_HALF + 1.2) * 2, n = Math.round(L / 0.5);
   for (let k = 0; k < n; k++) part(B(2.5, 0.14, 0.42), deckMat, 0, 0.16, -L / 2 + k * (L / n) + 0.2, deck);
   part(B(0.12, 0.12, L), deckMat, 1.15, 0.7, 0, deck); part(B(0.12, 0.12, L), deckMat, -1.15, 0.7, 0, deck);
   for (const z of [-L / 2, 0, L / 2]) for (const x of [1.15, -1.15]) { part(CYL(0.09, 0.09, 0.7, 5), deckMat, x, 0.45, z, deck); part(CYL(0.12, 0.12, 1.3, 5), '#3d2b1c', x, -0.35, z, g); }
@@ -1784,7 +1800,7 @@ function blocked(x, z, forHero) {
   if (FIELD.castle && Math.abs(r - CASTLE_R) < 0.9 && (Math.min(Math.abs(x), Math.abs(z)) > 1.9 || z > 5)) return true;
   if (riverDist(x, z) < RIVER_HALF + 0.1) {
     if (forHero && S.fordMarker) return false;
-    for (const c of CROSSINGS) if ((c.ford || c.intact) && Math.hypot(x - c.x, z - c.z) < RIVER_HALF + 2 && crossLateral(c, x, z) < 1.4) return false;
+    for (const c of CROSSINGS) if ((c.ford || c.intact) && Math.hypot(x - c.x, z - c.z) < (c.span || RIVER_HALF) + 0.8 && crossLateral(c, x, z) < 1.4) return false;
     return true;
   }
   // The mountains are the boundary, not a circle: this used to stop at r 64 while plots were
@@ -1803,7 +1819,7 @@ function moveLand(p, goal, spd, forHero) {
 const side = p => Math.hypot(p.x, p.z) < CASTLE_R ? 'in' : 'out';
 const nearGateway = p => Math.abs(Math.hypot(p.x, p.z) - CASTLE_R) < 2.5 && Math.min(Math.abs(p.x), Math.abs(p.z)) < 2.2 && p.z < 5;
 const canReach = (a, b) => !crossesRiver(a.x, a.z, b.x, b.z) && (side(a) === side(b) || nearGateway(a) || nearGateway(b));
-function onBridge(p) { for (const c of CROSSINGS) if (c.bridge && c.intact && Math.hypot(p.x - c.x, p.z - c.z) < RIVER_HALF + 1.2 && crossLateral(c, p.x, p.z) < 1.4) return true; return false; }
+function onBridge(p) { for (const c of CROSSINGS) if (c.bridge && c.intact && Math.hypot(p.x - c.x, p.z - c.z) < (c.span || RIVER_HALF + 1.2) && crossLateral(c, p.x, p.z) < 1.4) return true; return false; }
 const groundY = p => Math.max(hgt(p.x, p.z), onBridge(p) ? 0.25 : -9);
 function nearest(list, p, filter) {
   let best = null, bd = Infinity;
@@ -3596,7 +3612,7 @@ function musterSoldiers() {
     const home = new V3(hero.pos.x + Math.sin(a) * rr, 0, hero.pos.z + Math.cos(a) * rr); home.y = Math.max(groundY(home), 0);
     const m = makeUnitModel(r.type);
     const s = { isSoldier: true, alive: true, hp: r.hp, max: r.max, pos: home.clone(), home, m, cd: Math.random() * 0.5, bob: Math.random() * 6, barY: r.type === 'horse' ? 2.7 : 1.9, atkT: 0,
-      house: post, roster: r, hungry: r.hungry, following: true, followT: Infinity, type: r.type || 'spear' };
+      house: post, roster: r, hungry: r.hungry, following: false, atConvoy: true, type: r.type || 'spear' };
     s.bar = makeBar('#9fc166', 0.7); m.g.position.copy(home); scene.add(m.g);
     post.soldiers.push(s); soldiers.push(s);
   });
@@ -3615,27 +3631,44 @@ function dismissSoldiers() {
   return { lost, wounded };
 }
 function makeUnitModel(type) {
-  if (type === 'archer') return makeFootman({ legs: '#3a2a20', coat: '#8f4a2a', hat: 'cap', hatCol: '#4a3a2a', weapon: 'bow', scale: 0.95 });
+  if (type === 'archer') { const m = makeFootman({ legs: '#3a2a20', coat: '#4f6a34', hat: 'cap', hatCol: '#4a3a2a', weapon: 'bow', scale: 0.95 }); m.g.add(groundRing(KIND_COL.archer, 0.42, 0.56, 0.75)); return m; }
   if (type === 'horse') {
-    const m = makeArcherRider({ horse: '#6b4a33', legCol: '#4a3524', coat: '#a83a2c', hat: 'helm', hatCol: '#9aa0a3', ring: '#9fc166', r0: 0.8, r1: 0.95 });
+    const m = makeArcherRider({ horse: '#6b4a33', legCol: '#4a3524', coat: '#3d5878', hat: 'helm', hatCol: '#9aa0a3', ring: KIND_COL.horse, r0: 0.8, r1: 0.95 });
     m.bow.visible = false;
     const lance = part(CYL(0.03, 0.03, 2.6, 4), C.woodDark, 0.28, 0.5, 0.5, m.rider); lance.rotation.x = Math.PI / 2 - 0.25;
     part(new THREE.ConeGeometry(0.05, 0.25, 4), '#cfcfcf', 0.28, 0.83, 1.78, m.rider).rotation.x = Math.PI / 2 - 0.25;
     return m;
   }
-  return makeSoldierModel();
+  const m = makeSoldierModel(); m.g.add(groundRing(KIND_COL.spear, 0.42, 0.56, 0.75)); return m;
 }
 const followers = () => soldiers.filter(s => s.alive && s.following);
+// where the men wait while you have not called them: round the column, or inside the ring
+function convoyHomes() {
+  const at = soldiers.filter(s => s.alive && s.atConvoy), c = S.camp;
+  const cx = c ? c.cx : S.site.x, cz = c ? c.cz : S.site.z;
+  at.forEach((s, i) => { const a = i / at.length * TAU + 0.3, r = c ? 3.9 : FIELD.castle ? 6.2 + (i % 3) * 0.9 : 3 + (i % 3) * 0.8; s.home = new V3(cx + Math.sin(a) * r, 0, cz + Math.cos(a) * r); });
+}
+const KIND_WORD = { spear: ['spearman', 'spearmen'], archer: ['archer', 'archers'], horse: ['horseman', 'horsemen'] };
+const KIND_COL = { spear: '#e0643f', archer: '#8fd060', horse: '#62a8ec' };
+const kindDot = k => `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${KIND_COL[k]};margin-right:6px;vertical-align:1px"></i>`;
+function callSoldiers(kind) {
+  const list = soldiers.filter(s => s.alive && s.type === kind && !s.following);
+  for (const s of list) { s.following = true; s.followT = Infinity; s.posted = false; s.atConvoy = false; }
+  if (list.length) banner(`${list.length} ${KIND_WORD[kind][list.length > 1 ? 1 : 0]} ride with you`, 'Stop where you want them and hold Space to post them.', 2);
+  convoyHomes(); return list.length;
+}
+function sendBack(list) { for (const s of list) { s.following = false; s.posted = false; s.atConvoy = true; } convoyHomes(); banner('Back to the convoy', '', 1.4); }
 function postSoldiers(n) {
   const f = followers().sort((a, b) => a.pos.distanceTo(hero.pos) - b.pos.distanceTo(hero.pos)).slice(0, n);
   f.forEach((s, i) => {
     const a = i / f.length * TAU, r = f.length > 1 ? 1.1 + Math.floor(i / 8) * 0.9 : 0;
-    s.following = false; s.posted = true;
+    s.following = false; s.posted = true; s.atConvoy = false;
     s.home = new V3(hero.pos.x + Math.sin(a) * r, 0, hero.pos.z + Math.cos(a) * r);
   });
   banner(`${f.length} soldier${f.length > 1 ? 's' : ''} posted`, 'They hold this ground and fight whatever comes near.', 1.8);
+  convoyHomes();
 }
-function recallSoldiers(list) { for (const s of list) { s.following = true; s.followT = Infinity; s.posted = false; } banner('They fall in behind you', '', 1.4); }
+function recallSoldiers(list) { for (const s of list) { s.following = true; s.followT = Infinity; s.posted = false; s.atConvoy = false; } banner('They fall in behind you', '', 1.4); }
 
 /* ---------------- the map: a Slay the Spire region ----------------
    Paths start on distinct columns and step up one floor at a time, left, straight or right, and
@@ -3714,7 +3747,10 @@ function genFieldData(nPass) {
   const ell = (x, z) => Math.hypot((x - VALLEY.cx) / VALLEY.rx, (z - VALLEY.cz) / VALLEY.rz);
   if (R() < 0.6) {                       // a river right across the valley
     const a = R() * Math.PI, dx = Math.cos(a), dz = Math.sin(a), off = (R() - 0.5) * 36;
-    for (let t = -150; t <= 150; t += 25) { const w = Math.abs(t) < 140 ? (R() - 0.5) * 10 : 0; RIVER.push([VALLEY.cx - dz * (off + w) + dx * t, VALLEY.cz + dx * (off + w) + dz * t]); }
+    let pts = [];
+    for (let t = -150; t <= 150; t += 25) { const w = Math.abs(t) < 140 ? (R() - 0.5) * 12 : 0; pts.push([VALLEY.cx - dz * (off + w) + dx * t, VALLEY.cz + dx * (off + w) + dz * t]); }
+    for (let k = 0; k < 2; k++) { const q = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const [ax, az] = pts[i], [bx, bz] = pts[i + 1]; q.push([ax * 0.75 + bx * 0.25, az * 0.75 + bz * 0.25], [ax * 0.25 + bx * 0.75, az * 0.25 + bz * 0.75]); } q.push(pts[pts.length - 1]); pts = q; }
+    RIVER.push(...pts);
   }
   const J = [];
   for (let i = 0; i < 600 && J.length < 8; i++) {
@@ -3831,7 +3867,7 @@ function enterField(type) {
   hero.pos.set(x + Math.cos(rot) * 2.6, 0, z - Math.sin(rot) * 2.6); hero.face = rot; hero.alive = true; hero.m.g.visible = true;
   camFocus.set(hero.pos.x, 0, hero.pos.z);
   for (const id of S.preEntries) flare(id);
-  musterSoldiers();
+  musterSoldiers(); convoyHomes();
   DIST_TARGET = type === 'boss' ? 'K' : nearestNode(x, z, id => id[0] !== 'P'); distDirty = true;
   refreshSacks(); refreshHUD();
   const names = S.preEntries.map(p => ENTRIES.find(e => e.id === p).name);
@@ -3850,6 +3886,7 @@ function toFortPrep(names) {
   cc.forEach((p, i) => { const [gx, gz] = gates[i % 3], side = (Math.floor(i / 3) % 2 ? -1 : 1) * (1 + Math.floor(i / 6)) * 2.2, r = CASTLE_R + 3.5;
     wagonAt(p, gx * r + (gz ? side : 0), gz * r + (gx ? side : 0), Math.atan2(gx, gz) + Math.PI / 2); });
   hero.pos.set(0, 0, -12); camFocus.set(0, 0, -12);
+  S.site = { x: 0, z: 2, rot: 0 }; convoyHomes();
   toPrep(ORIG_BELL, false);
   banner('Position phase: the border fort', `About ${S.passCount * names.length} raiders, from ${names.length} directions. Place carts, bar roads, post soldiers, then ring the bell. The keep must stand.`, 6);
 }
@@ -3999,6 +4036,7 @@ function updateCircling(dt) {
     keep.pos.set(S.camp.cx, 0, S.camp.cz);
     campfire.position.set(S.camp.cx, 1.2, S.camp.cz);
     applyPalisades(); refreshGaps();
+    convoyHomes();
     toPrep({ x: S.camp.cx, z: S.camp.cz }, true);
     banner('Place your defences', 'Move carts, bar the roads, post soldiers. Beat the drum in the ring when you are ready.', 5);
   }
@@ -4481,6 +4519,11 @@ function convoyDay() {
 /* ---------------- input, prompt, goal, per-frame ---------------- */
 function convoyKeys(e) {
   const n = /^Digit[1-9]$/.test(e.code) ? +e.code.slice(5) - 1 : -1;
+  if ($('#smap').hidden && $('#shop').hidden && $('#dawn').hidden && ['dusk', 'prep', 'night'].includes(S.phase) && n >= 0 && n < 3 && !e.repeat) {
+    const k = ['spear', 'archer', 'horse'][n];
+    if (!callSoldiers(k)) banner(`No ${KIND_WORD[k][1]} to call`, '', 1.2);
+    e.preventDefault(); return true;
+  }
   if (!$('#smap').hidden) {
     const len = mapOpts.length;
     if (e.code === 'Space' || e.code === 'Enter') confirmMap();
@@ -4535,12 +4578,13 @@ function convoyPrompt() {
   if (stillT > 0.35 || opts.length) {
     const f = followers();
     if (f.length) {
-      const n = Math.min(4, f.length);
-      opts.push({ n: `Post ${n} soldier${n > 1 ? 's' : ''} here`, c: {}, d: 'They hold this ground and fight whatever comes near', run: () => postSoldiers(n) });
-      if (f.length > n) opts.push({ n: `Post all ${f.length} here`, c: {}, d: 'The whole company holds this ground', run: () => postSoldiers(f.length) });
+      opts.push({ n: `Post the ${f.length} with you here`, c: {}, d: 'They hold this ground and fight whatever comes near', run: () => postSoldiers(f.length) });
+      opts.push({ n: 'Send them back to the convoy', c: {}, d: 'They guard the wagons again', run: () => sendBack(f) });
     }
-    const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
-    if (here.length) opts.push({ n: `Call ${here.length} back to you`, c: {}, d: 'They fall in behind you again', run: () => recallSoldiers(here) });
+    for (const k of ['spear', 'archer', 'horse']) {
+      const n = soldiers.filter(s => s.alive && s.type === k && !s.following).length;
+      if (n) opts.push({ n: `${kindDot(k)}Call the ${KIND_WORD[k][1]} (${n})`, c: {}, d: `They ride to you from wherever they are. Key ${['spear', 'archer', 'horse'].indexOf(k) + 1}`, run: () => callSoldiers(k) });
+    }
   }
   if (!opts.length) return null;
   return { key: 'f|' + opts.map(o => o.n).join('|'), anchor, hold: 0.7, opts };
@@ -4577,18 +4621,31 @@ function screenTag(el, p, y, pin) {
   x = clamp(x, m + 50, innerWidth - m - 50);
   el.style.left = x + 'px'; el.style.top = clamp(yy, off ? clearTop(x) + 50 : m + 70, innerHeight - m) + 'px';
 }
+let grouped = false;
+const groupTag = Object.assign(document.createElement('div'), { className: 'wtag group' });
 function updateTags() {
   const on = (S.state === 'day' || S.state === 'night') && ['dusk', 'circling', 'prep', 'night'].includes(S.phase) && !paused;
+  // three wagons parked together get one sign, not three fighting for the same spot
+  const sup = Object.keys(SUPPLY).map(k => convoy.find(q => q.cartKind === k)).filter(Boolean);
+  let spread = 0; for (const p of sup) for (const q of sup) spread = Math.max(spread, Math.hypot(p.x - q.x, p.z - q.z));
+  grouped = grouped ? spread < 9 : spread < 7;
+  if (!groupTag.parentNode) tagBox.appendChild(groupTag);
   for (const k in SUPPLY) {
     const el = wTags[k] || (wTags[k] = Object.assign(document.createElement('div'), { className: 'wtag' }));
     if (!el.parentNode) tagBox.appendChild(el);
     const p = convoy.find(q => q.cartKind === k);
-    if (!on || !p) { el.hidden = true; continue; }
+    if (!on || !p || grouped) { el.hidden = true; continue; }
     const sp = SUPPLY[k], v = S.res[sp.res];
     el.style.borderColor = sp.col;
     el.innerHTML = p.building ? `<i class="ic ${sp.res}"></i><b>${sp.name}</b> ${v}` : `<b>${sp.name}</b> burned`;
-    screenTag(el, p.pos, { food: 3.0, wood: 4.4, stone: 5.8 }[k], false);
+    screenTag(el, p.pos, 3.4, false);
   }
+  if (on && grouped && sup.length) {
+    const cx = sup.reduce((a, p) => a + p.x, 0) / sup.length, cz = sup.reduce((a, p) => a + p.z, 0) / sup.length;
+    groupTag.innerHTML = Object.keys(SUPPLY).map(k => { const p = convoy.find(q => q.cartKind === k), sp = SUPPLY[k];
+      return `<span style="border-bottom:2px solid ${sp.col}"><i class="ic ${sp.res}"></i>${p && p.building ? S.res[sp.res] : 'burned'}</span>`; }).join('');
+    screenTag(groupTag, tmp2.set(cx, Math.max(groundY({ x: cx, z: cz }), 0), cz), 3.6, false);
+  } else groupTag.hidden = true;
   const ids = on ? (S.preEntries || S.entries || []) : [];
   for (const id in rTags) if (!ids.includes(id)) rTags[id].hidden = true;
   for (const id of ids) {
@@ -4598,18 +4655,19 @@ function updateTags() {
     el.innerHTML = `<b>Raiders${S.state === 'night' ? '' : ` \u00b7 about ${S.passCount}`}</b>${en.name}<i></i>`;
     screenTag(el, NODES[id].pos, 6, true);
   }
-  // labels must not hide each other: nudge any that overlap
+  // labels must not hide each other. Fixed order, so two labels never swap places from one
+  // frame to the next, and the nudge is eased, so a label slides instead of jumping (the flicker)
   const bt = $('#bellTag');
-  const shown = [...(bt && !bt.hidden ? [bt] : []), ...Object.values(wTags), ...ids.map(id => rTags[id])].filter(el => el && !el.hidden);
-  shown.sort((p, q) => parseFloat(p.style.top) - parseFloat(q.style.top));
+  const shown = [...(bt && !bt.hidden ? [bt] : []), groupTag, ...Object.keys(SUPPLY).map(k => wTags[k]), ...ids.map(id => rTags[id])].filter(el => el && !el.hidden);
   const placed = [];
   for (const el of shown) {
     const x = parseFloat(el.style.left), w = el.offsetWidth, h = el.offsetHeight + 4; let y = parseFloat(el.style.top);
     for (let guard = 0; guard < 8; guard++) {
       const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h));
-      if (!hit) break; y = hit.y + Math.max(hit.h, h);
+      if (!hit) break; y = hit.y - Math.max(hit.h, h);
     }
-    el.style.top = y + 'px'; placed.push({ x, y, w, h });
+    el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : el._y + (y - el._y) * 0.25;
+    el.style.top = el._y + 'px'; placed.push({ x, y, w, h });
   }
   updateThreats();
   updatePhases();
@@ -4664,6 +4722,11 @@ function updateConvoy(dt) {
   } else S.tailT = 0;
   campfire.intensity = S.state === 'night' && S.camp ? 9 * (0.9 + Math.sin(clock * 11) * 0.1) : 0;
   for (const s of soldiers) if (s.alive && s.roster) s.roster.hp = s.hp;
+  const mixEl = $('#mix');
+  if (mixEl && Math.floor(clock * 4) !== Math.floor((clock - dt) * 4)) {
+    const src = soldiers.length ? soldiers.filter(x => x.alive) : S.roster;
+    mixEl.innerHTML = ['spear', 'archer', 'horse'].map(k => `${kindDot(k)}${src.filter(x => (x.type || 'spear') === k).length} ${{ spear: 'spear', archer: 'bow', horse: 'horse' }[k]}`).join(' &nbsp;');
+  }
   if (Math.floor(clock * 4) !== Math.floor((clock - dt) * 4)) { refreshGoal(); refreshHUD(); }
 }
 
@@ -4801,7 +4864,7 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
