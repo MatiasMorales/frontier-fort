@@ -68,7 +68,7 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 #banner{ position:fixed; left:50%; top:calc(86px + env(safe-area-inset-top,0px)); transform:translateX(-50%); z-index:6; text-align:center; pointer-events:none; opacity:0; transition:opacity .5s; max-width:90vw; }
 #banner.show{ opacity:1; }
 #banner b{ display:block; font-size:clamp(26px,4.4vw,40px); font-weight:600; color:var(--paper); text-shadow:0 2px 14px rgba(0,0,0,.6); }
-#banner span{ display:block; font-size:clamp(15px,2vw,18px); color:var(--gold); font-style:italic; text-shadow:0 1px 8px rgba(0,0,0,.7); margin-top:2px; }
+#banner span{ max-width:520px; margin-left:auto; margin-right:auto; display:block; font-size:clamp(15px,2vw,18px); color:var(--gold); font-style:italic; text-shadow:0 1px 8px rgba(0,0,0,.7); margin-top:2px; }
 
 #prompt{ position:fixed; z-index:7; transform:translate(-50%,-100%); padding:10px 12px 10px; min-width:210px; max-width:280px; pointer-events:auto; }
 #prompt[hidden]{ display:none; }
@@ -134,6 +134,19 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .opt .c .ic.wood{ width:15px; height:9px; } .opt .c .ic.stone{ width:12px; height:11px; } .opt .c .ic.grain{ width:8px; height:14px; }
 #res{ gap:10px; padding-left:10px; } .r{ font-size:17px; min-width:34px; } }
 
+#res .r{ display:grid; grid-template-columns:auto auto auto; column-gap:5px; row-gap:0; align-items:center; }
+#res .r em{ font-style:normal; font-size:12px; font-weight:600; color:var(--ok); align-self:end; padding-bottom:2px; }
+#res .r em.zero{ color:var(--gold-dim); }
+#res .r small{ grid-column:1/-1; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); line-height:1; margin-top:1px; }
+#goal{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); top:calc(92px + env(safe-area-inset-top,0px)); z-index:5; padding:8px 12px; font-size:13.5px; line-height:1.35; max-width:340px; }
+#goal b{ color:var(--gold); font-weight:600; }
+#bellTag{ position:fixed; z-index:6; transform:translate(-50%,-100%); pointer-events:none; padding:6px 10px 7px; font-size:13px; white-space:nowrap; text-align:center; border:1px solid var(--gold); }
+#bellTag b{ color:var(--gold); display:block; font-size:14px; }
+#bellTag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:var(--lacquer); border-right:1px solid var(--gold); border-bottom:1px solid var(--gold); }
+#bellTag.edge i{ display:none; }
+.is-paused #goal, .is-paused #bellTag{ display:none !important; }
+#wepCd{ height:3px; background:#1a0e0c; border-radius:2px; margin-top:4px; overflow:hidden; }
+#wepCd i{ display:block; height:100%; width:100%; background:var(--gold); }
 #help{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:5; font-size:13.5px; color:#e6d6b6; background:rgba(42,20,17,.82); border:1px solid var(--lacquer-edge); border-radius:5px; padding:6px 10px; }
 #help kbd{ font-family:var(--serif); font-weight:600; color:var(--paper); background:rgba(42,20,17,.8); border:1px solid var(--lacquer-edge); border-radius:3px; padding:0 5px; }
 
@@ -159,13 +172,15 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <button id="pauseBtn" type="button" aria-label="Pause">☰</button>
 <button id="wepBtn" type="button">Switch</button>
 
+<div id="goal" class="panel" hidden></div>
+<div id="bellTag" class="panel" hidden><b>The bell</b>Ring it to start the night<i></i></div>
 <div id="status" class="panel" hidden>
   <div class="seal">边<br>堡</div>
   <div><div id="dayLabel">Day 1 of 5</div><div id="phaseLabel">Daylight, build</div></div>
   <div id="res">
-    <div class="r" title="Wood"><span class="ic wood"></span><span id="rWood">0</span></div>
-    <div class="r" title="Stone"><span class="ic stone"></span><span id="rStone">0</span></div>
-    <div class="r" title="Grain"><span class="ic grain"></span><span id="rGrain">0</span></div>
+    <div class="r"><span class="ic wood"></span><span id="rWood">0</span><em id="iWood" title="What your crews bring in at the next dawn, if every building survives the night">+0</em><small>Wood</small></div>
+    <div class="r"><span class="ic stone"></span><span id="rStone">0</span><em id="iStone" title="What your crews bring in at the next dawn, if every building survives the night">+0</em><small>Stone</small></div>
+    <div class="r"><span class="ic grain"></span><span id="rGrain">0</span><em id="iGrain" title="What your crews bring in at the next dawn, if every building survives the night">+0</em><small>Grain</small></div>
   </div>
 </div>
 <div id="keepBox" class="panel" hidden>
@@ -175,12 +190,13 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
   <div class="bar"><i id="heroBarI" style="background:linear-gradient(90deg,#e6c77f,#c29a4c)"></i></div>
   <div id="stam"><i id="stamI"></i></div>
   <div id="wep"><b id="wepN">Bow</b><span class="k">F to switch</span></div>
+  <div id="wepCd" hidden><i id="wepCdI"></i></div>
   <div id="heroLine"></div>
 </div>
 <div id="hurt" style="position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(170,20,10,.55) 100%);transition:opacity .15s"></div>
 <div id="banner"><b id="bannerT"></b><span id="bannerS"></span></div>
 <div id="prompt" class="panel" hidden></div>
-<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Space</kbd> hold to build &nbsp; <kbd>F</kbd> bow / sabre &nbsp; at night: stop to shoot, ride close to cut, <kbd>Space</kbd> volley<span id="abHelp"></span></div>
+<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp; <kbd>Space</kbd> hold to build &nbsp; <kbd>F</kbd> bow / sabre &nbsp; <kbd>Space</kbd> at the bell starts the night &nbsp; at night: stop to shoot, ride close to cut, <kbd>Space</kbd> volley<span id="abHelp"></span></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
   <div class="sheet" style="max-width:440px">
@@ -261,7 +277,7 @@ const RES = ['wood', 'stone', 'grain'];
 const START = { wood: 26, stone: 6, grain: 8 };
 const STIPEND = { wood: 5, stone: 1, grain: 2 };
 const SPRINT = { mul: 1.5, drain: 1, refill: 0.55, max: 4 };   // seconds of sprint, and how fast it comes back
-const BLADE = { dmg: 26, rate: 0.5, reach: 2.6, arc: 1.5 };     // a sabre from the saddle: fast, close, wide
+const BLADE = { dmg: 42, cd: 1.15, reach: 2.6, arc: 1.1, swing: 0.3 };   // one cut, one raider, then a breath to recover
 const ARROW_SRC = { hero: 1, tower: 1, keep: 1 };   // what lamellar actually turns
 const COMMAND = { radius: 15, mul: 1.5 };   // the guns shoot harder where he is standing
 const KEEP_ARCHERS = { dmg: 5, every: 1.3, range: 13 };   // the last line has to fight, not win on its own
@@ -333,7 +349,7 @@ const S = {
   knockMul: 1, chargeBuild: 1, steppe: false, gallopShot: false,
   gateArrows: false, murderHoles: false, rammedEarth: false, longWall: false,
   terrace: 0, winterStores: 0, tribute: false, fullBellies: false,
-  armour: false, armourUsed: false, leashMul: 1,
+  armour: false, armourUsed: false, leashMul: 1, bladeCdMul: 1,
   dmgBy: { hero: 0, blade: 0, tower: 0, rockets: 0, bombard: 0, caltrops: 0, spears: 0, keep: 0, fire: 0 },
 };
 
@@ -1199,6 +1215,8 @@ const keepModel = makeKeep(); scene.add(keepModel);
 const keep = { pos: new V3(0, 0, 0), radius: 3.4, hp: KEEP_HP, max: KEEP_HP, isKeep: true, alive: true, barY: 8.6, cd: 0, recent: 0 };
 const bell = makeBell(); bell.position.set(-2.4, 0, 4.6); scene.add(bell);
 const bellPos = new V3(-2.4, 0, 4.6);
+const bellMark = new THREE.Mesh(new THREE.OctahedronGeometry(0.45, 0), new THREE.MeshBasicMaterial({ color: '#ffd27a' }));
+bellMark.scale.set(1, 1.5, 1); bellMark.visible = false; scene.add(bellMark);
 let bellSwing = 0;
 const plots = [], buildings = [];
 const plotGeo = CYL(1.2, 1.3, 0.12, 8), roadPlotGeo = B(3.2, 0.08, 1.1), nodeGeo = CYL(1.3, 1.4, 0.1, 10);
@@ -1295,6 +1313,36 @@ const sabreArm = new THREE.Group(); sabreArm.position.set(0.3, 0.42, 0.1); heroM
   for (let i = 0; i < 5; i++) part(B(0.045, 0.17, 0.012), '#d7dae0', i * 0.035, 0.24 + i * 0.16, 0, s).rotation.z = -i * 0.09;
   heroM.sabre = s; s.visible = false;
 }
+// ---- the swing: the blade sweeps across the horse's front, and a crescent of light follows it ----
+const slashGeo = new THREE.RingGeometry(1.25, 2.65, 28, 1, -Math.PI / 2 - 1.25, 2.5);
+const slashMat = new THREE.MeshBasicMaterial({ color: '#fff2d6', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
+const slash = new THREE.Group(); const slashMesh = new THREE.Mesh(slashGeo, slashMat);
+slashMesh.rotation.x = -Math.PI / 2; slash.add(slashMesh); slash.visible = false; scene.add(slash);
+let slashT = 0, slashDir = 1;
+function startSlash() { slashT = BLADE.swing; slashDir = -slashDir; slash.visible = true; }
+function animateSabre(dt) {
+  const k = hero.swingT > 0 ? 1 - hero.swingT / BLADE.swing : 1;          // 0 -> 1 across the cut
+  if (hero.swingT > 0) {
+    const ease = k < 0.25 ? k / 0.25 * 0.2 : 0.2 + (k - 0.25) / 0.75 * 0.8;   // wind-up, then the fast sweep
+    sabreArm.rotation.set(1.35, slashDir * (1.5 - ease * 3.0), 0.3 * slashDir);
+  } else {
+    sabreArm.rotation.x += (-0.35 - sabreArm.rotation.x) * Math.min(1, dt * 10);   // back to rest, blade up
+    sabreArm.rotation.y *= 1 - Math.min(1, dt * 10); sabreArm.rotation.z *= 1 - Math.min(1, dt * 10);
+  }
+  if (slashT > 0) {
+    slashT -= dt;
+    const f = Math.max(0, slashT / BLADE.swing);
+    slash.position.set(hero.pos.x, hero.pos.y + 1.35, hero.pos.z);
+    slash.rotation.y = hero.face; slash.scale.set(slashDir, 1, 1);
+    slashMat.opacity = Math.sin(f * Math.PI) * 0.75;
+    if (slashT <= 0) slash.visible = false;
+  }
+  const bar = document.getElementById('wepCd');
+  if (bar) {
+    bar.hidden = hero.weapon !== 'blade';
+    document.getElementById('wepCdI').style.width = (100 * (1 - Math.max(0, hero.bladeCd) / (BLADE.cd * S.bladeCdMul))) + '%';
+  }
+}
 function setWeapon(w) {
   if (hero.weapon === w) return;
   hero.weapon = w;
@@ -1340,7 +1388,49 @@ const cmdRing = new THREE.Mesh(new THREE.RingGeometry(COMMAND.radius - 0.35, COM
 cmdRing.rotation.x = -Math.PI / 2; cmdRing.renderOrder = 3; cmdRing.visible = false; scene.add(cmdRing);
 const ui = { day: $('#dayLabel'), phase: $('#phaseLabel'), keepN: $('#keepN'), keepBar: $('#keepBar'), heroLine: $('#heroLine'),
   banner: $('#banner'), bannerT: $('#bannerT'), bannerS: $('#bannerS'), prompt: $('#prompt'), wood: $('#rWood'), stone: $('#rStone'), grain: $('#rGrain') };
+function refreshGoal() {
+  const el = document.getElementById('goal'); if (!el) return;
+  const playing = S.state === 'day' || S.state === 'night';
+  el.hidden = !playing;
+  if (!playing) return;
+  const left = NIGHTS - S.day + 1;
+  el.innerHTML = S.state === 'day'
+    ? `<b>Survive ${NIGHTS} nights.</b> ${left === 1 ? 'This is the last one.' : `${left} to go.`}<br>Build while it is light, then ride to <b>the bell</b> beside the keep and hold Space to ring it and start night ${S.day}.`
+    : `<b>Hold until dawn.</b> If the keep falls, the valley is lost.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}`;
+}
+function updateBellTag() {
+  const el = document.getElementById('bellTag');
+  const show = S.state === 'day' && !(active && active.key === 'bell');
+  el.hidden = !show; if (!show) { bellMark.visible = false; return; }
+  bellMark.visible = true;
+  bellMark.position.set(bellPos.x, 4.2 + Math.sin(clock * 3) * 0.25, bellPos.z); bellMark.rotation.y = clock * 1.4;
+  // follow the bell on screen; if it is off screen, pin the tag to the nearest edge so it can always be found
+  const s = toScreen(tmp.set(bellPos.x, 5.2, bellPos.z));
+  const behind = proj.z > 1, m = 70;
+  let x = s.x, y = s.y, edge = behind || x < m || x > innerWidth - m || y < m + 40 || y > innerHeight - m;
+  if (behind) { x = innerWidth - x; y = innerHeight - m; }
+  x = clamp(x, m + 40, innerWidth - m - 40); y = clamp(y, m + 60, innerHeight - m);
+  el.classList.toggle('edge', edge);
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+}
+function projectedIncome() {   // what dawn pays if every building standing now survives the night
+  const got = { wood: 0, stone: 0, grain: 0 }; let crews = 0;
+  for (const b of buildings) {
+    if (!b.alive) continue;
+    const d = DEFS[b.kind], y = b.level ? d.up.yield : d.yield; if (!y) continue;
+    crews++; const md = b.mods || NO_MODS;
+    for (const r in y) got[r] += Math.max(0, y[r] + S.bonus + (md[r] || 0));
+  }
+  for (const r of RES) got[r] += STIPEND[r];
+  return { got, crews };
+}
 function refreshHUD() {
+  const inc = projectedIncome().got;
+  for (const [r, id] of [['wood', 'iWood'], ['stone', 'iStone'], ['grain', 'iGrain']]) {
+    const el = document.getElementById(id); if (!el) continue;
+    el.textContent = '+' + inc[r]; el.classList.toggle('zero', inc[r] <= STIPEND[r]);
+  }
+  refreshGoal();
   const bbEl = document.getElementById('buildBtn'); if (bbEl) bbEl.innerHTML = S.state === 'night' ? 'Volley,<br>or hold' : 'Hold to<br>build';
   const wn = $('#wepN'); if (wn) wn.textContent = hero.weapon === 'blade' ? 'Sabre' : 'Bow';
   ui.wood.textContent = S.res.wood; ui.stone.textContent = S.res.stone; ui.grain.textContent = S.res.grain;
@@ -1429,6 +1519,7 @@ function upgrade(b) {
   recomputeMods(); distDirty = true;
 }
 function removeBuilding(b) {
+  setTimeout(refreshHUD, 0);   // the dawn estimate drops the moment a farm or camp burns
   b.alive = false; scene.remove(b.g); if (b.bar) scene.remove(b.bar);
   const p = b.plot; p.building = null;
   const i = buildings.indexOf(b); if (i >= 0) buildings.splice(i, 1);
@@ -1895,6 +1986,14 @@ function updateEnemy(e, dt) {
       if (l.userData.low) l.userData.low.rotation.x = moving ? Math.max(0, -sw) * 0.7 : 0;
     });
   else animFoot(e.m, e.bob, moving, e.atkT / 0.3);
+  if (moving) {
+    const stride = Math.floor(e.bob / Math.PI);
+    if (stride !== e.lastStride) {
+      e.lastStride = stride;
+      const d = Math.hypot(e.pos.x - camFocus.x, e.pos.z - camFocus.z);
+      if (d < 20) Sound.play(e.etype === 'horse' || e.etype === 'lancer' ? 'foeHoof' : 'step', 1 - d / 20);
+    }
+  }
   return true;
 }
 function separate() {
@@ -2068,18 +2167,22 @@ function updateHero(dt) {
   // the sabre cuts at anything that comes inside the horse's reach, in the arc he is facing
   hero.bladeCd -= dt; hero.swingT = Math.max(0, hero.swingT - dt);
   if (hero.weapon === 'blade' && S.state === 'night' && hero.bladeCd <= 0) {
-    let hit = 0;
+    let tgt = null, td = Infinity;
     for (const e of enemies) {
       if (!e.alive) continue;
       const dx = e.pos.x - hero.pos.x, dz = e.pos.z - hero.pos.z, d = Math.hypot(dx, dz);
-      if (d > BLADE.reach + e.t.rad) continue;
+      if (d > BLADE.reach + e.t.rad || d >= td) continue;
       if (Math.abs(angDiff(Math.atan2(dx, dz), hero.face)) > BLADE.arc) continue;
-      damage(e, BLADE.dmg * S.heroDmgMul, hero.pos, 'blade'); hit++;
-      puff(e.pos, '#d9d3c4', 2, 1.3);
+      tgt = e; td = d;
     }
-    if (hit) { hero.bladeCd = BLADE.rate; hero.swingT = 0.26; Sound.play('slash'); if (hit > 1) kick(0.14); }
+    if (tgt) {
+      damage(tgt, BLADE.dmg * S.heroDmgMul, hero.pos, 'blade');
+      puff(tgt.pos, '#e8e2d2', 3, 1.6);
+      hero.bladeCd = BLADE.cd * S.bladeCdMul; hero.swingT = BLADE.swing;
+      startSlash(); Sound.play('slash'); kick(0.1); hitStop(35);
+    }
   }
-  if (heroM.sabre) sabreArm.rotation.set(-1.1 * Math.sin((1 - hero.swingT / 0.26) * Math.PI) * (hero.swingT > 0 ? 1 : 0), 0, 0);
+  animateSabre(dt);
   const still = S.gallopShot || hero.moveV.length() < HERO.speed * 0.2;
   hero.cd -= dt; hero.shootT = Math.max(0, hero.shootT - dt);
   const range = HERO.range * S.heroRangeMul;
@@ -2207,7 +2310,7 @@ function startDay() {
   while (flareGroup.children.length) flareGroup.remove(flareGroup.children[0]);
   refreshHUD();
   S.morale = 1;
-  banner(`Day ${S.day} of ${NIGHTS}`, S.day === 1 ? 'Your fields and camps lie outside the walls. Five passes lead in; the western two lie beyond the river.' : S.day === NIGHTS ? 'The great raid comes tonight, from three passes.' : `Tonight they may come from ${WAVES[S.day - 1].entries} pass${WAVES[S.day - 1].entries > 1 ? 'es' : ''}.`, 4.5);
+  banner(`Day ${S.day} of ${NIGHTS}`, S.day === 1 ? `Survive ${NIGHTS} nights. Build by day, then ring the bell beside the keep to face the night.` : S.day === NIGHTS ? 'The great raid comes tonight, from three passes.' : `Tonight they may come from ${WAVES[S.day - 1].entries} pass${WAVES[S.day - 1].entries > 1 ? 'es' : ''}.`, 4.5);
 }
 function startNight() {
   S.state = 'night'; S.clearT = 0; S.nightT = 0; bellSwing = 1.2; S.announced = new Set();
@@ -2257,9 +2360,8 @@ function toDawn() {
   for (const r of rockets) r.ms.forEach(m => scene.remove(m)); rockets.length = 0;
   if (S.day >= NIGHTS) return win();
   S.state = 'dawn';
-  const got = { wood: 0, stone: 0, grain: 0 }; let crews = 0;
-  for (const b of buildings) { const d = DEFS[b.kind]; const y = b.level ? d.up.yield : d.yield; if (!y) continue; crews++; const md = b.mods || NO_MODS; for (const r in y) got[r] += Math.max(0, y[r] + S.bonus + (md[r] || 0)); }
-  for (const r of RES) { got[r] += STIPEND[r]; S.res[r] += got[r]; }
+  const { got, crews } = projectedIncome();
+  for (const r of RES) S.res[r] += got[r];
   let rebuilt = 0;
   for (const p of plots) if (p.ruin) { const { kind, level } = p.ruin; build(p, kind, true, level); rebuilt++; }
   for (const b of buildings) if (b.hp < b.max) b.hp = S.rammedEarth && DEFS[b.kind].block ? b.max : Math.min(b.max, b.hp + b.max * 0.5);
@@ -2344,6 +2446,7 @@ const UPGRADES = [
   { id: 'bow',    name: 'Composite bow',   tags: [], desc: 'Your arrows hit 30% harder', apply: () => { S.heroDmgMul *= 1.3; } },
   { id: 'eye',    name: 'Eagle eye',       tags: [], desc: 'You shoot from 25% farther away', apply: () => { S.heroRangeMul *= 1.25; } },
   { id: 'vets',   name: 'Veteran spearmen',tags: [], once: true, desc: 'Spearmen get 50% more HP and hit 30% harder', apply: () => { S.vetMul = 1.5; for (const s of soldiers) { s.max = SOLDIER.hp * 1.5; s.hp = s.max; } } },
+  { id: 'whet',   name: 'Whetstone and drill', tags: ['cav'], desc: 'Your sabre recovers 30% faster between cuts', apply: () => { S.bladeCdMul = Math.max(0.4, S.bladeCdMul * 0.7); } },
   { id: 'armour', name: "Ancestor's armour", tags: [], once: true, desc: 'Once each night, a killing blow leaves you standing', apply: () => { S.armour = true; } },
 ];
 // A card is offered only if it can still do something: once-only cards drop out when taken,
@@ -2537,7 +2640,7 @@ function wireOptions() {
 /* ================= sound =================
    Everything here is synthesised in WebAudio: no files, no licensing, and the prototype
    stays a single page. Composed music belongs to the vertical slice, not to this. */
-const SFX_MIN = { hit: 0.06, death: 0.09, bow: 0.06, foeBow: 0.1, build: 0.14, fire: 0.22, hurt: 0.3, hoof: 0.07, slash: 0.08, clang: 0.12 };
+const SFX_MIN = { step: 0.055, foeHoof: 0.06, hit: 0.06, death: 0.09, bow: 0.06, foeBow: 0.1, build: 0.14, fire: 0.22, hurt: 0.3, hoof: 0.07, slash: 0.08, clang: 0.12 };
 const Sound = (() => {
   let ctx = null, master, musicG, sfxG, started = false, nextNote = 0, timer = 0, mood = 'menu';
   let last = {};
@@ -2564,12 +2667,12 @@ const Sound = (() => {
            [[0, 1], [2, 1], [4, 1], [2, 1], [1, 1], [0, 1], [-1, 2]]],
   };
 
-  function volumes() { if (!ctx) return; musicG.gain.value = st.music ? st.musicVol * 0.55 : 0; sfxG.gain.value = st.sfx ? st.sfxVol : 0; }
+  function volumes() { if (!ctx) return; musicG.gain.value = st.music ? st.musicVol * 1.4 : 0; sfxG.gain.value = st.sfx ? st.sfxVol : 0; }
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ctx = new AC();
-    master = ctx.createGain(); master.gain.value = 0.9;
+    master = ctx.createGain(); master.gain.value = 0.55;
     master.connect(makeLimiter()).connect(ctx.destination);
     musicG = ctx.createGain(); sfxG = ctx.createGain();
     // two taps of delay stand in for the long resonance of a hall; zheng needs the tail
@@ -2582,11 +2685,15 @@ const Sound = (() => {
     musicG.connect(master); sfxG.connect(master);
     volumes(); started = true; nextNote = ctx.currentTime + 0.12;
   }
+  // Safety net on the output. This was a DynamicsCompressor, which turned out to pull every
+  // sound down by ~3.5x even far below its threshold (measured 0.17 -> 0.05), flattening all the
+  // levels and making gain changes do nothing. A tanh curve is exactly transparent at normal
+  // levels and only rounds off what approaches full scale, so a runaway still cannot scream.
   function makeLimiter() {
-    const l = ctx.createDynamicsCompressor();
-    l.threshold.value = -8; l.knee.value = 6; l.ratio.value = 12;
-    l.attack.value = 0.003; l.release.value = 0.2;
-    return l;
+    const w = ctx.createWaveShaper(), n = 2048, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; curve[i] = Math.abs(x) < 0.6 ? x : Math.sign(x) * (0.6 + 0.4 * Math.tanh((Math.abs(x) - 0.6) / 0.4)); }
+    w.curve = curve; w.oversample = '2x';
+    return w;
   }
   let nb = null, ksBuf = null, hoofBeat = false;
   const KS_REF = 110;
@@ -2777,8 +2884,9 @@ const Sound = (() => {
     a.gain.setValueAtTime(g, ctx.currentTime); a.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     src.connect(bp); bp.connect(a); a.connect(sfxG); src.start(); src.stop(ctx.currentTime + dur + 0.02);
   }
-  function play(kind) {
+  function play(kind, vol) {
     if (!ctx || !st.sfx) return;
+    const v = vol === undefined ? 1 : vol;
     const min = SFX_MIN[kind] || 0.04, now = ctx.currentTime;
     if (now - (last[kind] || -9) < min) return;
     last[kind] = now;
@@ -2792,11 +2900,13 @@ const Sound = (() => {
       case 'death':  blip(130, 52, 0.28, 0.5, 'sine'); noise(0.17, 0.35, 480, 160, 1.2); break;
       case 'hurt':   blip(200, 78, 0.26, 0.6, 'triangle'); noise(0.12, 0.3, 700, 240, 1.2); break;
       case 'build':  noise(0.06, 1.6, 1700, 1300, 3); setTimeout(() => { if (ctx && st.sfx) noise(0.07, 1.3, 1250, 950, 3); }, 105); break;  // two knocks of a mallet
-      case 'fire':   noise(0.6, 0.5, 420, 1500, 0.6); break;
-      case 'bell':   gong(ctx.currentTime, 0.2, sfxG); break;
+      case 'fire':   noise(0.6, 0.9, 420, 1500, 0.6); break;
+      case 'bell':   gong(ctx.currentTime, 0.45, sfxG); break;
       case 'ability':gong(ctx.currentTime, 0.1, sfxG); break;
       case 'crash':  noise(0.55, 0.8, 330, 80, 0.7); blip(110, 44, 0.4, 0.45, 'sine'); break;
+      case 'foeHoof':
       case 'hoof': {
+        const hv = kind === 'foeHoof' ? 0.5 * v : v;
         // A hoof is a hard click on the ground plus a short hollow ring, and the beats of a
         // canter alternate, so the pitch is jittered and the two-beat is offset a little.
         hoofBeat = !hoofBeat;
@@ -2804,16 +2914,16 @@ const Sound = (() => {
         const clack = ctx.createBufferSource(), cf = ctx.createBiquadFilter(), ca = ctx.createGain();
         clack.buffer = noiseBuf();
         cf.type = 'bandpass'; cf.frequency.value = 2100 * base; cf.Q.value = 1.8;
-        ca.gain.setValueAtTime(0.5, t0); ca.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.035);
+        ca.gain.setValueAtTime(2.0 * hv, t0); ca.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.035);
         clack.connect(cf); cf.connect(ca); ca.connect(sfxG); clack.start(t0); clack.stop(t0 + 0.04);
         const body = ctx.createBufferSource(), bf = ctx.createBiquadFilter(), ba = ctx.createGain();
         body.buffer = noiseBuf();
         bf.type = 'bandpass'; bf.frequency.value = 380 * base; bf.Q.value = 6;
-        ba.gain.setValueAtTime(0.9, t0 + 0.004); ba.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13);
+        ba.gain.setValueAtTime(0, t0); ba.gain.setValueAtTime(4.2 * hv, t0 + 0.004); ba.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13);
         body.connect(bf); bf.connect(ba); ba.connect(sfxG); body.start(t0); body.stop(t0 + 0.14);
         const dust = ctx.createBufferSource(), df = ctx.createBiquadFilter(), da = ctx.createGain();
         dust.buffer = noiseBuf(); df.type = 'lowpass'; df.frequency.value = 520;
-        da.gain.setValueAtTime(0.3, t0); da.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+        da.gain.setValueAtTime(1.3 * hv, t0); da.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
         dust.connect(df); df.connect(da); da.connect(sfxG); dust.start(t0); dust.stop(t0 + 0.08);
         break;
       }
@@ -2821,11 +2931,22 @@ const Sound = (() => {
       case 'draw':   noise(0.22, 0.4, 1400, 4200, 3); break;                                        // steel leaving a scabbard
       case 'sheath': noise(0.18, 0.3, 3600, 1200, 3); break;
       case 'clang':  [1, 2.4, 3.7].forEach((r, i) => blip(880 * r, 870 * r, 0.5 - i * 0.12, 0.12 / (i + 1), 'sine')); noise(0.08, 0.3, 4000, 2000, 2); break;
+      case 'step': {   // a boot on packed earth: soft, low, a little gritty
+        const t0 = ctx.currentTime, src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), a = ctx.createGain();
+        src.buffer = noiseBuf(); lp.type = 'bandpass'; lp.frequency.value = 260 + Math.random() * 140; lp.Q.value = 1.3;
+        a.gain.setValueAtTime(1.6 * v, t0); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+        src.connect(lp); lp.connect(a); a.connect(sfxG); src.start(t0); src.stop(t0 + 0.09);
+        const g2 = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), a2 = ctx.createGain();
+        g2.buffer = noiseBuf(); hp.type = 'highpass'; hp.frequency.value = 2800;
+        a2.gain.setValueAtTime(0, t0); a2.gain.setValueAtTime(0.03 * v, t0 + 0.01);   // a GainNode defaults to 1: silence it until it is due a2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+        g2.connect(hp); hp.connect(a2); a2.connect(sfxG); g2.start(t0); g2.stop(t0 + 0.06);
+        break;
+      }
       case 'horn': {   // a long, nasal blast: the raiders announcing themselves
         const t0 = ctx.currentTime, a = ctx.createGain(), bp = ctx.createBiquadFilter();
         bp.type = 'bandpass'; bp.frequency.value = 520; bp.Q.value = 1.1;
-        a.gain.setValueAtTime(0.0001, t0); a.gain.exponentialRampToValueAtTime(0.16, t0 + 0.14);
-        a.gain.setValueAtTime(0.16, t0 + 0.9); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5);
+        a.gain.setValueAtTime(0.0001, t0); a.gain.exponentialRampToValueAtTime(0.4, t0 + 0.14);
+        a.gain.setValueAtTime(0.4, t0 + 0.9); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5);
         const o = ctx.createOscillator(); o.type = 'sawtooth';
         o.frequency.setValueAtTime(128, t0); o.frequency.linearRampToValueAtTime(152, t0 + 0.2);
         o.connect(bp); bp.connect(a); a.connect(sfxG); o.start(t0); o.stop(t0 + 1.6);
@@ -2853,11 +2974,11 @@ const Sound = (() => {
     const sr = 44100, oc = new OAC(1, Math.ceil(sr * seconds), sr);
     const save = { ctx, master, musicG, sfxG, nb, ksBuf, mood, phrase, pi, beat, prevF, nextNote, last, started };
     ctx = oc; nb = null; ksBuf = null; last = {}; started = true;
-    master = ctx.createGain(); master.gain.value = 0.9;
+    master = ctx.createGain(); master.gain.value = 0.55;
     master.connect(makeLimiter()).connect(ctx.destination);
     musicG = ctx.createGain(); sfxG = ctx.createGain();
     musicG.connect(master); sfxG.connect(master);
-    musicG.gain.value = st.musicVol * 0.55; sfxG.gain.value = st.sfxVol;
+    musicG.gain.value = st.musicVol * 1.4; sfxG.gain.value = st.sfxVol;
     mood = m; phrase = null; pi = 0; beat = 0; prevF = 0; nextNote = 0;
     if (m) for (let t = 0; t < seconds; t += 0.2) schedule(t);
     if (sfxKinds) sfxKinds.forEach(k => { last = {}; play(k); });
@@ -3015,6 +3136,7 @@ function update(dt) {
   clock += dt;
   const playing = S.state === 'day' || S.state === 'night';
   routeGroup.visible = false;
+  updateBellTag();
   if (playing) updateHero(dt);
   if (S.state === 'night') { updateNight(dt); updateDefences(dt); }
   if (playing) {
@@ -3086,7 +3208,7 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
