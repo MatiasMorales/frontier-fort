@@ -1578,7 +1578,10 @@ function blocked(x, z, forHero) {
     for (const c of CROSSINGS) if ((c.ford || c.intact) && Math.hypot(x - c.x, z - c.z) < RIVER_HALF + 2 && crossLateral(c, x, z) < 1.4) return false;
     return true;
   }
-  return r > 64 || hgt(x, z) > 8;
+  // The mountains are the boundary, not a circle: this used to stop at r 64 while plots were
+  // placed out to r 110, so thirteen of them sat behind an invisible wall. 115 only keeps the
+  // rider on the terrain; everything inside it is bounded by slopes you can see.
+  return r > 115 || hgt(x, z) > 8;
 }
 function moveDirect(p, goal, spd) { tmp3.subVectors(goal, p); tmp3.y = 0; const d = tmp3.length(); if (d < 1e-4) return; p.addScaledVector(tmp3, Math.min(spd, d) / d); }
 function moveLand(p, goal, spd, forHero) {
@@ -3093,6 +3096,38 @@ bb.addEventListener('pointerdown', e => { e.preventDefault(); holdInput = true; 
 const bbUp = () => { holdInput = false; bb.classList.remove('on'); };
 bb.addEventListener('pointerup', bbUp); bb.addEventListener('pointerleave', bbUp); bb.addEventListener('pointercancel', bbUp);
 
+// Any plot the rider cannot stand beside is removed before play starts. Flood-fill the walkable
+// ground from the gate (the same blocked() the rider moves by, with the ford and standing
+// bridges open) and keep only plots with walkable ground inside interaction range.
+(function pruneUnreachablePlots() {
+  const G = 1, H = 120, W = H * 2 / G, seen = new Uint8Array(W * W), q = [[0, -15]];
+  const id = (x, z) => ((z + H) / G | 0) * W + ((x + H) / G | 0);
+  seen[id(0, -15)] = 1;
+  while (q.length) {
+    const [x, z] = q.pop();
+    for (const [dx, dz] of [[G, 0], [-G, 0], [0, G], [0, -G]]) {
+      const nx = x + dx, nz = z + dz;
+      if (Math.abs(nx) >= H || Math.abs(nz) >= H) continue;
+      const k = id(nx, nz); if (seen[k]) continue;
+      seen[k] = 2; if (blocked(nx, nz, true)) continue;
+      seen[k] = 1; q.push([nx, nz]);
+    }
+  }
+  const reachable = pl => {
+    for (let dz = -1.8; dz <= 1.8; dz += 0.3) for (let dx = -1.8; dx <= 1.8; dx += 0.3) {
+      if (Math.hypot(dx, dz) > 1.8) continue;
+      const x = Math.round((pl.x + dx) / G) * G, z = Math.round((pl.z + dz) / G) * G;
+      if (Math.abs(x) < H && Math.abs(z) < H && seen[id(x, z)] === 1) return true;
+    }
+    return false;
+  };
+  for (let i = plots.length - 1; i >= 0; i--) {
+    const pl = plots[i];
+    if (reachable(pl)) continue;
+    scene.remove(pl.marker); plots.splice(i, 1);
+    const a = avoid.indexOf(pl); if (a >= 0) avoid.splice(a, 1);
+  }
+})();
 // starting garrison: a soldiers' house inside the castle
 build(plots.find(p => p.kind === 'lot' && p.x > 3 && p.z > 3 && Math.hypot(p.x, p.z) < CASTLE_R * 0.8), 'house', true);
 // the hamlet already works the land outside the walls: it is yours to protect
