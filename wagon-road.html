@@ -140,6 +140,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #res .r small{ grid-column:1/-1; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); line-height:1; margin-top:1px; }
 #goal{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); top:calc(92px + env(safe-area-inset-top,0px)); z-index:5; padding:8px 12px; font-size:13.5px; line-height:1.35; max-width:340px; }
 #goal b{ color:var(--gold); font-weight:600; }
+#goal b.ph{ font-size:15px; letter-spacing:.04em; }
 #bellTag{ position:fixed; z-index:6; transform:translate(-50%,-100%); pointer-events:none; padding:6px 10px 7px; font-size:13px; white-space:nowrap; text-align:center; border:1px solid var(--gold); }
 #bellTag b{ color:var(--gold); display:block; font-size:14px; }
 #bellTag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:var(--lacquer); border-right:1px solid var(--gold); border-bottom:1px solid var(--gold); }
@@ -148,10 +149,26 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #wepCd{ height:3px; background:#1a0e0c; border-radius:2px; margin-top:4px; overflow:hidden; }
 #wepCd i{ display:block; height:100%; width:100%; background:var(--gold); }
 #res .r em.neg{ color:#d9826a; }
+#phases{ position:fixed; left:50%; top:calc(12px + env(safe-area-inset-top,0px)); transform:translateX(-50%); z-index:30; display:flex; gap:4px; padding:4px; border-radius:20px; background:rgba(30,16,13,.9); border:1px solid var(--lacquer-edge); pointer-events:none; }
+#phases span{ font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#9c8a70; padding:4px 11px 4px 5px; border-radius:16px; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+#phases span i{ font-style:normal; width:19px; height:19px; border-radius:50%; display:grid; place-items:center; font-size:11px; background:rgba(255,255,255,.08); }
+#phases span.on{ background:var(--lacquer); color:var(--paper); box-shadow:inset 0 0 0 1px var(--gold); }
+#phases span.on i{ background:var(--gold); color:#2a1411; font-weight:700; }
+#phases span.done{ color:#c7b48f; }
+@media (max-width:760px){ #phases span{ font-size:11px; padding:3px 7px 3px 3px; } #phases{ top:calc(4px + env(safe-area-inset-top,0px)); } }
+.is-paused #phases, .is-paused #threats{ display:none !important; }
+#smap, #shop, #dawn{ padding-top:58px; }
+.threat{ position:fixed; z-index:6; transform:translate(-50%,-50%); pointer-events:none; color:#fff; font-weight:700; font-size:14px; display:grid; place-items:center; width:46px; height:46px; }
+.threat::before{ content:''; position:absolute; inset:8px; background:#c8321f; clip-path:polygon(50% 0,100% 70%,68% 70%,68% 100%,32% 100%,32% 70%,0 70%); transform:rotate(var(--a)); filter:drop-shadow(0 0 4px rgba(0,0,0,.6)); }
+.threat b{ position:relative; text-shadow:0 1px 2px #000; margin-top:6px; }
+.legend{ display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; font-size:13px; color:#dccaa6; margin:10px 0 0; }
+.legend span b{ font-family:var(--brush); color:var(--gold); font-size:17px; margin-right:4px; font-weight:400; }
+.rules{ font-size:14px; color:#dccaa6; margin:0 0 10px; }
+.rules b{ color:var(--gold); }
 #smap, #shop{ background:radial-gradient(ellipse at center, rgba(26,18,16,.72), rgba(20,13,11,.93)); }
 .smapWrap{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:760px){ .smapWrap{ grid-template-columns:1fr; } }
-#smapSvg{ width:100%; height:auto; max-height:64vh; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
+#smapSvg{ width:100%; height:auto; max-height:56vh; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
 #smapSvg line{ stroke:#8a7353; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 7; opacity:.7; }
 #smapSvg line.live{ stroke:#a3352c; stroke-dasharray:none; opacity:.8; }
 #smapSvg line.walked{ stroke:#6b2a22; stroke-dasharray:none; stroke-width:5; opacity:.9; }
@@ -232,6 +249,8 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <button id="wepBtn" type="button">Switch</button>
 
 <div id="goal" class="panel" hidden></div>
+<div id="phases" hidden><span data-p="road"><i>1</i>Road</span><span data-p="build"><i>2</i>Build</span><span data-p="position"><i>3</i>Position</span><span data-p="night"><i>4</i>Night</span></div>
+<div id="threats"></div>
 <div id="bellTag" class="panel" hidden><b>The bell</b>Ring it to start the night<i></i></div>
 <div id="status" class="panel" hidden>
   <div class="seal">边<br>堡</div>
@@ -290,15 +309,16 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 </div>
 
 <div id="smap" class="overlay" hidden>
-  <div class="sheet" style="max-width:1040px">
+  <div class="sheet" style="max-width:1040px;max-height:94vh;overflow:auto">
     <h2 id="smapT">Choose the road</h2>
     <div class="resbar" id="smapRes"></div>
     <p id="smapP" style="margin:0 0 10px"></p>
     <div class="smapWrap">
       <svg id="smapSvg" viewBox="0 0 600 600" aria-label="Region map"></svg>
-      <div class="tablets" id="smapOpts"></div>
+      <div><div class="tablets" id="smapOpts"></div>
+    <div class="legend" style="justify-content:flex-start;flex-direction:column;align-items:flex-start;margin-top:16px"><span><b>战</b>Raiders: a fight</span><span><b>将</b>Warband: a hard fight, two rewards</span><span><b>市</b>Market: buy and sell</span><span><b>村</b>Village: a gift, recruits</span><span><b>堡</b>Fort: heal and build</span><span><b>仓</b>Cache: free supplies</span><span><b>关</b>Border fort: hold it to finish the region</span></div>
+      </div>
     </div>
-    <p class="hintv" style="margin:10px 0 0">Each dot on a road is a day of travel. Every day the column eats; with no food the soldiers weaken, then die.</p>
   </div>
 </div>
 <div id="shop" class="overlay" hidden>
@@ -2394,6 +2414,7 @@ function currentPrompt() {
 }
 function placePrompt() {
   if (!active || ui.prompt.hidden) return;
+  if (WAGON) { ui.prompt.style.left = innerWidth / 2 + 'px'; ui.prompt.style.top = (innerHeight - 56) + 'px'; return; }   // docked: it must never cover the rider
   const s = toScreen(tmp.copy(active.anchor).setY((active.anchor.y || 0) + 2.4));
   ui.prompt.style.left = clamp(s.x, 140, innerWidth - 140) + 'px';
   ui.prompt.style.top = clamp(s.y, ui.prompt.offsetHeight + 12, innerHeight - 10) + 'px';   // the panel hangs above its anchor
@@ -3282,9 +3303,9 @@ const NODE_INFO = {
   camp:   { g: '营', n: 'Region camp',   d: 'Gather, build, trade, level up' },
   fight:  { g: '战', n: 'Raiders',       d: 'New ground. Circle the wagons and hold the night' },
   elite:  { g: '将', n: 'A chief’s warband', d: 'A hard night. Two rewards' },
-  market: { g: '市', n: 'Horse market',  d: 'Trade, recruit and build' },
-  village:{ g: '村', n: 'Village',       d: 'Recruits and a little food' },
-  rest:   { g: '堡', n: 'Friendly fort', d: 'Heal the men, mend the carts' },
+  market: { g: '市', n: 'Horse market',  d: 'Buy and sell food, wood and stone. Recruit and build' },
+  village:{ g: '村', n: 'Village',       d: 'They give one gift. Recruits for food' },
+  rest:   { g: '堡', n: 'Friendly fort', d: 'Heals every soldier and cart. Build here' },
   cache:  { g: '仓', n: 'Supply cache',  d: 'Abandoned stores, free for the taking' },
   boss:   { g: '关', n: 'The border fort', d: 'Reach the fort and hold it through the night. Its keep must stand' },
 };
@@ -3309,7 +3330,7 @@ const daysOfFood = () => Math.floor(S.res.grain / foodPerDay());
 const rationToday = foodPerDay;
 
 Object.assign(DEFS, {
-  food:  { name: 'Food wagon',  cart: true, cost: {}, hp: 190, desc: 'Every sack of food you carry. Lose it and the convoy is finished' },
+  food:  { name: 'Food wagon',  cart: true, cost: {}, hp: 320, desc: 'Every sack of food you carry. Lose it and the convoy is finished' },
   wood:  { name: 'Wood wagon',  cart: true, cost: {}, hp: 170, desc: 'Timber for carts, barricades and repairs' },
   stone: { name: 'Stone wagon', cart: true, cost: {}, hp: 170, desc: 'Stone for levels, spikes and cannon' },
 });
@@ -3502,6 +3523,26 @@ function genRegion() {
    and often a river with a ford and bridges. The terrain code is the same; only its data changes. */
 const COMPASS = ['eastern', 'north-eastern', 'northern', 'north-western', 'western', 'south-western', 'southern', 'south-eastern'];
 function genField(nPass) {
+  for (let tries = 0; tries < 8; tries++) { genFieldData(nPass); if (fieldReachable()) break; }
+  buildWorld();
+}
+// flood the walkable ground from one junction with the same blocked() the rider moves by
+function fieldReachable() {
+  const G = 1.5, H = 114, W = Math.ceil(2 * H / G), seen = new Uint8Array(W * W);
+  const id = (x, z) => Math.floor((z + H) / G) * W + Math.floor((x + H) / G);
+  const [sx, sz] = NODE_DEF.J1; const q = [[sx, sz]]; seen[id(sx, sz)] = 1;
+  while (q.length) {
+    const [x, z] = q.pop();
+    for (const [dx, dz] of [[G, 0], [-G, 0], [0, G], [0, -G]]) {
+      const nx = x + dx, nz = z + dz; if (Math.abs(nx) >= H || Math.abs(nz) >= H) continue;
+      const k = id(nx, nz); if (seen[k]) continue; seen[k] = 2;
+      if (!blocked(nx, nz, true)) { seen[k] = 1; q.push([nx, nz]); }
+    }
+  }
+  const near = (x, z) => { for (let dz = -3; dz <= 3; dz += G) for (let dx = -3; dx <= 3; dx += G) { const k = id(x + dx, z + dz); if (seen[k] === 1) return true; } return false; };
+  return Object.keys(NODE_DEF).every(n => near(...NODE_DEF[n]));
+}
+function genFieldData(nPass) {
   const R = Math.random;
   Object.assign(FIELD, { castle: false, southWall: false, greatWall: false });
   Object.assign(VALLEY, { cx: 0, cz: -4, rx: 58 + R() * 14, rz: 50 + R() * 12 });
@@ -3540,7 +3581,6 @@ function genField(nPass) {
   }
   EDGE_DEF.push(...segs);
   computeCrossings((c, i) => i === 0 ? 'ford' : 'bridge');
-  buildWorld();
 }
 function loadFort() {
   Object.assign(FIELD, { castle: true, southWall: true, greatWall: true });
@@ -3606,6 +3646,8 @@ function enterField(type) {
   const W = waveFor();
   if (type === 'boss') loadFort(); else genField(S.region >= 1 ? 5 : 4);
   S.preEntries = pickEntries(W.entries);
+  const total = ['foot', 'horse', 'lancer', 'shield', 'torch', 'ironcoat', 'spearhedge', 'captain'].reduce((a, k) => a + (W[k] || 0), 0);
+  S.passCount = Math.round(total / S.preEntries.length);
   let x, z, rot;
   if (type === 'boss') { x = 0; z = -22; rot = 0; }
   else {
@@ -3627,12 +3669,12 @@ function enterField(type) {
   const names = S.preEntries.map(p => ENTRIES.find(e => e.id === p).name);
   if (type === 'boss') return toFortPrep(names);
   S.phase = 'dusk'; refreshHUD();
-  banner(type === 'elite' ? 'A chief’s warband is near' : 'New ground', `Raiders will come from ${names.join(' and ')}. Ride to the ground you want and hold Space to circle the wagons.`, 5);
+  banner('Position phase' + (type === 'elite' ? ': a chief’s warband' : ''), `About ${S.passCount * names.length} raiders tonight, from ${names.length} directions. First, ride to good ground and hold Space to circle the wagons.`, 5);
 }
 // the border fort: the old castle valley. The wagons pull into the courtyard and the keep must stand.
 function toFortPrep(names) {
   keep.alive = true; keep.pos.set(0, 0, 0);
-  keep.max = keep.hp = Math.round(KEEP_HP * (0.7 + S.region * 0.2));
+  keep.max = keep.hp = Math.round(KEEP_HP * (1 + S.region * 0.2));
   S.camp = null;
   const sw = supplyWagons(), cc = combatCarts();
   sw.forEach((p, i) => { const a = Math.PI + (i - 1) * 0.7; wagonAt(p, Math.sin(a) * 7, Math.cos(a) * 7 + 1, a + Math.PI / 2); });
@@ -3641,7 +3683,7 @@ function toFortPrep(names) {
     wagonAt(p, gx * r + (gz ? side : 0), gz * r + (gx ? side : 0), Math.atan2(gx, gz) + Math.PI / 2); });
   hero.pos.set(0, 0, -12); camFocus.set(0, 0, -12);
   toPrep(ORIG_BELL, false);
-  banner('The border fort', `Raiders will come from ${names.join(' and ')}. Set the carts, bar the roads, post your soldiers, then ring the bell. The keep must stand.`, 6);
+  banner('Position phase: the border fort', `About ${S.passCount * names.length} raiders, from ${names.length} directions. Place carts, bar roads, post soldiers, then ring the bell. The keep must stand.`, 6);
 }
 function toPrep(at, drumOn) {
   S.phase = 'prep';
@@ -3653,8 +3695,8 @@ function toPrep(at, drumOn) {
 function waveFor() {
   const g = S.region * CONVOY.floors + S.floor, d = Math.min(7, 1 + g * 0.42);
   const W = WAVES[Math.min(Math.round(d) - 1, WAVES.length - 1)];
-  const t = S.nightType, k = (t === 'boss' ? 1.25 : t === 'elite' ? 0.95 : 0.65) * (0.9 + S.region * 0.15);
-  return { foot: Math.max(10, Math.round(W.foot * k)), horse: Math.round(W.horse * k * 0.8), lancer: Math.round(W.lancer * k),
+  const t = S.nightType, k = (t === 'boss' ? 1.5 : t === 'elite' ? 1.7 : 1.2) * (0.75 + S.region * 0.3);   // gentler first region, steeper after
+  return { foot: Math.max(18, Math.round(W.foot * k)), horse: Math.round(W.horse * k * 0.8), lancer: Math.round(W.lancer * k),
     shield: Math.round(W.shield * k), torch: Math.round(W.torch * 0.8), ironcoat: Math.round(W.ironcoat * k),
     spearhedge: Math.round(W.spearhedge * k), captain: t === 'boss' ? 1 + S.region : t === 'elite' ? 1 : 0,
     entries: t === 'boss' || t === 'elite' || S.region >= 2 ? 3 : 2, waves: t === 'boss' ? 4 : t === 'elite' ? 3 : Math.min(3, 2 + Math.floor(g / 7)) };
@@ -3711,7 +3753,7 @@ function updateCircling(dt) {
     campfire.position.set(S.camp.cx, 1.2, S.camp.cz);
     refreshGaps();
     toPrep({ x: S.camp.cx, z: S.camp.cz }, true);
-    banner('The wagons are circled', 'Now set the field: move carts, bar the roads, post soldiers. Beat the drum in the ring when you are ready.', 5);
+    banner('Place your defences', 'Move carts, bar the roads, post soldiers. Beat the drum in the ring when you are ready.', 5);
   }
 }
 const ringPreview = new THREE.Group(); ringPreview.visible = false; scene.add(ringPreview);
@@ -4011,9 +4053,10 @@ function recruitOpt(cost) {
 function openShop(kind) {
   shopKind = kind; S.phase = 'shop'; S.state = 'day';
   const title = { camp: `${REGION_NAME[S.region]} — the region camp`, market: 'Horse market', village: 'Village', rest: 'Friendly fort', after: 'Morning in the ring' }[kind];
-  const sub = { camp: 'Send your crews out, build, trade and level up before the road.', market: 'Trade, recruit, and build with what you carry.', village: 'They have little, and share some of it.', rest: 'Build and repair while you are safe.', after: 'Build with what you took from the fallen.' }[kind];
-  $('#shopT').textContent = title; $('#shopSub').textContent = sub;
+  const sub = { camp: 'Send each crew out once: <b>farmers</b> bring food, <b>woodcutters</b> wood, <b>miners</b> stone. Then spend.', market: '<b>Buy and sell here.</b> Trade food, wood and stone, recruit, and build.', village: 'They share <b>one gift</b>, and their sons will join for food.', rest: 'Everyone is healed and every cart mended. Build while you are safe.', after: 'Spend what you took from the fallen.' }[kind];
+  $('#shopT').textContent = 'Build phase \u00b7 ' + title; S.shopSub = sub;
   shopOpts = [];
+  if (kind === 'market') banner('A horse market', 'You can buy and sell here.', 2.5);
   if (kind === 'camp') {
     shopOpts.push(
       { n: 'Farmers', img: 'farmers', c: null, d: '+12 food', run: () => { S.res.grain += 12; S.gathers++; }, work: true, sec: 'Send out a crew' },
@@ -4027,6 +4070,7 @@ function openShop(kind) {
     shopOpts.push(
       { n: 'Buy food', img: 'food', c: { wood: 4 }, d: '+10 food', run: () => { S.res.grain += 10; }, sec: 'Trade' },
       { n: 'Sell food', img: 'sell', c: { grain: 8 }, d: '+4 wood, +2 stone', run: () => { S.res.wood += 4; S.res.stone += 2; }, sec: 'Trade' },
+      { n: 'Buy stone', img: 'salvage', c: { wood: 5 }, d: '+3 stone', run: () => { S.res.stone += 3; }, sec: 'Trade' },
       ...cartOpts(), recruitOpt(10), ...soldierOpts());
   } else if (kind === 'village') {
     shopOpts.push(
@@ -4062,6 +4106,7 @@ function resBar(el) {
   lastRes = now;
 }
 function renderShop() {
+  $('#shopSub').innerHTML = `${S.shopSub} <span class="rules">Wagons cost wood and stone; soldiers cost food. The column eats <b>${foodPerDay()} food a day</b> on the road (2 for the carters, 1 for every 2 soldiers). Only markets \u5e02 buy and sell.</span>`;
   resBar($('#shopRes'));
   const box = $('#shopOpts'); box.innerHTML = '';
   let sec = '';
@@ -4125,7 +4170,8 @@ function forecast(k) {
 }
 function renderMapOpts() {
   const box = $('#smapOpts'); box.innerHTML = '';
-  $('#smapP').innerHTML = S.at ? `Choose the next stop. The border fort 关 at the top is where the region ends: reach it and hold it.` : `Your convoy waits at the region camp 营. Start there: gather, build and trade, then choose your road north to the border fort 关.`;
+  $('#smapP').innerHTML = (S.at ? `<b>Road phase.</b> Choose the next stop. The border fort 关 at the top ends the region: reach it and hold it.` : `<b>Road phase.</b> Your convoy waits at the region camp 营. Start there, then work north to the border fort 关.`)
+    + `<br><span class="rules">Each dot on a road is one day. Every day the column eats <b>2 food</b> for the carters plus <b>1 for every 2 soldiers</b>: <b>${foodPerDay()} a day</b> now. With no food, soldiers weaken and then die.</span>`;
   mapOpts.forEach((k, i) => {
     const n = S.map[k], info = NODE_INFO[n.type], fc = forecast(k), b = document.createElement('button');
     b.type = 'button'; b.className = 'tablet' + (i === mapSel ? ' sel' : '');
@@ -4234,22 +4280,33 @@ function convoyGoal(el) {
   const playing = S.state === 'day' || S.state === 'night';
   el.hidden = !playing || !S.map || S.phase === 'map' || S.phase === 'shop'; if (el.hidden) return;
   const head = `<b>${REGION_NAME[S.region]}</b>, floor ${S.floor} of ${CONVOY.floors + 1}.${keep.alive ? ` The keep: <b>${Math.max(0, Math.round(keep.hp))}</b> / ${keep.max}` : ''}<br>`;
+  const n = (S.preEntries || S.entries || []).length;
   el.innerHTML = head + ({
-    dusk: 'Ride to the ground you want and <b>hold Space to circle the wagons</b>. Cliffs and the river close sides of the ring; carts close the rest.',
-    circling: 'Circling the wagons…',
-    prep: `Set the field. Stand by a cart and hold Space to <b>move it</b>; on a road to <b>barricade</b> it; stop anywhere to <b>post soldiers</b>. Guard the <b>food</b>, <b>wood</b> and <b>stone</b> wagons. When ready, ${drum.visible ? 'beat the <b>war drum</b>' : 'ring the <b>bell</b>'}.`,
-  }[S.phase] || (S.state === 'night' ? `Hold until dawn. Raiders who grab a load run for the passes: <b>run them down</b>.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}` : ''));
+    dusk: `<b class="ph">Position phase</b> · step 1 of 3<br>Raiders are coming from <b>${n} directions</b> (red markers). Ride to good ground and <b>hold Space to circle the wagons</b>. Cliffs and the river close sides of the ring.`,
+    circling: '<b class="ph">Position phase</b><br>Circling the wagons…',
+    prep: `<b class="ph">Position phase</b> · step 2 of 3<br>Hold Space…<br>• by a war cart: <b>move it</b><br>• on a road: <b>barricade</b> it (wood)<br>• anywhere you stop: <b>post soldiers</b><br>Guard the <b>food</b>, <b>wood</b> and <b>stone</b> wagons.<br>Step 3: ${drum.visible ? 'beat the <b>war drum</b> in the ring' : 'ring the <b>bell</b>'} to start the night.`,
+  }[S.phase] || (S.state === 'night' ? `<b class="ph">Night</b><br>Hold until dawn. Red arrows point to raiders off screen. Thieves run for the passes with a load: <b>run them down</b>.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}` : ''));
 }
 // labels over the three supply wagons, and markers for the passes the raiders will use
 const tagBox = document.createElement('div'); document.body.appendChild(tagBox);
 const wTags = {}, rTags = {};
+// the lowest edge of the HUD panels above this x, so markers pinned to the edge never sit on them
+function clearTop(x) {
+  let top = 60;
+  for (const id of ['#goal', '#status', '#keepBox', '#phases']) {
+    const e = $(id); if (!e || e.hidden) continue;
+    const r = e.getBoundingClientRect(); if (x > r.left - 90 && x < r.right + 90) top = Math.max(top, r.bottom);
+  }
+  return top;
+}
 function screenTag(el, p, y, pin) {
   const s = toScreen(tmp.set(p.x, p.y + y, p.z)), behind = proj.z > 1, m = 60;
   let x = s.x, yy = s.y; const off = behind || x < m || x > innerWidth - m || yy < m + 40 || yy > innerHeight - m;
   if (off && !pin) { el.hidden = true; return; }
   if (behind) { x = innerWidth - x; yy = innerHeight - m; }
   el.hidden = false; el.classList.toggle('edge', off);
-  el.style.left = clamp(x, m + 50, innerWidth - m - 50) + 'px'; el.style.top = clamp(yy, off ? 210 : m + 70, innerHeight - m) + 'px';
+  x = clamp(x, m + 50, innerWidth - m - 50);
+  el.style.left = x + 'px'; el.style.top = clamp(yy, off ? clearTop(x) + 50 : m + 70, innerHeight - m) + 'px';
 }
 function updateTags() {
   const on = (S.state === 'day' || S.state === 'night') && ['dusk', 'circling', 'prep', 'night'].includes(S.phase) && !paused;
@@ -4269,12 +4326,53 @@ function updateTags() {
     const el = rTags[id] || (rTags[id] = Object.assign(document.createElement('div'), { className: 'rtag' }));
     if (!el.parentNode) tagBox.appendChild(el);
     const en = ENTRIES.find(e => e.id === id); if (!en || !NODES[id]) { el.hidden = true; continue; }
-    el.innerHTML = `<b>Raiders</b>${en.name}<i></i>`;
+    el.innerHTML = `<b>Raiders${S.state === 'night' ? '' : ` \u00b7 about ${S.passCount}`}</b>${en.name}<i></i>`;
     screenTag(el, NODES[id].pos, 6, true);
   }
+  // two passes on the same edge of the screen must not hide each other
+  const shown = ids.map(id => rTags[id]).filter(el => el && !el.hidden);
+  for (let i = 0; i < shown.length; i++) for (let k = 0; k < i; k++) {
+    const a = shown[k], b = shown[i];
+    if (Math.abs(parseFloat(a.style.left) - parseFloat(b.style.left)) < 170 && Math.abs(parseFloat(a.style.top) - parseFloat(b.style.top)) < 48)
+      b.style.top = (parseFloat(a.style.top) + (parseFloat(a.style.top) > innerHeight - 120 ? -52 : 52)) + 'px';
+  }
+  updateThreats();
+  updatePhases();
+}
+// at night, an arrow at the screen edge for every direction raiders are coming from, with a count
+const threatEls = [];
+function updateThreats() {
+  const bins = {};
+  if (S.state === 'night' && !paused) for (const e of enemies) {
+    if (!e.alive) continue;
+    const s = toScreen(tmp.set(e.pos.x, e.pos.y + 1, e.pos.z)), behind = proj.z > 1;
+    let dx = s.x - innerWidth / 2, dy = s.y - innerHeight / 2;
+    if (behind) { dx = -dx; dy = -dy; }
+    else if (s.x > 30 && s.x < innerWidth - 30 && s.y > 30 && s.y < innerHeight - 30) continue;   // on screen: you can see it
+    const k = ((Math.round(Math.atan2(dy, dx) / (TAU / 12)) % 12) + 12) % 12;
+    (bins[k] = bins[k] || { n: 0, x: 0, y: 0 }); bins[k].n++; bins[k].x += dx; bins[k].y += dy;
+  }
+  let i = 0;
+  for (const k in bins) {
+    const b = bins[k], a = Math.atan2(b.y, b.x), el = threatEls[i] || (threatEls[i] = Object.assign(document.createElement('div'), { className: 'threat' }));
+    if (!el.parentNode) $('#threats').appendChild(el);
+    const hx = innerWidth / 2 - 40, hy = innerHeight / 2 - 60, t = Math.min(hx / Math.abs(Math.cos(a) || 1e-6), hy / Math.abs(Math.sin(a) || 1e-6));
+    const x = innerWidth / 2 + Math.cos(a) * t;
+    el.style.left = x + 'px'; el.style.top = clamp(innerHeight / 2 + Math.sin(a) * t, clearTop(x) + 30, innerHeight - 70) + 'px';
+    el.style.setProperty('--a', (a + Math.PI / 2) + 'rad'); el.innerHTML = `<b>${b.n}</b>`; el.hidden = false; i++;
+  }
+  for (; i < threatEls.length; i++) threatEls[i].hidden = true;
+}
+const PHASE_OF = { map: 'road', shop: 'build', dusk: 'position', circling: 'position', prep: 'position', night: 'night', dawn: 'night' };
+function updatePhases() {
+  const el = $('#phases'), p = PHASE_OF[S.phase];
+  el.hidden = !p || S.state === 'title' || S.state === 'won' || S.state === 'lost';
+  const order = ['road', 'build', 'position', 'night'], at = order.indexOf(p);
+  el.querySelectorAll('span').forEach((sp, i) => { sp.classList.toggle('on', i === at); sp.classList.toggle('done', i < at); });
 }
 function updateConvoy(dt) {
   if (S.state === 'title') return;
+  if (S.state !== 'day' && S.state !== 'night') { updatePhases(); updateThreats(); }
   if (circling) updateCircling(dt);
   updatePreview(); updateSacks(dt); updateTags();
   stillT = hero.pos.distanceTo(lastHero) < 0.01 ? stillT + dt : 0; lastHero.copy(hero.pos);
