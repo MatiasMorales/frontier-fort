@@ -3,32 +3,11 @@
   <head>
     <meta charset="utf-8">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>The Wagon Road · art direction</title>
-    <meta name="description" content="Look development for The Wagon Road in Unity 6: an inked, hand-drawn battlefield at dusk.">
+    <title>Unity Web Player | The Wagon Road - look development</title>
     <link rel="shortcut icon" href="TemplateData/favicon.ico">
     <link rel="stylesheet" href="TemplateData/style.css">
-    <style>
-      html, body { margin: 0; background: #140d10; color: #eadbc0; font-family: Georgia, "Times New Roman", serif; }
-      .head { max-width: 1280px; margin: 0 auto; padding: 18px 16px 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-      .head h1 { margin: 0; font-size: 26px; font-weight: 600; color: #e0b85a; }
-      .head p { margin: 4px 0 0; font-size: 15px; color: #c8b594; }
-      .head a { color: #e0b85a; font-size: 15px; }
-      #unity-container.unity-desktop { position: static; transform: none; left: auto; top: auto; max-width: 1280px; margin: 0 auto; padding: 0 16px; }
-      #unity-canvas { width: 100% !important; height: auto !important; aspect-ratio: 16 / 9; background: #140d10; border-radius: 6px; display: block; }
-      #unity-container, #unity-fullscreen-container { width: auto !important; }
-      #unity-footer { display: none; }
-.ctl { display: flex; gap: 8px; align-items: center; }
-      .ctl button { font: inherit; font-size: 15px; padding: 5px 14px; border-radius: 16px; border: 1px solid #9c8250; background: transparent; color: #eadbc0; cursor: pointer; }
-      .ctl button.on { background: #8e2a1e; border-color: #e0b85a; color: #fff3dc; }
-      .ctl a { margin-left: 10px; }
-      .note { max-width: 1280px; margin: 10px auto 30px; padding: 0 16px; font-size: 14px; color: #a8977a; line-height: 1.5; }
-    </style>
   </head>
   <body>
-    <div class="head">
-      <div><h1>The Wagon Road · art direction</h1><p>A look-development scene in Unity 6: the convoy circled as a warband comes down the north road. Drag to turn, scroll to zoom.</p></div>
-      <div class="ctl"><button id="bDay" class="on" type="button">Day</button><button id="bDusk" type="button">Dusk</button><a href="../">← Back to the games</a></div>
-    </div>
     <div id="unity-container" class="unity-desktop">
       <div id="unity-fullscreen-container">
         <canvas id="unity-canvas" width="960" height="600" tabindex="-1"></canvas>
@@ -48,17 +27,6 @@
         <div id="unity-build-title">The Wagon Road - look development</div>
       </div>
     </div>
-    <p class="note">Switch between day and dusk with the buttons above. This is the art target for the Unity version, not the game itself: an inked, hand-drawn look with brushy outlines, hatched shadows, cool dusk against warm firelight. The playable prototype is <a href="../wagon-road.html" style="color:#e0b85a">The Wagon Road</a>. Loads about 14 MB.</p>
-    <script>
-      // day and dusk: the scene rebuilds its light, sky and grade on the fly
-      function setTime(when) {
-        document.getElementById('bDay').classList.toggle('on', when === 'day');
-        document.getElementById('bDusk').classList.toggle('on', when === 'dusk');
-        if (window.unityInst) window.unityInst.SendMessage('Diorama', 'SetTime', when);
-      }
-      document.getElementById('bDay').addEventListener('click', () => setTime('day'));
-      document.getElementById('bDusk').addEventListener('click', () => setTime('dusk'));
-    </script>
     <script>
       let canvas = document.querySelector("#unity-canvas");
       let fullscreenContainer = document.querySelector("#unity-fullscreen-container");
@@ -166,7 +134,6 @@
             loadingContainer.style.display = "none";
           }
         }).then((unityInstance) => {
-          window.unityInst = unityInstance;
                 document.querySelector("#unity-fullscreen-button").onclick = () => {
                   unityInstance.SetFullscreen(1);
                 };
