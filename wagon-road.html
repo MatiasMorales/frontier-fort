@@ -178,7 +178,6 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #smapSvg .node text.num{ font-family:var(--serif); font-size:14px; font-weight:700; fill:#a3352c; }
 #smapSvg .node.t-elite circle{ fill:#e6b9a4; } #smapSvg .node.t-boss circle{ fill:#c9a466; stroke-width:3; }
 #smapSvg .node.t-rest circle, #smapSvg .node.t-market circle, #smapSvg .node.t-village circle{ fill:#dfe6c8; }
-#smapSvg .node.t-cache circle{ fill:#f0dfae; }
 #smapSvg .node.seen circle{ fill:#b9a882; opacity:.8; }
 #smapSvg .node.here circle.base{ fill:#e3b25a; stroke:#3b1411; stroke-width:3; }
 
@@ -302,7 +301,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 8 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -324,6 +323,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 8 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -3470,7 +3470,6 @@ const NODE_INFO = {
   market: { g: '市', n: 'Horse market',  d: 'Buy and sell food, wood and stone. Recruit and build' },
   village:{ g: '村', n: 'Village',       d: 'They give one gift. Recruits for food' },
   rest:   { g: '堡', n: 'Friendly fort', d: 'Heals every soldier and cart. Build here' },
-  cache:  { g: '仓', n: 'Supply cache',  d: 'Abandoned stores, free for the taking' },
   boss:   { g: '关', n: 'The border fort', d: 'Reach the fort and hold it through the night. Its keep must stand' },
 };
 const FOOD_BASE = 2, SPOIL_CHANCE = 0.08;
@@ -4550,7 +4549,6 @@ const ICONS = {
   market: '<path d="M-3.8-5.5Q0-3.5 3.8-5.5L3-9.5Q0-8 -3-9.5Z" fill="#b8955a" stroke-width="1.1"/><path d="M-4-5Q-10.5 0-8.2 6Q-6 9.8 0 9.8Q6 9.8 8.2 6Q10.5 0 4-5Z" fill="#c9a466" stroke-width="1.3"/><path d="M-5-5.5H5" stroke="#8a2a1f" stroke-width="1.7"/><circle cx="0" cy="2.6" r="3.7" fill="#e8c56a" stroke-width="1.1"/><path d="M-1.2 1.4H1.2V3.8H-1.2Z" fill="#c9a466" stroke-width="0.9"/>',
   village: '<path d="M-9 0L0-8.5L9 0V8H-9Z" fill="#b8955a" stroke-width="1.4"/><path d="M-2 8V3H2V8" fill="#3b2b1f" stroke="none"/><path d="M-11 1L0-9.5L11 1" stroke="#8a2a1f" stroke-width="2.2"/>',
   rest: '<path d="M-5.5 9V-2H5.5V9Z" fill="#9b958a" stroke-width="1.3"/><path d="M-10.5-1.5Q0-7.5 10.5-1.5L8-4Q0-9.5-8-4Z" fill="#8a2a1f" stroke-width="1.1"/><path d="M-2 9V4Q0 2 2 4V9Z" fill="#3b2b1f" stroke="none"/><path d="M0-8V-12.5L5.5-11L0-9.6" fill="#4f8a3a" stroke-width="1"/><circle cx="7" cy="5.8" r="4.2" fill="#4f8a3a" stroke="#efe3c8" stroke-width="1.2"/><path d="M7 3.4V8.2M4.6 5.8H9.4" stroke="#efe3c8" stroke-width="1.7"/>',
-  cache: '<path d="M-8-6H8V8H-8Z" fill="#b8955a" stroke-width="1.5"/><path d="M-8-6L8 8M8-6L-8 8M-8-1H8" stroke-width="1.2"/>',
   boss: '<path d="M-10.5 9V-3H-7.5V0H-4.5V-3H-1.5V0H1.5V-3H4.5V0H7.5V-3H10.5V9Z" fill="#9b958a" stroke-width="1.3"/><path d="M-3 9V3Q0 0 3 3V9Z" fill="#3b2b1f" stroke="none"/><path d="M0-3V-12L6-10L0-8" fill="#b8322a" stroke-width="1"/>',
   camp: '<path d="M-9 7L0-8L9 7Z" fill="#cdb98e" stroke-width="1.5"/><path d="M-2.5 7L0 1.5L2.5 7" fill="#3b2b1f" stroke="none"/>',
 };
@@ -4568,10 +4566,10 @@ function openMap() {
     for (let d = 0; d < days; d++) { const t = (d + 1) / (days + 1); h += `<circle class="day" cx="${lerp(x1, x2, t)}" cy="${lerp(y1, y2, t)}" r="3"/>`; }
   }
   for (const k in m) {
-    const n = m[k], x = MX(n.c), y = MY(n.f), opt = mapOpts.includes(k), R = n.type === 'boss' ? 25 : 18;
+    const n = m[k], x = MX(n.c), y = MY(n.f), opt = mapOpts.includes(k), R = n.type === 'boss' ? 26 : 20;
     h += `<g class="node t-${n.type}${k === S.at ? ' here' : ''}${opt ? ' opt' : ''}${S.path.includes(k) && k !== S.at ? ' seen' : ''}" data-k="${k}">`
       + (opt ? `<circle class="halo" cx="${x}" cy="${y}" r="${R}"/><circle class="halo h2" cx="${x}" cy="${y}" r="${R}"/>` : '')
-      + `<circle class="base" cx="${x}" cy="${y}" r="${R}"/><use class="ico" href="#ic-${n.type}" x="${x - R * 0.72}" y="${y - R * 0.72}" width="${R * 1.44}" height="${R * 1.44}"/></g>`;
+      + `<circle class="base" cx="${x}" cy="${y}" r="${R}"/><use class="ico" href="#ic-${n.type}" x="${x - R * 0.86}" y="${y - R * 0.86}" width="${R * 1.72}" height="${R * 1.72}"/></g>`;
   }
   $('#smapSvg').innerHTML = h;
   $('#smapSvg').querySelectorAll('.node.opt').forEach(g => {
