@@ -315,7 +315,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 10 · 24 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 11 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -337,7 +337,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 10 · 24 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 11 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -758,13 +758,13 @@ function buildTerrain() {
   const geo = new THREE.PlaneGeometry(360, 360, 290, 290);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, cols = [];
-  const cGrass = new THREE.Color('#57703a'), cGrass2 = new THREE.Color('#455c2c'), cDry = new THREE.Color('#71703f'), cRoad = new THREE.Color(C.earth),
+  const cGrass = new THREE.Color('#6b733a'), cGrass2 = new THREE.Color('#5a652f'), cDry = new THREE.Color('#857a40'), cRoad = new THREE.Color(C.earth),
     cCourt = new THREE.Color(C.court), cStone = new THREE.Color('#6e6960'), cStoneHi = new THREE.Color('#918b80'), cSnow = new THREE.Color('#d6d3c9'), cBank = new THREE.Color('#665640'), cBed = new THREE.Color('#585544');
   const c = new THREE.Color();
   for (let i = 0; i < pos.count; i++) pos.setY(i, hgt(pos.getX(i), pos.getZ(i)));
   geo.computeVertexNormals();
   const nrm = geo.attributes.normal;
-  const cLush = new THREE.Color('#355226'), cHigh = new THREE.Color('#8d8a4a'), cSoil = new THREE.Color('#6e573a');
+  const cLush = new THREE.Color('#4a5a2a'), cHigh = new THREE.Color('#9a8a48'), cSoil = new THREE.Color('#6e573a');
   const cRockA = new THREE.Color('#77705f'), cRockB = new THREE.Color('#8f8676'), cCliff = new THREE.Color('#5c554c'), cAlp = new THREE.Color('#5d7040');
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i), y = pos.getY(i), r = Math.hypot(x, z), ny = nrm.getY(i);
@@ -883,35 +883,46 @@ function updateOcclusion(dt) {
 function fieldDetail(clear, tree) {
   const inField = () => { const a = rnd() * TAU, r = Math.sqrt(rnd()); return [VALLEY.cx + Math.cos(a) * r * VALLEY.rx * 1.05, VALLEY.cz + Math.sin(a) * r * VALLEY.rz * 1.05]; };
   const dm = new THREE.Object3D(), col = new THREE.Color();
-  const scatter = (geo, n, pick, colour, scale) => {
+  const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+  const scatter = (geo, n, pick, colour, scale, solid) => {
     const m = new THREE.InstancedMesh(geo, toonMat({}), n); let k = 0;
     for (let i = 0; i < n * 6 && k < n; i++) {
       const [x, z] = inField(), h = hgt(x, z); if (h > 2.5 || !pick(x, z)) continue;
       const s = scale(); dm.position.set(x, h, z); dm.rotation.set(0, rnd() * TAU, 0); dm.scale.setScalar(s); dm.updateMatrix();
-      m.setMatrixAt(k, dm.matrix); m.setColorAt(k++, colour(col));
+      m.setMatrixAt(k, dm.matrix); m.setColorAt(k, colour(col));
+      const idx = k++; occupy(x, z, solid ? 0.5 * s : 0.05, () => { m.setMatrixAt(idx, zero); m.instanceMatrix.needsUpdate = true; });
     }
     m.count = k; m.castShadow = true; m.receiveShadow = true; scene.add(m);
   };
   const open = (x, z) => clear(x, z, 1.4);
   // bushes: a squat faceted lump, two tones of green
-  scatter(new THREE.IcosahedronGeometry(0.55, 0).scale(1, 0.7, 1).translate(0, 0.3, 0), 320, open, c => c.setHSL(0.25 + rnd() * 0.06, 0.5, 0.075 + rnd() * 0.05), () => 0.7 + rnd() * 0.8);
+  scatter(new THREE.IcosahedronGeometry(0.55, 0).scale(1, 0.7, 1).translate(0, 0.3, 0), 320, open, c => c.setHSL(0.2 + rnd() * 0.05, 0.5, 0.08 + rnd() * 0.05), () => 0.7 + rnd() * 0.8, true);
   // wild flowers in drifts: tiny cones in the few saturated notes the palette allows
   const fl = ['#d8b44a', '#c7563f', '#e8e0c8', '#9a6fb0'];
   scatter(new THREE.ConeGeometry(0.07, 0.22, 4).translate(0, 0.11, 0), 1400, open, c => c.set(fl[Math.floor(rnd() * fl.length)]), () => 0.8 + rnd() * 0.7);
   // pebbles along the roads and scattered on the grass
-  scatter(new THREE.DodecahedronGeometry(0.16, 0).scale(1, 0.6, 1), 500, (x, z) => riverDist(x, z) > RIVER_HALF, c => c.setHSL(0.08, 0.1, 0.16 + rnd() * 0.08), () => 0.6 + rnd() * 1.4);
+  scatter(new THREE.DodecahedronGeometry(0.16, 0).scale(1, 0.6, 1), 500, (x, z) => clear(x, z, 1, 0.3), c => c.setHSL(0.08, 0.1, 0.16 + rnd() * 0.08), () => 0.6 + rnd() * 1.4, true);
   // stumps, fallen trunks and a few lone trees in the open
   const stump = CYL(0.22, 0.28, 0.35, 6), trunk = CYL(0.2, 0.24, 2.6, 6);
-  for (let i = 0; i < 40; i++) { const [x, z] = inField(); if (!clear(x, z, 2) || hgt(x, z) > 2.5) continue;
-    if (i % 3) part(stump, C.woodDark, x, hgt(x, z) + 0.15, z, scene);
-    else { const m = part(trunk, C.wood, x, hgt(x, z) + 0.2, z, scene); m.rotation.set(Math.PI / 2, rnd() * TAU, 0); } }
-  for (let i = 0; i < 30; i++) { const [x, z] = inField(); if (clear(x, z, 3) && hgt(x, z) < 2.5) tree(x, z, 0.8 + rnd() * 0.5, rnd() < 0.4); }
+  for (let i = 0; i < 40; i++) { const [x, z] = inField(); if (!clear(x, z, 2, i % 3 ? 0.4 : 1.4) || hgt(x, z) > 2.5) continue;
+    if (i % 3) { const m = part(stump, C.woodDark, x, hgt(x, z) + 0.15, z, scene); occupy(x, z, 0.4, () => { m.visible = false; }); }
+    else { const m = part(trunk, C.wood, x, hgt(x, z) + 0.2, z, scene); m.rotation.set(Math.PI / 2, rnd() * TAU, 0); occupy(x, z, 1.4, () => { m.visible = false; }); } }
+  for (let i = 0; i < 30; i++) { const [x, z] = inField(); if (clear(x, z, 3, 1.1) && hgt(x, z) < 2.5) tree(x, z, 0.8 + rnd() * 0.5, rnd() < 0.4); }
 }
+// Every placed object (tree, rock, stump, bush) takes up a circle of ground; nothing may be placed
+// inside another's circle, so rocks never sit inside trees or on top of each other. Each also keeps
+// a way to hide itself, so a circled camp can clear the ground it stands on.
+const decor = [];
+function occupy(x, z, r, hide) { decor.push({ x, z, r, hide }); }
+function clearCampGround(cx, cz, R) { for (const d of decor) if (!d.hidden && Math.hypot(d.x - cx, d.z - cz) < R + d.r) { d.hide(); d.hidden = true; } }
 function decorate() {
-  const clear = (x, z, pad) => {
+  decor.length = 0;
+  const clear = (x, z, pad, own) => {
     if (riverDist(x, z) < RIVER_HALF + 1.2 || (FIELD.castle && Math.hypot(x, z) < CASTLE_R + 3)) return false;
     if (roadDist(x, z) < 2.6 || (FIELD.greatWall && Math.abs(z - ridgeZ(x)) < 3)) return false;
     for (const p of avoid) if (Math.hypot(p.x - x, p.z - z) < pad) return false;
+    const me = own || 0.5;
+    for (const d of decor) if (Math.hypot(d.x - x, d.z - z) < d.r + me) return false;
     return true;
   };
   const trunk = CYL(0.12, 0.16, 1.2, 5), crownA = new THREE.ConeGeometry(0.9, 2.2, 6), crownB = new THREE.ConeGeometry(0.7, 1.6, 6), poplar = CYL(0.2, 0.55, 3.2, 6);
@@ -920,21 +931,23 @@ function decorate() {
     const t = new THREE.Group(); t.position.set(x, hgt(x, z), z); t.scale.setScalar(s); t.rotation.y = rnd() * TAU;
     part(trunk, C.woodDark, 0, 0.6, 0, t);
     if (kind) part(poplar, C.leaf, 0, 2.6, 0, t); else { part(crownA, C.leafDark, 0, 1.9, 0, t); part(crownB, C.leaf, 0, 2.8, 0, t); }
-    scene.add(t); return t;
+    scene.add(t); occupy(x, z, 0.9 * s, () => { t.visible = false; }); return t;
   };
   // groves in the valley and pines on the slopes
   for (let g = 0; g < 16; g++) {
     const a = rnd() * TAU, r = 18 + rnd() * 34, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
-    for (let k = 0; k < 9; k++) { const x = cx + (rnd() - 0.5) * 9, z = cz + (rnd() - 0.5) * 9; if (clear(x, z, 3.2)) tree(x, z, 0.8 + rnd() * 0.6, rnd() < 0.35); }
+    for (let k = 0; k < 9; k++) { const x = cx + (rnd() - 0.5) * 9, z = cz + (rnd() - 0.5) * 9; if (clear(x, z, 3.2, 1.1)) tree(x, z, 0.8 + rnd() * 0.6, rnd() < 0.35); }
   }
-  for (let i = 0; i < 520; i++) { const a = rnd() * TAU, r = 42 + rnd() * 60, x = Math.cos(a) * r, z = Math.sin(a) * r, h = hgt(x, z); if (h < 22 && clear(x, z, 2)) tree(x, z, 1 + rnd() * 0.9, false); }
+  for (let i = 0; i < 520; i++) { const a = rnd() * TAU, r = 42 + rnd() * 60, x = Math.cos(a) * r, z = Math.sin(a) * r, h = hgt(x, z); if (h < 22 && clear(x, z, 2, 1.1)) tree(x, z, 1 + rnd() * 0.9, false); }
   const rockGeo = new THREE.DodecahedronGeometry(0.8, 0);
   rockSpots.length = 0;
   for (let i = 0; i < 90; i++) {
     const a = rnd() * TAU, r = 18 + rnd() * 60, x = Math.cos(a) * r, z = Math.sin(a) * r;
-    if (!clear(x, z, 2.5)) continue;
+    const sx = 0.6 + rnd() * 1.4, sz = 0.6 + rnd() * 1.4, rr = 0.8 * Math.max(sx, sz);
+    if (!clear(x, z, 2.5, rr)) continue;
     rockSpots.push(x, z);
-    const m = part(rockGeo, C.rock, x, hgt(x, z) + 0.2, z, scene); m.scale.set(0.6 + rnd() * 1.4, 0.4 + rnd() * 0.8, 0.6 + rnd() * 1.4); m.rotation.set(rnd(), rnd() * 3, rnd());
+    const m = part(rockGeo, C.rock, x, hgt(x, z) + 0.2, z, scene); m.scale.set(sx, 0.4 + rnd() * 0.8, sz); m.rotation.set(rnd(), rnd() * 3, rnd());
+    occupy(x, z, rr, () => { m.visible = false; });
   }
   const blade = (rx, rz) => { const g = new THREE.ConeGeometry(0.05, 0.42, 3); g.translate(0, 0.21, 0); g.rotateX(rx); g.rotateZ(rz); return g; };
   const tuftGeo = new THREE.BufferGeometry(); {
@@ -952,7 +965,7 @@ function decorate() {
     dm.position.set(x, h - 0.02, z); dm.rotation.set((rnd() - 0.5) * 0.4, rnd() * 3, (rnd() - 0.5) * 0.4);
     const s = reed ? 1.3 + rnd() * 0.8 : 0.7 + rnd() * 0.9; dm.scale.set(s, s * (reed ? 1.6 : 0.8 + rnd() * 0.8), s); dm.updateMatrix();
     tufts.setMatrixAt(ti, dm.matrix);
-    if (reed) col.setHSL(0.2 + rnd() * 0.05, 0.35, 0.28 + rnd() * 0.08); else col.setHSL(0.17 + rnd() * 0.06, 0.32 + rnd() * 0.15, (FIELD.castle ? 0.3 : 0.21) + rnd() * 0.1);
+    if (reed) col.setHSL(0.18 + rnd() * 0.04, 0.35, 0.28 + rnd() * 0.08); else col.setHSL(0.13 + rnd() * 0.05, 0.42 + rnd() * 0.15, (FIELD.castle ? 0.26 : 0.17) + rnd() * 0.07);
     tufts.setColorAt(ti++, col);
   }
   tufts.count = ti; tufts.receiveShadow = true; scene.add(tufts);
@@ -1095,7 +1108,13 @@ function horseBody(g, body, legCol) {
   part(new THREE.SphereGeometry(0.045, 5, 4), '#161210', 0.095, 0.16, 0.05, head);
   part(new THREE.SphereGeometry(0.045, 5, 4), '#161210', -0.095, 0.16, 0.05, head);
   for (const ex of [0.075, -0.075]) part(new THREE.ConeGeometry(0.045, 0.13, 4), body, ex, 0.04, -0.06, head);
-  part(new THREE.ConeGeometry(0.1, 0.62, 5), C.horseDark, 0, 1.0, -0.74, g).rotation.x = 2.5;
+  // the tail: a short dock set high on the rump, then hair that hangs and sways
+  const tail = new THREE.Group(); tail.position.set(0, 1.13, -0.8); tail.rotation.x = 0.35; g.add(tail);
+  part(CYL(0.07, 0.05, 0.22, 5), body, 0, -0.08, -0.03, tail).rotation.x = -0.7;
+  const hair = new THREE.Group(); hair.position.set(0, -0.12, -0.12); tail.add(hair);
+  part(CYL(0.07, 0.11, 0.3, 6), C.horseDark, 0, -0.15, 0, hair);
+  part(CYL(0.11, 0.03, 0.34, 6), C.horseDark, 0, -0.46, 0, hair);
+  legs.tail = tail; legs.hair = hair;
   return legs;
 }
 function torsoHead(g, coat, hat, hatCol, y) {
@@ -2014,12 +2033,18 @@ function animFoot(u, bob, moving, atk) {
   if (u.kind === 'blade') { u.arm.rotation.set(-0.4 - k * 0.6, 0.9 - k * 2.2, 0); }
   else { u.arm.rotation.set(-0.05 + k * 0.15, 0, 0); u.arm.position.z = 0.05 + k * 0.5; }
 }
-function animArcher(u, bob, moving, shootT, aimYaw) {
+function animArcher(u, bob, moving, shootT, aimYaw, gallop) {
   u.legs.forEach((l, i) => {
-    const sw = moving ? Math.sin(bob + (i % 2 ? Math.PI : 0) + (i > 1 ? 0.6 : 0)) : 0;
-    l.rotation.x = sw * 0.6;
-    if (l.userData.low) l.userData.low.rotation.x = moving ? Math.max(0, -sw) * 0.75 : 0;   // a bent knee reads as a gait
+    // trot: diagonal pairs. gallop: front pair and hind pair reach and gather together, a little apart
+    const ph = gallop ? (i < 2 ? 0 : Math.PI * 0.85) + (i % 2 ? 0.35 : 0) : (i % 2 ? Math.PI : 0) + (i > 1 ? 0.6 : 0);
+    const sw = moving ? Math.sin(bob + ph) : 0;
+    l.rotation.x = sw * (gallop ? 1.05 : 0.6);
+    if (l.userData.low) l.userData.low.rotation.x = moving ? Math.max(0, -sw) * (gallop ? 1.3 : 0.75) : 0;   // a bent knee reads as a gait
   });
+  if (u.legs.tail) {
+    u.legs.tail.rotation.x = gallop && moving ? 1.25 + Math.sin(bob * 2) * 0.12 : moving ? 0.55 + Math.sin(bob) * 0.08 : 0.35;
+    u.legs.hair.rotation.z = Math.sin(bob * (gallop ? 2 : 1) + 1) * (moving ? 0.22 : 0.05) + Math.sin(clock * 1.3) * 0.04;
+  }
   u.rider.rotation.y = aimYaw;
   const draw = shootT > 0 ? Math.sin((1 - shootT) * Math.PI) : 0;
   u.bow.rotation.set(-draw * 0.25, draw * 0.5, 0); u.bow.position.z = 0.25 + draw * 0.1;
@@ -2393,6 +2418,7 @@ function updateHero(dt) {
   const moving = il > 0.08;
   const wantSprint = (keys.ShiftLeft || keys.ShiftRight) && moving && hero.stam > 0;
   const sprinting = wantSprint;
+  hero.galloping = sprinting && moving;
   hero.stam = clamp(hero.stam + (sprinting ? -SPRINT.drain : SPRINT.refill) * dt, 0, SPRINT.max);
   const px = hero.pos.x, pz = hero.pos.z;
   if (moving) {
@@ -2400,7 +2426,7 @@ function updateHero(dt) {
     const d = Math.hypot(hero.pos.x, hero.pos.z);
     if (d < keep.radius + 0.5) { const k = (keep.radius + 0.5) / d; hero.pos.x *= k; hero.pos.z *= k; }
     hero.face += angDiff(Math.atan2(ix, iz), hero.face) * Math.min(1, dt * 12);
-    hero.bob += dt * 14;
+    hero.bob += dt * (sprinting ? 17 : 14);
     // one knock per fall of a hoof, taken straight off the gait cycle
     const stride = Math.floor(hero.bob / Math.PI);
     if (stride !== hero.lastStride) { hero.lastStride = stride; Sound.play('hoof'); }
@@ -2431,7 +2457,7 @@ function updateHero(dt) {
       hero.charge = Math.max(0, hero.charge - 0.15);
     }
   }
-  if (moving && Math.random() < dt * (4 + hero.charge * 12)) puff(hero.pos.clone().add(new V3(-Math.sin(hero.face) * 0.9, 0, -Math.cos(hero.face) * 0.9)), '#c8b48a', 1, 0.6);
+  if (moving && Math.random() < dt * (4 + hero.charge * 12 + (hero.galloping ? 14 : 0))) puff(hero.pos.clone().add(new V3(-Math.sin(hero.face) * 0.9, 0, -Math.cos(hero.face) * 0.9)), '#c8b48a', 1, 0.6);
   heroRing.material.opacity = 0.55 + hero.charge * 0.4; heroRing.scale.setScalar(1 + hero.charge * 0.35);
   cmdRing.visible = S.state === 'night' && hero.alive;
   if (cmdRing.visible) {
@@ -2445,8 +2471,9 @@ function updateHero(dt) {
   volleyCd = Math.max(0, volleyCd - dt);
   volleyRing.material.opacity = S.state === 'night' && volleyCd <= 0 ? 0.45 + Math.sin(clock * 6) * 0.25 : 0;
   const g = hero.m.g;
-  g.rotation.x = -0.12 * hero.charge;
-  g.position.set(hero.pos.x, hero.pos.y + (moving ? Math.abs(Math.sin(hero.bob)) * 0.1 : 0), hero.pos.z);
+  // at a gallop the whole horse rocks, nose down as the forelegs land and up as they reach
+  g.rotation.x = -0.12 * hero.charge + (hero.galloping ? Math.sin(hero.bob + 0.6) * 0.09 : 0);
+  g.position.set(hero.pos.x, hero.pos.y + (moving ? Math.abs(Math.sin(hero.bob)) * (hero.galloping ? 0.2 : 0.1) : 0), hero.pos.z);
   g.rotation.y = hero.face;
   const inCourt = Math.hypot(hero.pos.x, hero.pos.z) < CASTLE_R - 1.5;
   if (S.state !== 'night') hero.hp = Math.min(hero.max, hero.hp + HERO.regen * 4 * dt);
@@ -2481,7 +2508,7 @@ function updateHero(dt) {
   const aimAt = t || (hero.pending && hero.pending.t);
   const aimYaw = aimAt ? clamp(angDiff(Math.atan2(aimAt.pos.x - hero.pos.x, aimAt.pos.z - hero.pos.z), hero.face), -1.9, 1.9) : 0;
   hero.aimYaw = lerp(hero.aimYaw || 0, aimYaw, Math.min(1, dt * 12));
-  animArcher(hero.m, hero.bob, moving, hero.shootT / 0.4, hero.aimYaw);
+  animArcher(hero.m, hero.bob, moving, hero.shootT / 0.4, hero.aimYaw, hero.galloping);
 }
 
 function volley() {
@@ -3523,9 +3550,9 @@ const TRIPS = 3;
 const SOLDIER_COST = { spear: { grain: 8 }, archer: { grain: 8, wood: 3 }, horse: { grain: 12, wood: 2 } };
 // the three supply wagons: what they carry, and what it looks like when raiders run off with it
 const SUPPLY = {
-  food:  { res: 'grain', name: 'Food wagon',  word: 'food',  col: '#d9b45a', sack: '#c9a466', per: 15 },
-  wood:  { res: 'wood',  name: 'Wood wagon',  word: 'wood',  col: '#b0784a', sack: '#8b6039', per: 6 },
-  stone: { res: 'stone', name: 'Stone wagon', word: 'stone', col: '#b9b4aa', sack: '#a39d92', per: 4 },
+  food:  { res: 'grain', name: 'Food wagon',  word: 'food',  col: '#b8322a', sack: '#c9a466', per: 15 },
+  wood:  { res: 'wood',  name: 'Wood wagon',  word: 'wood',  col: '#b8322a', sack: '#8b6039', per: 6 },
+  stone: { res: 'stone', name: 'Stone wagon', word: 'stone', col: '#b8322a', sack: '#a39d92', per: 4 },
 };
 const isSupply = k => k in SUPPLY;
 // A war, not a skirmish: both sides field about 1.6 times the bodies, each one lighter, so the
@@ -3729,9 +3756,9 @@ function dismissSoldiers() {
   return { lost, wounded };
 }
 function makeUnitModel(type) {
-  if (type === 'archer') { const m = makeFootman({ legs: '#3a2a20', coat: '#4f6a34', hat: 'cap', hatCol: '#4a3a2a', weapon: 'bow', scale: 0.95 }); m.g.add(groundRing(KIND_COL.archer, 0.42, 0.56, 0.75)); return m; }
+  if (type === 'archer') { const m = makeFootman({ legs: '#3a2a20', coat: '#a3352a', hat: 'cap', hatCol: '#4a3a2a', weapon: 'bow', scale: 0.95 }); m.g.add(groundRing(KIND_COL.archer, 0.42, 0.56, 0.75)); return m; }
   if (type === 'horse') {
-    const m = makeArcherRider({ horse: '#6b4a33', legCol: '#4a3524', coat: '#3d5878', hat: 'helm', hatCol: '#9aa0a3', ring: KIND_COL.horse, r0: 0.8, r1: 0.95 });
+    const m = makeArcherRider({ horse: '#6b4a33', legCol: '#4a3524', coat: '#b33a2a', hat: 'helm', hatCol: '#9aa0a3', ring: KIND_COL.horse, r0: 0.8, r1: 0.95 });
     m.bow.visible = false;
     const lance = part(CYL(0.03, 0.03, 2.6, 4), C.woodDark, 0.28, 0.5, 0.5, m.rider); lance.rotation.x = Math.PI / 2 - 0.25;
     part(new THREE.ConeGeometry(0.05, 0.25, 4), '#cfcfcf', 0.28, 0.83, 1.78, m.rider).rotation.x = Math.PI / 2 - 0.25;
@@ -4177,6 +4204,7 @@ function applyPalisades() {
 }
 let circling = null;
 function circleWagons(plan) {
+  clearCampGround(plan.cx, plan.cz, CONVOY.ringR + 2.2);
   S.camp = plan; S.phase = 'circling';
   const extra = combatCarts().filter(p => !plan.slots.some(s => s.plot === p));
   const inside = [...supplyWagons(), ...extra], inner = [];
