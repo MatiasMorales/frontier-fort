@@ -146,6 +146,11 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #bellTag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:var(--lacquer); border-right:1px solid var(--gold); border-bottom:1px solid var(--gold); }
 #bellTag.edge i{ display:none; }
 .is-paused #goal, .is-paused #bellTag{ display:none !important; }
+#drum{ position:relative; height:12px; margin-top:6px; background:#1a0e0c; border-radius:3px; overflow:hidden; }
+#drum i{ position:absolute; inset:0 auto 0 0; width:0; background:linear-gradient(90deg,#8e2a1e,#e0b85a); }
+#drum span{ position:relative; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:#eadbc0; padding-left:5px; line-height:12px; display:block; }
+#drum.full i{ animation:drumBeat .45s ease-in-out infinite alternate; }
+@keyframes drumBeat{ from{ filter:brightness(1); } to{ filter:brightness(1.6); } }
 #wepCd{ height:3px; background:#1a0e0c; border-radius:2px; margin-top:4px; overflow:hidden; }
 #wepCd i{ display:block; height:100%; width:100%; background:var(--gold); }
 #res .r em.neg{ color:#d9826a; }
@@ -299,14 +304,15 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
   <div class="lbl" style="margin-top:8px">Commander <span id="heroN">120</span></div>
   <div class="bar"><i id="heroBarI" style="background:linear-gradient(90deg,#e6c77f,#c29a4c)"></i></div>
   <div id="stam"><i id="stamI"></i></div>
-  <div id="wep"><b id="wepN">Bow</b><span class="k">F to switch</span></div>
+  <div id="wep"><b id="wepN">Bow</b><span class="k">Shift: dash · hold to gallop</span></div>
+  <div id="drum" title="War drum: kills by the commander beat it up; full, the whole column fights harder"><i id="drumI"></i><span>War drum</span></div>
   <div id="wepCd" hidden><i id="wepCdI"></i></div>
   <div id="heroLine"></div>
 </div>
 <div id="hurt" style="position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(170,20,10,.55) 100%);transition:opacity .15s"></div>
 <div id="banner"><b id="bannerT"></b><span id="bannerS"></span></div>
 <div id="prompt" class="panel" hidden></div>
-<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> sprint &nbsp;  <kbd>F</kbd> bow / sabre &nbsp; <kbd>Space</kbd> hold: act &nbsp; stop to place soldiers, <kbd>◀</kbd><kbd>▶</kbd> how many &nbsp; night: stop to shoot, ride close to cut, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
+<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> tap: dash · hold: gallop &nbsp; <kbd>Space</kbd> hold: act &nbsp; stop to place soldiers, <kbd>◀</kbd><kbd>▶</kbd> how many &nbsp; night: stop to shoot, gallop through foot raiders, dash out of the red, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
   <div class="sheet" style="max-width:440px">
@@ -315,7 +321,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 12 · 24 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 13 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -333,11 +339,11 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>WASD</kbd>Ride</span>
       <span><kbd>Shift</kbd>Sprint</span>
       <span><kbd>Space</kbd>Hold at dusk to circle the wagons</span>
-      <span><kbd>F</kbd>Bow / sabre</span>
+      <span><kbd>Shift</kbd>Tap to dash, hold to gallop</span>
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 12 · 24 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 13 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -465,14 +471,20 @@ const ETYPES = {
   torch:   { hp: 25,  dmg: 14, speed: 4.6, rad: 0.5 },   // runs past you for your buildings
   // Lamellar - hundreds of small iron plates laced together - was the steppe answer to the bow,
   // and it worked: arrows glance off the scales. A sabre finds the lacing between them.
-  ironcoat:{ hp: 78,  dmg: 13, speed: 2.8, rad: 0.65, bowMul: 0.3, name: 'Ironcoat' },
+  ironcoat:{ hp: 78,  dmg: 13, speed: 2.8, rad: 0.65, bowMul: 0.3, trample: 1.8, name: 'Ironcoat' },   // arrows glance off: ride him down
   // A hedge of long spears set against cavalry. No rider gets a sabre past the points, so it
   // has to be shot off the road.
-  spearhedge:{ hp: 70, dmg: 16, speed: 2.4, rad: 0.6, bladeMul: 0.12, name: 'Spear hedge' },
+  spearhedge:{ hp: 70, dmg: 16, speed: 2.4, rad: 0.6, bladeMul: 0.12, braced: true, name: 'Spear hedge' },   // a charge breaks on the points: shoot him
   lancer:  { hp: 75,  dmg: 12, speed: 4.6, rad: 0.7, charge: 34 },
   // Fire arrows were a real steppe weapon against wagon laagers. They stand off beyond the reach
   // of the carts and set the wagons alight, so a convoy that only sits in its ring burns: someone
   // has to ride out, or be posted forward, to deal with them.
+  // Steppe bowmen from the first night: they stand off and rain arrows where the commander will be.
+  bowman: { hp: 34, dmg: 7, speed: 3.1, rad: 0.5, reach: 12, rate: 4.6, rain: 12, name: 'Steppe bowman' },
+  // Fire pots, a weapon of the age on both sides of the Wall: the pot lands and the ground burns.
+  potter: { hp: 40, dmg: 6, speed: 3.0, rad: 0.5, reach: 11, rate: 6.5, name: 'Pot thrower' },
+  // The urga, the herdsman's lasso pole: a thrown line that drags a rider off his line.
+  lasso: { hp: 70, dmg: 7, speed: 5.4, rad: 0.6, reach: 9, rate: 5.5, name: 'Lasso rider' },
   firearcher: { hp: 42, dmg: 18, speed: 3.0, rad: 0.5, standOff: 15, rate: 2.8, burn: 3, name: 'Fire archer' },
 };
 // Later nights lean on the raiders that punish passive play - shields have to be flanked
@@ -1334,6 +1346,19 @@ function makeEnemyModel(type) {
     }
     return u;
   }
+  if (type === 'bowman') return makeFootman({ legs: '#2a2b35', coat: '#4a5578', hat: 'fur', hatCol: '#6a1f1a', weapon: 'bow', ring: '#e0c074' });
+  if (type === 'potter') {
+    const u = makeFootman({ legs: '#2f2620', coat: '#5a4a30', hat: 'cap', hatCol: C.fur, weapon: 'blade', ring: '#ffd24a', scale: 0.98 });
+    part(new THREE.SphereGeometry(0.16, 7, 5), '#6a4a30', -0.28, 0.9, 0.1, u.g); part(new THREE.SphereGeometry(0.06, 5, 4), M('#ffb04a', { emissive: '#ff7a1a', emissiveIntensity: 1.4 }), -0.28, 1.08, 0.1, u.g);
+    return u;
+  }
+  if (type === 'lasso') {
+    const u = makeArcherRider({ horse: C.horseDark, coat: '#6a3a22', hat: 'fur', hatCol: C.fur, ring: '#d2462f', r0: 0.62, r1: 0.8 });
+    u.bow.visible = false;
+    const pole = part(CYL(0.025, 0.025, 2.6, 4), C.woodDark, 0.3, 0.6, 0.3, u.rider); pole.rotation.x = 0.9;
+    part(new THREE.TorusGeometry(0.22, 0.025, 4, 10), '#c9a466', 0.3, 1.5, 1.2, u.rider);
+    return u;
+  }
   if (type === 'firearcher') {
     const u = makeFootman({ legs: '#2f2620', coat: '#7a2e1c', hat: 'fur', hatCol: C.fur, weapon: 'bow', ring: '#ff9a3a', scale: 0.98 });
     part(new THREE.SphereGeometry(0.09, 6, 5), M('#ffb04a', { emissive: '#ff7a1a', emissiveIntensity: 1.6 }), 0.28, 1.0, 0.55, u.g);   // the lit arrowhead
@@ -1740,6 +1765,7 @@ function animateSabre(dt) {
   }
 }
 function setWeapon(w) {
+  if (WAGON) w = 'bow';   // the commander carries the bow alone; armour is ridden down at the gallop
   if (hero.weapon === w) return;
   hero.weapon = w;
   heroM.bow.visible = w === 'bow';
@@ -1952,6 +1978,7 @@ function hitSound(ent, src) {
 }
 function damage(ent, dmg, from, src) {
   if (!ent.alive || !(ent.hp < Infinity)) return;
+  if (ent === hero && hero.dashT > 0) return;                        // the dash is a dodge: nothing lands on it
   // Armour and reach. Lamellar turns arrows - from the commander's bow, the towers and the
   // keep alike - but not a sabre, a rocket or a cannonball. A spear hedge keeps a rider off,
   // but does nothing about anything shot at it. This is the one job the guns cannot do for you.
@@ -1971,7 +1998,12 @@ function damage(ent, dmg, from, src) {
     if (ent.shieldHp <= 0) { if (ent.shieldMesh) ent.shieldMesh.visible = false; puff(ent.pos, '#9aa0aa', 6, 1.4); }
     else if (Math.random() < 0.25) puff(ent.pos, '#b9bec7', 1, 1.2);
   }
-  if (ent.etype && ent.hp > 0 && ent.hp - dmg <= 0 && S.nightKills) S.nightKills[src || 'other'] = (S.nightKills[src || 'other'] || 0) + 1;
+  if (ent.etype && ent.hp > 0 && ent.hp - dmg <= 0 && S.nightKills) {
+    S.nightKills[src || 'other'] = (S.nightKills[src || 'other'] || 0) + 1;
+    // the war drum: every raider the commander drops beats it harder; full, the column surges
+    if (WAGON && src === 'hero' && !(S.drumT > 0)) { S.drum = (S.drum || 0) + 1;
+      if (S.drum >= 8) { S.drum = 0; S.drumT = 8; banner('The war drums quicken', 'Every soldier and cart fights a third harder for a few breaths.', 2); Sound.play('ability'); kick(0.25); } }
+  }
   ent.hp -= dmg;
   hitSound(ent, src);
   // a fire arrow in a supply wagon burns part of the load, for as long as nobody stops the archers
@@ -2104,7 +2136,7 @@ function updateSoldiers(dt) {
     const st = SOLDIER_TYPE[s.type || 'spear'];
     const t = S.state === 'night' ? nearest(enemies, s.pos, e => e.pos.distanceTo(anchor) < (s.following || s.sprintT > 0 ? 9 : SOLDIER.leash * S.leashMul) + (st.range || 0) * 0.6 && canReach(s.pos, e.pos)) : null;
     if (t) {
-      const dmg = st.dmg * (s.ambush ? 1.3 : 1) * (S.vetMul > 1 ? 1.3 : 1) * S.morale * (s.hornT > 0 ? 1.5 : 1) * (WAGON ? S.soldierStr * (s.hungry ? 0.7 : 1) : 1), d = t.pos.distanceTo(s.pos);
+      const dmg = st.dmg * (s.ambush ? 1.3 : 1) * (S.vetMul > 1 ? 1.3 : 1) * S.morale * (S.drumT > 0 ? 1.33 : 1) * (s.hornT > 0 ? 1.5 : 1) * (WAGON ? S.soldierStr * (s.hungry ? 0.7 : 1) : 1), d = t.pos.distanceTo(s.pos);
       if (st.range && d < st.range) { if (s.cd <= 0) { shoot(s.pos.clone().setY(s.pos.y + 1.3), t, dmg, 'friend', false, null, 'archers'); s.cd = st.cd; s.atkT = 0.3; } }
       else if (!st.range && d < st.reach + t.t.rad) { if (s.cd <= 0) { damage(t, dmg, s.pos, s.type === 'horse' ? 'horse' : 'spears'); s.cd = st.cd; s.atkT = 0.3; } }
       else moveLand(s.pos, t.pos, st.speed * (s.following || s.sprintT > 0 ? 1.4 : 1) * dt);
@@ -2210,9 +2242,10 @@ function updateDangers(dt) {
     if (d.kind === 'circle') d.fill.scale.setScalar(Math.max(0.01, k)); else d.fill.material.opacity = 0.18 + 0.2 * k;
     if (d.t < d.dur) continue;
     if (d.kind === 'circle') {
-      for (const f of [hero, ...soldiers]) if (f.alive && Math.hypot(f.pos.x - d.x, f.pos.z - d.z) < d.r) damage(f, d.dmg);
+      for (const f of [hero, ...soldiers]) if (f.alive && Math.hypot(f.pos.x - d.x, f.pos.z - d.z) < d.r) damage(f, f === hero ? d.dmg : d.dmg * 0.3);   // soldiers cannot dodge, so the storms are aimed at the rider
       puff({ x: d.x, y: groundY(d), z: d.z }, '#8a7a5c', 4, 1);
     }
+    if (d.onLand) d.onLand();
     scene.remove(d.g); dangers.splice(i, 1);
   }
 }
@@ -2331,7 +2364,7 @@ function updateEnemy(e, dt) {
   e.punch = Math.max(0, (e.punch || 0) - dt * 5);
   if (e.stunT > 0) { e.stunT -= dt; e.pos.y = groundY(e.pos); g.position.set(e.pos.x, e.pos.y, e.pos.z); g.rotation.z = Math.sin(clock * 25) * 0.15 * Math.min(1, e.stunT * 2); return true; }
   g.rotation.z = 0;
-  e.cd -= dt; e.bob += dt * (e.etype === 'horse' ? 13 : 9); e.oppT -= dt; e.slowT -= dt;
+  e.cd -= dt; e.bob += dt * (e.m.rider ? 13 : 9); e.oppT -= dt; e.slowT -= dt;
   // A night only ends when the last raider dies, so none may wander for ever. Once the warband
   // is fully ashore, a long-lived straggler drops whatever it was hunting and is put back on the
   // road graph, which always leads to the keep. Walking it there in a straight line does not
@@ -2427,7 +2460,7 @@ function updateEnemy(e, dt) {
   e.pos.y = groundY(e.pos);
   g.position.set(e.pos.x, e.pos.y + (moving ? Math.abs(Math.sin(e.bob)) * (e.etype === 'horse' ? 0.12 : 0.08) : 0), e.pos.z);
   if (e.punch > 0) g.scale.setScalar((e.etype === 'captain' ? 1.5 : 1) * (1 + e.punch * 1.4));
-  if (e.etype === 'horse') animArcher(e.m, e.bob, moving, e.shootT / 0.5, look ? clamp(angDiff(Math.atan2(look.x - e.pos.x, look.z - e.pos.z), g.rotation.y), -1.8, 1.8) : 0);
+  if (e.m.rider && e.m.bow) animArcher(e.m, e.bob, moving, e.shootT / 0.5, look ? clamp(angDiff(Math.atan2(look.x - e.pos.x, look.z - e.pos.z), g.rotation.y), -1.8, 1.8) : 0);
   else if (e.etype === 'lancer') e.m.legs.forEach((l, i) => {
       const sw = moving ? Math.sin(e.bob + (i % 2 ? Math.PI : 0)) : 0;
       l.rotation.x = sw * 0.55;
@@ -2488,7 +2521,7 @@ function commanding(b) {
   return hero.alive && S.state === 'night' && Math.hypot(b.pos.x - hero.pos.x, b.pos.z - hero.pos.z) < COMMAND.radius;
 }
 function updateDefences(dt) {
-  const mor = S.morale;
+  const mor = S.morale * (S.drumT > 0 ? 1.33 : 1);
   keep.recent = Math.max(0, keep.recent - KEEP_DPS_CAP * dt);   // rolling one-second window
   keep.cd -= dt;
   if (keep.cd <= 0 && keep.alive) {
@@ -2540,6 +2573,11 @@ function updateDefences(dt) {
 /* ================= hero ================= */
 const keys = {};
 let stick = { x: 0, y: 0 }, holdInput = false;
+function dash() {
+  if (!hero.alive || hero.dashCd > 0 || hero.stam < 0.8 || !(S.state === 'night' || S.state === 'day')) return;
+  hero.dashT = 0.24; hero.dashCd = 0.9 * (S.dashCdMul || 1); hero.stam -= 0.8; hero.lassoT = 0;
+  Sound.play('slash', 0.5); puff(hero.pos.clone(), '#d9c7a0', 4, 1.4);
+}
 function downHero() {
   hero.alive = false; hero.hp = 0; hero.m.g.visible = false; puff(hero.pos, '#c9b28a', 8);
   ui.heroLine.textContent = 'You fell. You will ride again at dawn.';
@@ -2551,13 +2589,24 @@ function updateHero(dt) {
   let iz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + stick.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   const moving = il > 0.08;
+  // the dash: a tap of Shift throws the horse forward for a moment, nothing can touch it
+  hero.dashCd = Math.max(0, (hero.dashCd || 0) - dt); hero.dashT = Math.max(0, (hero.dashT || 0) - dt);
+  if (hero.dashT > 0) {
+    const dx = moving ? ix : Math.sin(hero.face), dz = moving ? iz : Math.cos(hero.face), dl = Math.hypot(dx, dz) || 1;
+    moveLand(hero.pos, tmp.set(hero.pos.x + dx / dl * 5, 0, hero.pos.z + dz / dl * 5), HERO.speed * 3.1 * dt, true);
+    if (Math.random() < dt * 40) puff(hero.pos.clone(), '#d9c7a0', 1, 1.2);
+  }
+  if (hero.lassoT > 0) {                                  // caught: dragged toward the rider, and slow
+    hero.lassoT -= dt; const L = hero.lassoBy;
+    if (L && L.alive && hero.dashT <= 0) moveLand(hero.pos, L.pos, 3.2 * dt, true); else hero.lassoT = 0;
+  }
   const wantSprint = (keys.ShiftLeft || keys.ShiftRight) && moving && hero.stam > 0;
   const sprinting = wantSprint;
   hero.galloping = sprinting && moving;
   hero.stam = clamp(hero.stam + (sprinting ? -SPRINT.drain : SPRINT.refill) * dt, 0, SPRINT.max);
   const px = hero.pos.x, pz = hero.pos.z;
   if (moving) {
-    moveLand(hero.pos, tmp.set(hero.pos.x + ix * 5, 0, hero.pos.z + iz * 5), HERO.speed * S.heroSpeedMul * (sprinting ? SPRINT.mul : 1) * dt, true);
+    moveLand(hero.pos, tmp.set(hero.pos.x + ix * 5, 0, hero.pos.z + iz * 5), HERO.speed * S.heroSpeedMul * (sprinting ? SPRINT.mul : 1) * (hero.lassoT > 0 ? 0.45 : 1) * dt, true);
     const d = Math.hypot(hero.pos.x, hero.pos.z);
     if (d < keep.radius + 0.5) { const k = (keep.radius + 0.5) / d; hero.pos.x *= k; hero.pos.z *= k; }
     hero.face += angDiff(Math.atan2(ix, iz), hero.face) * Math.min(1, dt * 12);
@@ -2575,8 +2624,11 @@ function updateHero(dt) {
       if (!e.alive || e.hitCd > 0) continue;
       const d = Math.hypot(e.pos.x - hero.pos.x, e.pos.z - hero.pos.z);
       if (d > 1.3 + e.t.rad) continue;
-      const light = e.etype === 'foot';
-      damage(e, CHARGE.dmg * (light ? 1 : 0.5) * hero.charge * S.heroDmgMul, null, 'hero'); e.hitCd = 0.6;
+      const light = e.etype === 'foot' || e.etype === 'bowman' || e.etype === 'potter' || e.etype === 'firearcher' || e.etype === 'torch';   // unarmoured men on foot go down under a gallop
+      if (e.t.braced) {        // riding into set spears: the charge breaks and the horse is hurt
+        damage(hero, 14); hero.charge = 0; e.hitCd = 1; banner('Spears set against the charge', 'A spear hedge stops any rider. Shoot them instead.', 2); Sound.play('clang'); break;
+      }
+      damage(e, CHARGE.dmg * (light ? 1 : e.t.trample || 0.5) * hero.charge * S.heroDmgMul, null, 'hero'); e.hitCd = 0.6;
       if (!e.alive) hitStop(55);               // a kill under hoof should land
       if (!e.alive && S.steppe) volleyCd = 0;   // riders of the steppe: a trampled raider readies the volley
       puff(e.pos, '#b59a6a', 3, 1);
@@ -2772,7 +2824,7 @@ function startDay() {
 }
 function startNight() {
   S.state = 'night'; S.clearT = 0; S.nightT = 0; bellSwing = 1.2; S.announced = new Set();
-  S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0;
+  S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0; S.volleyT = 12; S.drum = 0; S.drumT = 0;
   S.armourUsed = false; S.longWallUsed = false; for (const c of CROSSINGS) c.burnedTonight = false; Sound.play('bell');
   active = null; renderPrompt();
   const W = waveFor(S.day), f = W.foot, h = W.horse, cap = W.captain, ne = W.entries;
@@ -2802,8 +2854,8 @@ function startNight() {
       list.push({ type, entry: S.entries[k], wave: w, at: at + w * GAP + Math.random() * BURST });
     }
   };
-  add('foot', f); add('horse', h); add('lancer', W.lancer); add('shield', W.shield); add('torch', W.torch);
-  add('ironcoat', W.ironcoat); add('spearhedge', W.spearhedge); add('firearcher', W.firearcher || 0);
+  add('foot', WAGON ? Math.max(8, f - (W.bowman || 0) - (W.potter || 0) - (W.lasso || 0)) : f); add('horse', h); add('lancer', W.lancer); add('shield', W.shield); add('torch', W.torch);
+  add('ironcoat', W.ironcoat); add('spearhedge', W.spearhedge); add('firearcher', W.firearcher || 0); add('bowman', W.bowman || 0); add('potter', W.potter || 0); add('lasso', W.lasso || 0);
   for (let i = 0; i < cap; i++) list.push({ type: 'captain', entry: S.entries[i % neUsed], wave: waves - 1, at: (WAGON ? Math.max(0, reach - travel[i % neUsed] / 3.4) : 0) + (waves - 1) * GAP + 1 });
   S.spawnQ = list.sort((a, b) => a.at - b.at);
   S.waves = waves; S.wave = 0;
@@ -2821,6 +2873,20 @@ function updateNight(dt) {
       refreshHUD();
     }
     spawnEnemy(q.type, q.entry);
+  }
+  // massed volleys: while bowmen or horse archers are on the field, the warband darkens the sky now
+  // and then - a line of arrow storms across where the commander is riding. Horns give warning.
+  if (WAGON && hero.alive) {
+    S.volleyT = (S.volleyT === undefined ? 12 : S.volleyT) - dt;
+    const archers = enemies.filter(e => e.alive && (e.etype === 'bowman' || e.etype === 'horse')).length;
+    if (S.volleyT <= 0) {
+      S.volleyT = 13 + Math.random() * 7;
+      if (archers >= 2) {
+        const p = lead(hero), a = Math.random() * Math.PI, n = Math.min(7, 3 + Math.floor(archers / 3));
+        for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2) * 3.4; circleDanger(p.x + Math.cos(a) * o, p.z + Math.sin(a) * o, 2.4, 1.6, 14); }
+        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('volley'); kick(0.2);
+      }
+    }
   }
   if (!S.spawnQ.length && !enemies.some(e => e.alive)) { S.clearT += dt; if (S.clearT > 1.6) toDawn(); }
 }
@@ -2917,7 +2983,7 @@ const UPGRADES = [
   { id: 'bow',    name: 'Composite bow',   tags: [], desc: 'Your arrows hit 30% harder', apply: () => { S.heroDmgMul *= 1.3; } },
   { id: 'eye',    name: 'Eagle eye',       tags: [], desc: 'You shoot from 25% farther away', apply: () => { S.heroRangeMul *= 1.25; } },
   { id: 'vets',   name: 'Veteran spearmen',tags: [], once: true, desc: 'Spearmen get 50% more HP and hit 30% harder', apply: () => { S.vetMul = 1.5; for (const s of soldiers) { s.max = SOLDIER.hp * 1.5; s.hp = s.max; } } },
-  { id: 'whet',   name: 'Whetstone and drill', tags: ['cav'], desc: 'Your sabre recovers 30% faster between cuts', apply: () => { S.bladeCdMul = Math.max(0.4, S.bladeCdMul * 0.7); } },
+  { id: 'whet',   name: 'Whetstone and drill', tags: ['cav'], desc: 'Your dash recovers twice as fast', apply: () => { S.dashCdMul = 0.5; } },
   { id: 'armour', name: "Ancestor's armour", tags: [], once: true, desc: 'Once each night, a killing blow leaves you standing', apply: () => { S.armour = true; } },
 ];
 // A card is offered only if it can still do something: once-only cards drop out when taken,
@@ -3003,10 +3069,10 @@ function updateAbilityBar(dt) {
 /* ---- fire on the ground, and raiders carrying it ---- */
 const firePools = [];
 const fireMat = new THREE.MeshBasicMaterial({ color: '#ff7a2a', transparent: true, opacity: 0.35, depthWrite: false });
-function firePool(x, z, r, dur) {
+function firePool(x, z, r, dur, hostile) {
   const g = new THREE.Mesh(new THREE.CircleGeometry(r, 24), fireMat.clone());
   g.rotation.x = -Math.PI / 2; g.position.set(x, groundY({ x, z }) + 0.08, z); g.renderOrder = 4; scene.add(g);
-  firePools.push({ x, z, r, t: 0, dur: dur * S.burnMul, g }); Sound.play('fire');
+  firePools.push({ x, z, r, t: 0, dur: hostile ? dur : dur * S.burnMul, g, hostile }); Sound.play('fire');
 }
 function ignite(e, dur) { e.fireT = Math.max(e.fireT || 0, (dur || 3) * S.burnMul); }
 function updateFire(dt) {
@@ -3015,6 +3081,7 @@ function updateFire(dt) {
     f.g.material.opacity = 0.35 * Math.max(0, 1 - f.t / f.dur) * (0.75 + Math.sin(clock * 12) * 0.25);
     if (Math.random() < dt * 8) puff(new V3(f.x + (Math.random() - 0.5) * f.r, 0.3, f.z + (Math.random() - 0.5) * f.r), '#ff9a45', 1, 1.6);
     for (const e of enemies) if (e.alive && Math.hypot(e.pos.x - f.x, e.pos.z - f.z) < f.r) ignite(e, 2);
+    if (f.hostile) for (const u of [hero, ...soldiers]) if (u.alive && Math.hypot(u.pos.x - f.x, u.pos.z - f.z) < f.r) damage(u, (u === hero ? 10 : 6) * dt);
     if (f.t >= f.dur) { scene.remove(f.g); f.g.material.dispose(); firePools.splice(i, 1); }
   }
   for (const e of enemies) {
@@ -3564,6 +3631,7 @@ addEventListener('keydown', e => {
   if (WAGON && convoyKeys(e)) return;
   if (e.code === 'Escape') { if (S.state !== 'title') setPaused(!paused); e.preventDefault(); return; }
   if (paused) return;
+  if (WAGON && (e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) dash();
   keys[e.code] = true;
   if (S.state === 'dawn') {
     if (e.code === 'ArrowRight' || e.code === 'ArrowDown' || e.code === 'KeyD' || e.code === 'KeyS') { focusTablet(dawnSel + 1); e.preventDefault(); }
@@ -3578,7 +3646,7 @@ addEventListener('keydown', e => {
     if (S.state === 'night' && !active && !e.repeat) volley();
   }
   if (e.code.startsWith('Arrow')) e.preventDefault();
-  if (e.code === 'KeyF' || e.code === 'Tab') { setWeapon(hero.weapon === 'bow' ? 'blade' : 'bow'); e.preventDefault(); }
+  if (!WAGON && (e.code === 'KeyF' || e.code === 'Tab')) { setWeapon(hero.weapon === 'bow' ? 'blade' : 'bow'); e.preventDefault(); }
   if (e.code === 'KeyQ') useAbility(0);
   if (e.code === 'KeyE') useAbility(1);
   if (active) {
@@ -3702,10 +3770,10 @@ delete BRIDGE_COST.grain; BRIDGE_COST.wood = 5;
 // the whole column from the second region. Raiders are introduced the same way.
 const TIERS = [
   null,
-  { name: 'Wood', text: 'A <b>wood wagon</b> joins the column. <b>Woodcutters</b> bring wood, and wood buys <b>war carts</b>. New: the <b>crossbow cart</b> and <b>archers</b>, and before the night you can <b>move your carts</b> (stand by one and hold Space). Horse archers ride with the raiders from now on.', gives: () => { joinConvoy('wood'); S.res.wood += 12; S.crew.woodcutter += 1; } },
-  { name: 'Road works', text: 'Before the night you can now <b>barricade a road</b> or <b>scatter caltrops</b> on it: stand on a road and hold Space. Raiders must break through, or take another road. Watch for <b>fire archers</b> (orange rings): they burn your loads from beyond your carts\u2019 reach, so ride them down.' },
-  { name: 'Stone', text: 'A <b>stone wagon</b> joins. <b>Miners</b> bring stone, and stone buys heavier carts. New: the <b>rocket cart</b>, the <b>bombard cart</b> and <b>horsemen</b>. Armoured raiders appear from now on: <b>ironcoats</b> shrug off arrows, so cut them; <b>spear hedges</b> stop riders, so shoot them.', gives: () => { joinConvoy('stone'); S.res.stone += 8; S.crew.miner += 1; } },
-  { name: 'The whole column', text: 'New: the <b>palisade wagon</b>, which closes the ring on both sides of it, and <b>convoy levels</b>, which raise how many soldiers and crews you can lead.' },
+  { name: 'Wood', text: 'A <b>wood wagon</b> joins the column. <b>Woodcutters</b> bring wood, and wood buys <b>war carts</b>. New: the <b>crossbow cart</b> and <b>archers</b>, and before the night you can <b>move your carts</b> (stand by one and hold Space). Horse archers ride with the raiders from now on, and the warband looses <b>massed volleys</b>: dash out of the red.', gives: () => { joinConvoy('wood'); S.res.wood += 12; S.crew.woodcutter += 1; } },
+  { name: 'Road works', text: 'Before the night you can now <b>barricade a road</b> or <b>scatter caltrops</b> on it: stand on a road and hold Space. Raiders must break through, or take another road. Watch for <b>fire archers</b> (orange rings), who burn your loads from beyond your carts\u2019 reach, and <b>pot throwers</b> (yellow rings), whose fire pots leave burning ground: ride them down.' },
+  { name: 'Stone', text: 'A <b>stone wagon</b> joins. <b>Miners</b> bring stone, and stone buys heavier carts. New: the <b>rocket cart</b> and <b>horsemen</b>. Armoured raiders appear from now on: <b>ironcoats</b> shrug off arrows, so <b>ride them down at a gallop</b>; <b>spear hedges</b> break a charge, so shoot them. <b>Lasso riders</b> throw a line: dash out of it.', gives: () => { joinConvoy('stone'); S.res.stone += 8; S.crew.miner += 1; } },
+  { name: 'The whole column', text: 'New: the <b>bombard cart</b>, one heavy shot at the toughest raider; the <b>palisade wagon</b>, which closes the ring on both sides of it; and <b>convoy levels</b>, which raise how many soldiers and crews you can lead.' },
 ];
 const tier = () => Math.min(4, S.region >= 1 ? 4 : S.fought);
 const has = {
@@ -3723,7 +3791,7 @@ const daysOfFood = () => Math.floor(S.res.grain / foodPerDay());
 const rationToday = foodPerDay;
 
 Object.assign(DEFS, {
-  food:  { name: 'Food wagon',  cart: true, cost: {}, hp: 520, desc: 'Every sack of food you carry. Lose it and the convoy is finished' },
+  food:  { name: 'Food wagon',  cart: true, cost: {}, hp: 620, desc: 'Every sack of food you carry. Lose it and the convoy is finished' },
   wood:  { name: 'Wood wagon',  cart: true, cost: {}, hp: 170, desc: 'Timber for carts, barricades and repairs' },
   stone: { name: 'Stone wagon', cart: true, cost: {}, hp: 170, desc: 'Stone for levels, spikes and cannon' },
 });
@@ -4207,9 +4275,9 @@ function waveFor() {
   const g = S.region * CONVOY.floors + S.floor, d = Math.min(7, 1 + g * 0.36);
   const W = WAVES[Math.min(Math.round(d) - 1, WAVES.length - 1)], T = tier(), kind = FIELD.kind || 'valley';
   // a smoother curve than before: harder from the first night, gentler later on
-  const t = S.nightType, k = (t === 'boss' ? 1.25 : t === 'elite' ? 1.6 : 1.3) * (1.0 + S.region * 0.16);
+  const t = S.nightType, k = (t === 'boss' ? 1.1 : t === 'elite' ? 1.6 : 1.3) * (1.0 + S.region * 0.16);
   // the first nights are for learning the tools you have; the curve climbs as the tools arrive
-  const kb = k * WAR.bodies * [0.85, 0.75, 0.7, 0.82, 0.95][T];
+  const kb = k * WAR.bodies * [0.85, 0.75, 0.68, 0.7, 0.9][T];
   const horseK = kind === 'steppe' ? 2 : kind === 'gorge' ? 0.5 : 1, heavyK = kind === 'gorge' ? 1.6 : kind === 'steppe' ? 0.6 : 1;
   const heavy = T >= 3;
   return { foot: Math.max(Math.round([26, 22, 22, 24, 26][T] * WAR.bodies), Math.round(W.foot * kb)),
@@ -4218,6 +4286,9 @@ function waveFor() {
     torch: T >= 2 ? Math.round(W.torch * 0.8 * WAR.bodies) : 0,
     ironcoat: heavy ? Math.max(kind === 'gorge' ? 3 : 0, Math.round(W.ironcoat * kb * heavyK)) : 0,
     spearhedge: heavy ? Math.round(W.spearhedge * kb * heavyK) : 0,
+    bowman: Math.round((3 + g * 0.5) * (kind === 'steppe' ? 1.5 : 1) * (t === 'elite' || t === 'boss' ? 1.4 : 1)),
+    potter: T >= 2 ? Math.round((1 + g * 0.3) * (kind === 'gorge' ? 1.5 : 1)) : 0,
+    lasso: T >= 3 ? Math.round((1 + g * 0.25) * (kind === 'steppe' ? 1.6 : 1)) : 0,
     firearcher: T >= 2 ? Math.max(2, Math.round((W.firearcher || 0) * k * (t === 'boss' ? 0.8 : 1.3))) : 0,
     captain: t === 'boss' ? 1 + S.region : t === 'elite' ? 1 : 0,
     entries: kind === 'gorge' ? 2 : t === 'boss' || t === 'elite' || S.region >= 2 ? 3 : 2,
@@ -4466,10 +4537,44 @@ function fireArcher(e, dt) {
   }
   return { attacking: null, look: tgt ? tgt.pos : T };
 }
+// Raiders who fight from range and make the commander move: each stands off once he is in reach,
+// telegraphs on the ground, and then strikes where he is going to be.
+function lead(t) { const v = t === hero && hero.moveV ? hero.moveV : null; return v ? { x: t.pos.x + v.x * 0.55, z: t.pos.z + v.z * 0.55 } : { x: t.pos.x, z: t.pos.z }; }
+function standOff(e, dt) {
+  const R = e.t.reach, hd = hero.alive ? hero.pos.distanceTo(e.pos) : Infinity;
+  let tgt = hd < R ? hero : null;
+  if (!tgt && e.etype !== 'lasso') tgt = nearest(soldiers, e.pos, s => s.alive && s.pos.distanceTo(e.pos) < R);
+  if (!tgt) return null;                                   // nobody in reach: keep coming along the roads
+  if (e.pos.distanceTo(tgt.pos) < 1.4 + e.t.rad) return { attacking: tgt, look: tgt.pos };
+  e.rangeCd = (e.rangeCd === undefined ? 1 + Math.random() * 2 : e.rangeCd) - dt;
+  if (e.rangeCd <= 0) {
+    e.rangeCd = e.t.rate * (0.8 + Math.random() * 0.4); e.shootT = 0.5; e.atkT = 0.3;
+    const p = lead(tgt);
+    if (e.etype === 'bowman') {                          // an arrow storm on where you will be
+      circleDanger(p.x, p.z, 2.1, 1.05, e.t.rain);
+      for (let k = 0; k < 4; k++) { const a = Math.random() * TAU, rr = Math.random() * 2; shoot(e.pos.clone().setY(e.pos.y + 1.4), { pos: new V3(p.x + Math.cos(a) * rr, 0, p.z + Math.sin(a) * rr), alive: false }, 0, 'foe', false, { dur: 1.0, arc: 6 }); }
+      Sound.play('foeBow', 0.7);
+    } else if (e.etype === 'potter') {                   // a fire pot: burning ground for a while after
+      circleDanger(p.x, p.z, 2.3, 1.2, 8).onLand = () => firePool(p.x, p.z, 2.3, 4.5, true);
+      shoot(e.pos.clone().setY(e.pos.y + 1.2), { pos: new V3(p.x, 0, p.z), alive: false }, 0, 'fire', false, { dur: 1.15, arc: 5 });
+    } else if (e.etype === 'lasso') {                    // the line: a lane, and whoever stands in it is dragged
+      const dir = Math.atan2(p.x - e.pos.x, p.z - e.pos.z), len = Math.min(R + 1, Math.hypot(p.x - e.pos.x, p.z - e.pos.z) + 1.5);
+      const d = laneDanger(e.pos.x, e.pos.z, dir, len, 1.4, 0.75);
+      d.onLand = () => {
+        if (!hero.alive || hero.dashT > 0 || !e.alive) return;
+        const ux = Math.sin(dir), uz = Math.cos(dir), rx = hero.pos.x - e.pos.x, rz = hero.pos.z - e.pos.z, along = rx * ux + rz * uz, side = Math.abs(-rx * uz + rz * ux);
+        if (along > 0 && along < len && side < 0.95) { hero.lassoT = 1.3; hero.lassoBy = e; damage(hero, e.t.dmg); banner('Lassoed!', 'Dash (tap Shift) to cut free.', 1.4); }
+      };
+      Sound.play('slash', 0.6);
+    }
+  }
+  return { attacking: null, look: tgt.pos };
+}
 function convoyEnemy(e, dt) {
   if (S.state !== 'night') return null;
   if (e.fleeing) { followPath(e, dt); return { attacking: null, look: null }; }
   if (e.etype === 'firearcher') return fireArcher(e, dt);
+  if (e.etype === 'bowman' || e.etype === 'potter' || e.etype === 'lasso') { const r2 = standOff(e, dt); if (r2) return r2; }
   const c = S.camp; if (!c) return null;
   const dc = Math.hypot(e.pos.x - c.cx, e.pos.z - c.cz);
   if (!e.inCamp && dc < c.R + 8) e.inCamp = true;
@@ -4601,7 +4706,7 @@ function convoyDawn() {
   offerRewards();
 }
 // who did the killing tonight, and what it cost: the plainest way to see what each purchase does
-const KILLER = { tower: 'Crossbow carts', rockets: 'Rocket carts', bombard: 'Bombard carts', spears: 'Spearmen', archers: 'Archers', horse: 'Horsemen', hero: 'Commander\u2019s bow', blade: 'Commander\u2019s sabre', caltrops: 'Caltrops', fire: 'Fire', keep: 'The keep', other: 'Other' };
+const KILLER = { tower: 'Crossbow carts', rockets: 'Rocket carts', bombard: 'Bombard carts', spears: 'Spearmen', archers: 'Archers', horse: 'Horsemen', hero: 'Commander\u2019s bow and charge', blade: 'Commander\u2019s sabre', caltrops: 'Caltrops', fire: 'Fire', keep: 'The keep', other: 'Other' };
 function battleReport(fell, wounded) {
   const k = S.nightKills || {}, rows = Object.keys(k).filter(x => k[x] > 0).sort((a, b) => k[b] - k[a]);
   if (!rows.length) return '';
@@ -4723,7 +4828,7 @@ function soldierOpts(k) {
   ].filter(o => !o.lock || o.lock());
 }
 function cartOpts() {
-  const open = { tower: has.xbow(), barricade: has.wood(), rockets: has.heavy(), bombard: has.heavy(), palisade: has.palisade() };
+  const open = { tower: has.xbow(), barricade: has.wood(), rockets: has.heavy(), bombard: has.levels(), palisade: has.palisade() };
   const out = CART_KINDS.filter(k => open[k]).map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), sec: 'Wagons', key: k }));
   const L = LEVELS[S.level + 1];
   if (L && has.levels()) out.push({ n: `Convoy level ${S.level + 2}`, img: 'level', c: L.cost, d: `Room for ${L.soldiers} soldiers and ${L.crew} crew, and every cart ${Math.round((L.hp / LEVELS[S.level].hp - 1) * 100)}% tougher`, run: levelUp, sec: 'Wagons' });
@@ -5138,6 +5243,8 @@ function updateConvoy(dt) {
   } else S.tailT = 0;
   campfire.intensity = S.state === 'night' && S.camp ? 9 * (0.9 + Math.sin(clock * 11) * 0.1) : 0;
   for (const s of soldiers) if (s.alive && s.roster) s.roster.hp = s.hp;
+  if (S.state === 'night') { S.drumT = Math.max(0, (S.drumT || 0) - dt); if (!(S.drumT > 0)) S.drum = Math.max(0, (S.drum || 0) - dt * 0.12); }
+  const dEl = $('#drum'); if (dEl) { dEl.style.display = S.state === 'night' ? '' : 'none'; $('#drumI').style.width = (S.drumT > 0 ? S.drumT / 8 * 100 : (S.drum || 0) / 8 * 100) + '%'; dEl.classList.toggle('full', S.drumT > 0); }
   const mixEl = $('#mix');
   if (mixEl && Math.floor(clock * 4) !== Math.floor((clock - dt) * 4)) {
     const src = soldiers.length ? soldiers.filter(x => x.alive) : S.roster;
@@ -5282,7 +5389,7 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { dash, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
