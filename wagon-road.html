@@ -61,7 +61,8 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 #wep{ display:flex; align-items:center; gap:7px; font-size:13px; color:var(--paper); margin-top:6px; }
 #wep b{ color:var(--gold); font-weight:600; }
 #wep .k{ font-size:11px; color:var(--gold-dim); }
-#wepBtn{ position:fixed; right:calc(22px + env(safe-area-inset-right,0px)); bottom:calc(128px + env(safe-area-inset-bottom,0px)); z-index:8; width:62px; height:62px; border-radius:50%; border:2px solid var(--gold); background:rgba(42,20,17,.85); color:var(--paper); font-family:var(--serif); font-size:12px; font-weight:600; display:none; }
+#wepBtn{ position:fixed; right:calc(22px + env(safe-area-inset-right,0px)); bottom:calc(128px + env(safe-area-inset-bottom,0px)); z-index:8; width:62px; height:62px; border-radius:50%; border:2px solid var(--gold); background:rgba(42,20,17,.85); color:var(--paper); font-family:var(--serif); font-size:12px; font-weight:600; display:none; line-height:1.1; touch-action:none; }
+#wepBtn small{ font-size:9px; font-weight:400; color:#c8b594; }
 .is-touch #wepBtn{ display:block; }
 .is-paused #wepBtn{ display:none !important; }
 
@@ -282,7 +283,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <canvas id="game"></canvas>
 <div id="abilities" hidden></div>
 <button id="pauseBtn" type="button" aria-label="Pause">☰</button>
-<button id="wepBtn" type="button">Switch</button>
+<button id="wepBtn" type="button">Dash<br><small>hold: gallop</small></button>
 
 <div id="goal" class="panel" hidden></div>
 <div id="phases" hidden><span data-p="road"><i>1</i>Road</span><span data-p="build"><i>2</i>Build</span><span data-p="position"><i>3</i>Position</span><span data-p="night"><i>4</i>Night</span></div>
@@ -321,7 +322,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 13 · 24 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 14 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -343,7 +344,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 13 · 24 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 14 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -3172,7 +3173,10 @@ function wireOptions() {
   bind('#oBloom',  el => { QUALITY.bloom = el.checked; }, el => el.checked = QUALITY.bloom);
   $('#oClose').addEventListener('click', () => setPaused(false));
   $('#pauseBtn').addEventListener('click', () => setPaused(!paused));
-  $('#wepBtn').addEventListener('click', () => setWeapon(hero.weapon === 'bow' ? 'blade' : 'bow'));
+  // on touch the old weapon button is the dash: tap to dash, keep a finger on it to gallop
+  const wb = $('#wepBtn');
+  wb.addEventListener('pointerdown', e => { e.preventDefault(); if (WAGON) { dash(); keys.ShiftLeft = true; } else setWeapon(hero.weapon === 'bow' ? 'blade' : 'bow'); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) wb.addEventListener(ev, () => { keys.ShiftLeft = false; });
 }
 
 /* ================= sound =================
