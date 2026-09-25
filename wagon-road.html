@@ -15,7 +15,7 @@
 <style>
 :root{
   --lacquer:#2a1411; --lacquer-2:#43201a; --lacquer-edge:#6b3226;
-  --gold:#d8b46a; --gold-dim:#9c8250; --paper:#eadbc0; --seal:#b8322a;
+  --gold:#d8b46a; --gold-dim:#b89a62; --paper:#eadbc0; --seal:#b8322a;
   --ink:#1a1210; --indigo:#34457d; --ok:#8fbf5a;
   --serif:"Spectral", Georgia, "Times New Roman", serif;
   --brush:"Ma Shan Zheng", "STKaiti", "KaiTi", serif;
@@ -54,10 +54,10 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 #keepBox .lbl{ font-size:14px; color:var(--paper); display:flex; justify-content:space-between; }
 #keepBox .lbl span{ color:var(--gold); }
 .bar{ height:8px; background:#1a0e0c; border-radius:4px; margin-top:6px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--lacquer-edge); }
-.bar i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,#a8c46a,#7fae4a); transition:width .2s; }
+.bar i{ display:block; height:100%; width:100%; background:linear-gradient(90deg,#a8c46a,#7fae4a); transform-origin:left center; transition:transform .2s; }
 #heroLine{ font-size:13px; color:var(--gold); margin-top:7px; min-height:1em; font-style:italic; }
 #stam{ height:5px; background:#1a0e0c; border-radius:3px; margin-top:5px; overflow:hidden; box-shadow:inset 0 0 0 1px var(--lacquer-edge); }
-#stam i{ display:block; height:100%; background:linear-gradient(90deg,#8fa9c4,#c8d6e4); }
+#stam i{ display:block; height:100%; width:100%; transform-origin:left center; background:linear-gradient(90deg,#8fa9c4,#c8d6e4); }
 #wep{ display:flex; align-items:center; gap:7px; font-size:13px; color:var(--paper); margin-top:6px; }
 #wep b{ color:var(--gold); font-weight:600; }
 #wep .k{ font-size:11px; color:var(--gold-dim); }
@@ -66,8 +66,8 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 .is-touch #wepBtn{ display:block; }
 .is-paused #wepBtn{ display:none !important; }
 
-#banner{ position:fixed; left:50%; top:calc(86px + env(safe-area-inset-top,0px)); transform:translateX(-50%); z-index:6; text-align:center; pointer-events:none; opacity:0; transition:opacity .5s; max-width:90vw; }
-#banner.show{ opacity:1; }
+#banner{ position:fixed; left:50%; top:calc(86px + env(safe-area-inset-top,0px)); transform:translateX(-50%); translate:0 -10px; z-index:6; text-align:center; pointer-events:none; opacity:0; transition:opacity var(--out), translate var(--out); max-width:90vw; }
+#banner.show{ opacity:1; translate:0 0; transition:opacity var(--in), translate var(--in); }
 #banner b{ display:block; font-size:clamp(26px,4.4vw,40px); font-weight:600; color:var(--paper); text-shadow:0 2px 14px rgba(0,0,0,.6); }
 #banner span{ max-width:520px; margin-left:auto; margin-right:auto; display:block; font-size:clamp(15px,2vw,18px); color:var(--gold); font-style:italic; text-shadow:0 1px 8px rgba(0,0,0,.7); margin-top:2px; }
 
@@ -84,12 +84,12 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 .opt .b{ grid-column:1/-1; font-size:12.5px; color:var(--ok); font-weight:600; margin-top:2px; }
 .opt.poor .c{ color:#c0655a; } .opt.poor .n{ opacity:.65; }
 .hold{ height:5px; margin:8px 8px 2px; background:#1a0e0c; border-radius:3px; overflow:hidden; }
-.hold i{ display:block; height:100%; width:0; background:var(--gold); }
+.hold i{ display:block; height:100%; width:100%; transform:scaleX(0); transform-origin:left center; background:var(--gold); }
 .phint{ font-size:12.5px; color:#bfa983; margin:5px 8px 0; }
 
 #floaters div{ position:fixed; z-index:4; transform:translate(-50%,-50%); font-weight:600; font-size:17px; color:var(--gold); text-shadow:0 1px 4px #000; pointer-events:none; white-space:nowrap; }
 
-.overlay{ position:fixed; inset:0; z-index:20; display:grid; place-items:center; background:radial-gradient(ellipse at center, rgba(26,18,16,.55), rgba(26,18,16,.88)); padding:20px; }
+.overlay{ position:fixed; inset:0; z-index:20; display:grid; place-items:center; background:radial-gradient(ellipse at center, rgba(26,18,16,.74), rgba(26,18,16,.9)); padding:20px; }
 .overlay[hidden]{ display:none; }
 .optrow{ display:grid; grid-template-columns:1fr auto 130px; align-items:center; gap:14px; padding:11px 14px; margin:8px 0; border:1px solid var(--lacquer-edge); border-radius:6px; background:linear-gradient(180deg,#4d241d,var(--lacquer)); text-align:left; font-size:16px; }
 .optrow label{ color:var(--paper); }
@@ -126,7 +126,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .tg .cn{ font-family:var(--brush); font-size:13px; margin-right:3px; }
 .tg-fire{ color:#e08a4a; } .tg-river{ color:#6fa8c4; } .tg-cav{ color:#c9a46a; } .tg-wall{ color:#a8a196; } .tg-grain{ color:#c7b14e; }
 .tg-ab{ color:#8fbf5a; } .tg-combo{ color:#d2687f; }
-#tally{ display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:0 0 14px; font-size:13px; color:var(--gold-dim); }
+#tally{ display:flex; justify-content:center; flex-wrap:wrap; gap:8px; margin:0 0 14px; font-size:14px; color:#d8c3a0; }
 #tally .tg{ opacity:1; }
 @media (max-width:620px){ .tablets{ grid-template-columns:1fr; } #keepBox{ top:calc(78px + env(safe-area-inset-top,0px)); left:calc(14px + env(safe-area-inset-left,0px)); right:auto; width:190px; padding:7px 12px; } #banner{ top:calc(205px + env(safe-area-inset-top,0px)); } #status{ padding:8px 12px 8px 8px; gap:10px; } .seal{ width:38px; height:38px; font-size:17px; } #dayLabel{ font-size:16px; } #res{ display:flex; gap:14px; padding-left:14px; border-left:1px solid var(--lacquer-edge); }
 .r{ display:flex; align-items:center; gap:6px; font-size:20px; font-weight:600; color:var(--paper); min-width:44px; }
@@ -140,26 +140,34 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #res .r{ display:grid; grid-template-columns:auto auto auto; column-gap:5px; row-gap:0; align-items:center; }
 #res .r em{ font-style:normal; font-size:12px; font-weight:600; color:var(--ok); align-self:end; padding-bottom:2px; }
 #res .r em.zero{ color:var(--gold-dim); }
-#res .r small{ grid-column:1/-1; font-size:10.5px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); line-height:1; margin-top:1px; }
-#goal{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); top:calc(92px + env(safe-area-inset-top,0px)); z-index:5; padding:8px 12px; font-size:13.5px; line-height:1.35; max-width:340px; }
+#res .r small{ grid-column:1/-1; font-size:12px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); line-height:1; margin-top:1px; }
+#goal{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); top:calc(92px + env(safe-area-inset-top,0px)); z-index:5; padding:9px 13px 10px; font-size:15px; line-height:1.4; max-width:320px; }
+#goal .st{ margin-top:4px; } #goal .st.done{ color:#a9c47a; font-size:14px; animation:tickIn .4s cubic-bezier(.2,.8,.3,1); } #goal .brief{ margin-top:6px; font-size:14px; color:#d8c7a6; } #goal .sub{ font-size:14px; color:#d8c7a6; }
+@keyframes tickIn{ from{ opacity:0; translate:-6px 0; } to{ opacity:1; translate:0 0; } }
+#callout{ position:fixed; left:50%; top:calc(62px + env(safe-area-inset-top,0px)); translate:-50% 0; z-index:6; pointer-events:none; text-align:center; padding:6px 16px 7px; border-radius:18px; background:rgba(30,16,13,.86); border:1px solid var(--lacquer-edge); max-width:min(560px,90vw); }
+#callout.low{ top:calc(176px + env(safe-area-inset-top,0px)); }
+#callout b{ display:block; font-size:18px; font-weight:600; color:var(--paper); } #callout span{ display:block; font-size:14px; font-style:italic; color:var(--gold); } #callout span:empty{ display:none; }
+#status, #keepBox, #goal, #help, .overlay .sheet{ zoom:var(--ui,1); }
+#opts .keys{ font-size:14px; line-height:1.9; color:#d8c7a6; margin:10px 0 0; } #opts .keys kbd, #help kbd{ font-family:var(--serif); font-weight:600; color:var(--paper); background:rgba(42,20,17,.8); border:1px solid var(--lacquer-edge); border-radius:3px; padding:0 5px; margin:0 1px; }
+#opts select{ font:inherit; background:#2a1411; color:var(--paper); border:1px solid var(--lacquer-edge); border-radius:4px; padding:2px 6px; }
 #goal b{ color:var(--gold); font-weight:600; }
 #goal b.ph{ font-size:15px; letter-spacing:.04em; }
-#bellTag{ position:fixed; z-index:6; transform:translate(-50%,-100%); pointer-events:none; padding:6px 10px 7px; font-size:13px; white-space:nowrap; text-align:center; border:1px solid var(--gold); }
+#bellTag{ position:fixed; left:0; top:0; z-index:6; will-change:transform; pointer-events:none; padding:6px 10px 7px; font-size:13px; white-space:nowrap; text-align:center; border:1px solid var(--gold); }
 #bellTag b{ color:var(--gold); display:block; font-size:14px; }
 #bellTag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:var(--lacquer); border-right:1px solid var(--gold); border-bottom:1px solid var(--gold); }
 #bellTag.edge i{ display:none; }
 .is-paused #goal, .is-paused #bellTag{ display:none !important; }
-#drum{ position:relative; height:12px; margin-top:6px; background:#1a0e0c; border-radius:3px; overflow:hidden; }
-#drum i{ position:absolute; inset:0 auto 0 0; width:0; background:linear-gradient(90deg,#8e2a1e,#e0b85a); }
-#drum span{ position:relative; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:#eadbc0; padding-left:5px; line-height:12px; display:block; }
+#drum{ position:relative; height:15px; margin-top:6px; background:#1a0e0c; border-radius:3px; overflow:hidden; }
+#drum i{ position:absolute; inset:0; transform-origin:left center; transform:scaleX(0); background:linear-gradient(90deg,#8e2a1e,#e0b85a); }
+#drum span{ position:relative; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#f3e6cc; padding-left:5px; line-height:15px; display:block; text-shadow:0 1px 2px #000; }
 #drum.full i{ animation:drumBeat .45s ease-in-out infinite alternate; }
 @keyframes drumBeat{ from{ filter:brightness(1); } to{ filter:brightness(1.6); } }
 #wepCd{ height:3px; background:#1a0e0c; border-radius:2px; margin-top:4px; overflow:hidden; }
-#wepCd i{ display:block; height:100%; width:100%; background:var(--gold); }
+#wepCd i{ display:block; height:100%; width:100%; transform-origin:left center; background:var(--gold); }
 #res .r em.neg{ color:#d9826a; }
 #phases{ position:fixed; left:50%; top:calc(12px + env(safe-area-inset-top,0px)); transform:translateX(-50%); z-index:80; display:flex; gap:4px; padding:4px; border-radius:20px; background:rgba(30,16,13,.9); border:1px solid var(--lacquer-edge); pointer-events:none; }
-#phases span{ font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#9c8a70; padding:4px 11px 4px 5px; border-radius:16px; display:flex; align-items:center; gap:6px; white-space:nowrap; }
-#phases span i{ font-style:normal; width:19px; height:19px; border-radius:50%; display:grid; place-items:center; font-size:11px; background:rgba(255,255,255,.08); }
+#phases span{ font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#bda985; padding:4px 11px 4px 5px; border-radius:16px; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+#phases span i{ font-style:normal; width:19px; height:19px; border-radius:50%; display:grid; place-items:center; font-size:12px; background:rgba(255,255,255,.08); }
 #phases span.on{ background:var(--lacquer); color:var(--paper); box-shadow:inset 0 0 0 1px var(--gold); }
 #phases span.on i{ background:var(--gold); color:#2a1411; font-weight:700; }
 #phases span.done{ color:#c7b48f; }
@@ -173,16 +181,18 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #dawn .ledger{ margin:4px auto 10px; font-size:15px; gap:2px; }
 #dawn .sheet > p{ margin:0 auto 8px !important; }
 #dawn .tablet{ padding:12px 14px; }
-.threat{ position:fixed; z-index:6; transform:translate(-50%,-50%); pointer-events:none; color:#fff; font-weight:700; font-size:14px; display:grid; place-items:center; width:46px; height:46px; }
+.threat{ position:fixed; left:0; top:0; z-index:6; will-change:transform; pointer-events:none; color:#fff; font-weight:700; font-size:14px; display:grid; place-items:center; width:46px; height:46px; }
 .threat::before{ content:''; position:absolute; inset:8px; background:#c8321f; clip-path:polygon(50% 0,100% 70%,68% 70%,68% 100%,32% 100%,32% 70%,0 70%); transform:rotate(var(--a)); filter:drop-shadow(0 0 4px rgba(0,0,0,.6)); }
 .threat b{ position:relative; text-shadow:0 1px 2px #000; margin-top:6px; }
 .legend{ display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; font-size:13px; color:#dccaa6; margin:10px 0 0; }
 .legend span b{ font-family:var(--brush); color:var(--gold); font-size:17px; margin-right:4px; font-weight:400; }
 .rules{ font-size:14px; color:#dccaa6; margin:0 0 10px; }
 .rules b{ color:var(--gold); }
-#smap, #shop{ background:radial-gradient(ellipse at center, rgba(26,18,16,.72), rgba(20,13,11,.93)); }
+#smap, #shop{ background:radial-gradient(ellipse at center, rgba(26,18,16,.78), rgba(20,13,11,.93)); }
 .smapWrap{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:760px){ .smapWrap{ grid-template-columns:1fr; } }
+/* while a full-screen menu is up, the field's HUD steps back: the menu carries its own numbers */
+body:has(:is(#smap, #shop, #dawn, #end):not([hidden])) :is(#status, #keepBox, #banner, #callout, #goal, #help, .wtag, .rtag, .threat, #bellTag){ opacity:0 !important; transition:opacity var(--out); }
 #smapSvg{ width:100%; height:auto; max-height:calc(100vh - 335px); margin:0 auto; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
 #smapSvg line{ stroke:#8a7353; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 7; opacity:.7; }
 #smapSvg line.live{ stroke:#a3352c; stroke-dasharray:none; opacity:.8; }
@@ -221,7 +231,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .resbar{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:0 0 14px; position:sticky; top:-20px; z-index:2; padding:6px 0; background:linear-gradient(180deg,rgba(38,20,16,.97),rgba(38,20,16,.9)); }
 .resbar .rc{ position:relative; display:grid; grid-template-columns:auto auto; align-items:center; column-gap:7px; padding:6px 14px 5px; border:1px solid var(--lacquer-edge); border-radius:5px; background:rgba(20,12,10,.6); min-width:92px; transition:background .3s; }
 .resbar .rc b{ font-size:22px; color:var(--paper); font-weight:600; }
-.resbar .rc small{ grid-column:1/-1; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); }
+.resbar .rc small{ grid-column:1/-1; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--gold-dim); }
 .resbar .rc .ic{ width:18px; height:18px; }
 .resbar .rc em{ position:absolute; right:6px; top:3px; font-style:normal; font-size:13px; font-weight:700; animation:resPop 1.1s ease-out forwards; }
 .resbar .rc.up{ background:rgba(90,120,50,.35); } .resbar .rc.up em{ color:#b9e07a; }
@@ -260,12 +270,12 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .shopFoot .go.sel{ box-shadow:0 0 0 3px var(--gold); }
 .tablet .art{ display:block; width:100%; border-radius:4px; margin:0 0 8px; background:radial-gradient(ellipse at 50% 60%,#efe1c2,#cdb88f); }
 .ic.men{ background:none; } .ic.men::before{ content:'兵'; font-family:var(--brush); color:var(--gold); font-size:16px; line-height:18px; }
-.wtag, .rtag{ position:fixed; z-index:6; transform:translate(-50%,-100%); pointer-events:none; padding:4px 9px 5px; font-size:13px; white-space:nowrap; background:rgba(38,20,16,.88); color:var(--paper); border:1px solid var(--gold); border-left-width:4px; border-radius:4px; }
+.wtag, .rtag{ position:fixed; left:0; top:0; z-index:6; will-change:transform; pointer-events:none; padding:4px 9px 5px; font-size:14px; white-space:nowrap; background:rgba(38,20,16,.88); color:var(--paper); border:1px solid var(--gold); border-left-width:4px; border-radius:4px; }
 .wtag b{ color:var(--gold); margin:0 4px 0 2px; } .wtag .ic{ width:14px; height:14px; vertical-align:-2px; }
 .wtag.group{ display:flex; gap:10px; font-weight:600; } .wtag.group[hidden]{ display:none; } .wtag.group span{ padding:0 2px 1px; } .wtag.group .ic{ margin-right:4px; }
 .rtag{ border-color:#d2462f; text-align:center; } .rtag b{ display:block; color:#ff7a5a; font-size:14px; letter-spacing:.06em; text-transform:uppercase; }
 .rtag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:rgba(38,20,16,.88); border-right:1px solid #d2462f; border-bottom:1px solid #d2462f; }
-.rtag.edge i{ display:none; } .rtag.edge{ background:rgba(120,30,20,.9); }
+.rtag.edge i{ display:none; } .rtag.edge{ background:rgba(120,30,20,.92); } .rtag.edge b{ color:#ffd9cc; }
 .is-paused .wtag, .is-paused .rtag{ display:none !important; }
 #shopOpts{ }
 #smapOpts .cn{ font-family:var(--brush); font-size:20px; }
@@ -273,7 +283,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .tablet.done{ border-color:var(--gold); }
 .tablet.rare{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(224,184,90,.35), 0 0 22px rgba(224,184,90,.35), 0 10px 26px rgba(0,0,0,.4); }
 .tablet:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
-#help{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:5; font-size:13.5px; color:#e6d6b6; background:rgba(42,20,17,.82); border:1px solid var(--lacquer-edge); border-radius:5px; padding:6px 10px; }
+#help{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:5; font-size:15px; color:#e6d6b6; background:rgba(42,20,17,.82); border:1px solid var(--lacquer-edge); border-radius:5px; padding:6px 10px; }
 #help kbd{ font-family:var(--serif); font-weight:600; color:var(--paper); background:rgba(42,20,17,.8); border:1px solid var(--lacquer-edge); border-radius:3px; padding:0 5px; }
 
 #touch{ display:none; }
@@ -289,7 +299,20 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .ab .ak{ position:absolute; left:0; right:0; top:4px; font-size:11px; font-weight:700; color:var(--gold); letter-spacing:.06em; }
 .ab .cdfill{ position:absolute; left:0; right:0; bottom:0; background:rgba(0,0,0,.6); pointer-events:none; }
 .is-touch .ab .ak{ display:none; }
-@media (prefers-reduced-motion: reduce){ #banner{ transition:none; } .tablet{ transition:none; } }
+/* ---- motion: one vocabulary for the whole HUD (NN/g and Material: about 250 ms in with ease-out, 180 ms out with
+   ease-in, 100 ms for feedback; never linear, never half a second). Panels fade and settle as their hidden flag flips,
+   with @starting-style for the way in and a delayed display for the way out, so no code that shows or hides them changes. */
+:root{ --in:.25s cubic-bezier(.2,.8,.3,1); --out:.18s cubic-bezier(.5,0,.8,.4); --tap:.1s ease-out; }
+#prompt, #goal, #bellTag, #help, #hint, .wtag, .rtag, .threat, #smap, #shop, #dawn, #end, #status, #keepBox, #phases, #callout{
+  transition:opacity var(--in), scale var(--in), display .25s allow-discrete; }
+:is(#prompt, #goal, #bellTag, #help, #hint, .wtag, .rtag, .threat, #smap, #shop, #dawn, #end, #status, #keepBox, #phases, #callout)[hidden]{
+  opacity:0; scale:.96; transition:opacity var(--out), scale var(--out), display .18s allow-discrete; }
+@starting-style{ :is(#prompt, #goal, #bellTag, #help, #hint, .wtag, .rtag, .threat, #status, #keepBox, #phases, #callout):not([hidden]){ opacity:0; scale:.94; }
+  :is(#smap, #shop, #dawn, #end):not([hidden]){ opacity:0; scale:1.015; } }
+.wtag, .rtag, .threat, #bellTag{ transition-property:opacity, scale, display; }
+button, .opt, .tablet, .card{ transition:transform var(--tap), border-color var(--tap), background-color var(--tap), filter var(--tap); }
+button:active, .tablet:active, .card:active{ transform:scale(.97); }
+@media (prefers-reduced-motion: reduce){ #banner{ transition:none; } .tablet{ transition:none; } *{ scale:none !important; } }
 </style>
 </head>
 <body>
@@ -325,8 +348,9 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 </div>
 <div id="hurt" style="position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(170,20,10,.55) 100%);transition:opacity .15s"></div>
 <div id="banner"><b id="bannerT"></b><span id="bannerS"></span></div>
+<div id="callout" hidden><b></b><span></span></div>
 <div id="prompt" class="panel" hidden></div>
-<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> gallop &nbsp; <kbd>Tab</kbd> see the field &nbsp; <kbd>Space</kbd> hold: act &nbsp; before the drum: stop to place soldiers, <kbd>◀</kbd><kbd>▶</kbd> how many &nbsp; night (positions locked): stop to shoot, gallop through foot raiders, ride out of the red, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
+<div id="help" hidden></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
   <div class="sheet" style="max-width:440px">
@@ -335,8 +359,11 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oShake">Screen shake</label><input type="checkbox" id="oShake" checked><span class="hintv">turn off if the shaking bothers you</span></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
+    <div class="optrow"><label for="oUi">Text and panel size</label><select id="oUi"><option value="auto">Fit the screen</option><option value="1">Normal</option><option value="1.15">Larger</option><option value="1.3">Largest</option></select></div>
+    <div class="optrow"><label for="oTap">Tap instead of hold</label><input type="checkbox" id="oTap"><span class="hintv">by day, one press of Space acts at once</span></div>
+    <p class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ride · <kbd>Shift</kbd> gallop · <kbd>Space</kbd> act (hold), at night tap for a volley · <kbd>↑</kbd><kbd>↓</kbd> choose · <kbd>◀</kbd><kbd>▶</kbd> how many · <kbd>Tab</kbd> see the whole field · <kbd>Esc</kbd> pause</p>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 21 · 25 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 22 · 25 Sep 2026</p>
   </div>
 </div>
 
@@ -357,7 +384,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 21 · 25 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 22 · 25 Sep 2026</p>
   </div>
 </div>
 
@@ -642,7 +669,12 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 const scene = new THREE.Scene();
-const QUALITY = { bloom: true, shake: (() => { try { return localStorage.getItem('wagon-road-shake') !== '0'; } catch (e) { return true; } })() };   // the options menu can turn this off on a slow machine
+const QUALITY = { bloom: true, shake: (() => { try { return localStorage.getItem('wagon-road-shake') !== '0'; } catch (e) { return true; } })(),
+  tap: (() => { try { return localStorage.getItem('wagon-road-tap') === '1'; } catch (e) { return false; } })(),
+  ui: (() => { try { return localStorage.getItem('wagon-road-ui') || 'auto'; } catch (e) { return 'auto'; } })() };
+// text and panels grow with the screen (about 18 px text at 1080p, Xbox XAG 101), or as the player sets them
+function applyUi() { const z = QUALITY.ui === 'auto' ? Math.min(1.3, Math.max(1, 1 + (innerHeight - 760) / 900)) : +QUALITY.ui; document.documentElement.style.setProperty('--ui', z.toFixed(2)); }
+applyUi(); addEventListener('resize', applyUi);   // the options menu can turn this off on a slow machine
 const DAY_SKY = new THREE.Color('#9fb0a4'), NIGHT_SKY = new THREE.Color('#05091a');
 scene.background = DAY_SKY.clone();
 scene.fog = new THREE.Fog(DAY_SKY.clone(), 150, 360);
@@ -1316,7 +1348,7 @@ function makeArcherRider(opts) {
   if (opts.cloak) part(B(0.44, 0.5, 0.08), opts.cloak, 0, 0.3, -0.2, rider);
   part(B(0.12, 0.45, 0.14), '#6b4a2e', 0.18, 0.35, -0.22, rider).rotation.x = 0.3; // quiver
   const bow = makeBow(rider, -0.3, 0.45, 0.25);
-  g.add(groundRing(opts.ring, opts.r0, opts.r1, 0.7));
+  g.add(groundRing(opts.ring, opts.r0, opts.r1, 0.7, !opts.ming));
   return { g, legs, rider, bow, kind: 'archer' };
 }
 function makeFootman(opts) {
@@ -1343,12 +1375,16 @@ function makeFootman(opts) {
     part(new THREE.ConeGeometry(0.05, 0.22, 4), '#cfcfcf', 0, 0, 1.28, weapon).rotation.x = Math.PI / 2;
     part(new THREE.SphereGeometry(0.065, 5, 4), opts.ming ? '#b8322a' : '#3a2c22', 0, 0, 1.13, weapon);   // tassel below the blade
   }
-  if (opts.ring) g.add(groundRing(opts.ring, 0.5, 0.66, 0.6));
+  if (opts.ring) g.add(groundRing(opts.ring, 0.5, 0.66, 0.6, !opts.ming));
   if (opts.scale) g.scale.setScalar(opts.scale);
   return { g, legs, arm, weapon, kind: opts.weapon === 'blade' ? 'blade' : 'spear' };
 }
-function groundRing(color, r0, r1, op) {
-  const m = new THREE.Mesh(new THREE.RingGeometry(r0, r1, 28), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false }));
+// Ours stand on a solid ring, raiders on a broken one (eight dashes): the side is told by shape as well as colour,
+// because our spearmen's red-orange and the raiders' red are close, and closer still to a colour-blind eye.
+function groundRing(color, r0, r1, op, dash) {
+  let geo = new THREE.RingGeometry(r0, r1, dash ? 32 : 28, 1);
+  if (dash) { const idx = geo.index.array, keep = []; for (let j = 0; j < 32; j++) if ((j >> 1) % 2 === 0) for (let q = 0; q < 6; q++) keep.push(idx[j * 6 + q]); geo.setIndex(keep); }
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.position.y = 0.05; m.renderOrder = 2; return m;
 }
 function makeHeroModel() { return makeArcherRider({ ming: true, horse: C.horseLight, legCol: '#bdb3a2', coat: C.red, hat: 'helm', hatCol: C.gold, cloak: '#7d1f18', ring: C.gold, r0: 0.85, r1: 1.05 }); }
@@ -1387,7 +1423,7 @@ function makeEnemyModel(type) {
     part(CYL(0.07, 0.1, 4.2, 5), C.woodDark, 0, 0, 0.6, arm).rotation.x = Math.PI / 2 - 0.35;
     part(B(0.8, 0.7, 0.8), '#6d665e', 0, -0.2, -1.3, arm);             // the counterweight
     part(new THREE.SphereGeometry(0.28, 6, 5), '#8f887c', 0, 1.4, 2.4, arm);
-    g.add(groundRing('#d2462f', 1.3, 1.5, 0.7));
+    g.add(groundRing('#d2462f', 1.3, 1.5, 0.7, true));
     return { g, legs: [], arm, rider: null, engineArm: arm, kind: 'engine' };
   }
   if (type === 'bowman') return makeFootman({ legs: '#2a2b35', coat: '#4a5578', hat: 'fur', hatCol: '#6a1f1a', weapon: 'bow', ring: '#e0c074' });
@@ -1419,7 +1455,7 @@ function makeEnemyModel(type) {
   part(CYL(0.03, 0.03, 2.2, 4), C.woodDark, -0.05, 1.8, -0.3, u.g);
   part(new THREE.ConeGeometry(0.2, 0.8, 6), '#1b1b1b', -0.05, 3.15, -0.3, u.g).rotation.x = Math.PI;
   part(new THREE.SphereGeometry(0.07, 6, 5), C.gold, -0.05, 3.55, -0.3, u.g);
-  u.g.add(groundRing('#d2462f', 0.5, 0.62, 0.6));
+  u.g.add(groundRing('#d2462f', 0.5, 0.62, 0.6, true));
   return u;
 }
 function makeSoldierModel() { return makeFootman({ legs: '#3a2a20', coat: '#a83a2c', hat: 'straw', hatCol: C.straw, weapon: 'spear', scale: 0.95, ming: true }); }
@@ -1502,7 +1538,7 @@ function makeLancerModel() {
   part(CYL(0.035, 0.035, 3.2, 5), C.woodDark, 0, 0, 1.1, lance).rotation.x = Math.PI / 2;
   part(new THREE.ConeGeometry(0.07, 0.35, 5), '#cfcfcf', 0, 0, 2.8, lance).rotation.x = Math.PI / 2;
   part(B(0.03, 0.25, 0.4), '#b8322a', 0, 0.12, 2.3, lance);
-  g.add(groundRing('#d2462f', 0.75, 0.95, 0.7));
+  g.add(groundRing('#d2462f', 0.75, 0.95, 0.7, true));
   return { g, legs, rider, lance, kind: 'lancer' };
 }
 /* ================= graph ================= */
@@ -1997,8 +2033,8 @@ function animateSabre(dt) {
   }
   const bar = document.getElementById('wepCd');
   if (bar) {
-    bar.hidden = hero.weapon !== 'blade';
-    document.getElementById('wepCdI').style.width = (100 * (1 - Math.max(0, hero.bladeCd) / (BLADE.cd * S.bladeCdMul))) + '%';
+    setHidden(bar, hero.weapon !== 'blade');
+    if (!bar.hidden) setFill(document.getElementById('wepCdI'), 1 - Math.max(0, hero.bladeCd) / (BLADE.cd * S.bladeCdMul));
   }
 }
 function setWeapon(w) {
@@ -2017,6 +2053,11 @@ heroRing.material = heroRing.material.clone();
 const heroMats = [];
 heroM.g.traverse(o => { if (o.isMesh && o !== heroRing && o.material && o.material.isMeshToonMaterial) { o.material = o.material.clone(); o.material.emissive = o.material.color.clone(); heroMats.push(o.material); } });
 const volleyRing = groundRing('#f3d68a', 1.25, 1.42, 0); heroM.g.add(volleyRing);
+// a hold fills a ring on the ground where the action happens, as well as the bar in the action box (Thronefall, Kingdom)
+const holdRing = new THREE.Group(), holdArc = groundRing('#f7d98c', 1.55, 1.8, 0.9), holdBase = groundRing('#f7d98c', 1.55, 1.8, 0.22);
+holdArc.geometry.dispose(); holdArc.geometry = new THREE.RingGeometry(1.55, 1.8, 48, 1, Math.PI / 2, TAU);
+holdRing.add(holdBase, holdArc); holdRing.visible = false; scene.add(holdRing);
+function showHold(k, at) { holdRing.visible = k > 0.001 && !!at; if (!holdRing.visible) return; holdRing.position.set(at.x, Math.max(groundY(at), 0) + 0.02, at.z); holdArc.geometry.setDrawRange(0, Math.ceil(k * 48) * 6); }
 let volleyCd = 0;
 
 /* entry flares: shown only once raiders actually appear */
@@ -2064,9 +2105,9 @@ function refreshGoal() {
 }
 function updateBellTag() {
   const el = document.getElementById('bellTag');
-  if (WAGON && S.phase !== 'prep') { el.hidden = true; bellMark.visible = false; return; }
+  if (WAGON && S.phase !== 'prep') { setHidden(el, true); bellMark.visible = false; return; }
   const show = S.state === 'day' && !(active && active.key === 'bell') && !paused;
-  el.hidden = !show; if (!show) { bellMark.visible = false; return; }
+  if (!steady(el, show, 0.5)) { bellMark.visible = false; return; }
   bellMark.visible = true;
   bellMark.position.set(bellPos.x, 4.2 + Math.sin(clock * 3) * 0.25, bellPos.z); bellMark.rotation.y = clock * 1.4;
   // follow the bell on screen; if it is off screen, pin the tag to the nearest edge so it can always be found
@@ -2075,8 +2116,8 @@ function updateBellTag() {
   let x = s.x, y = s.y, edge = behind || x < m || x > innerWidth - m || y < m + 40 || y > innerHeight - m;
   if (behind) { x = innerWidth - x; y = innerHeight - m; }
   x = clamp(x, m + 40, innerWidth - m - 40); y = clamp(y, m + 60, innerHeight - m);
-  el.classList.toggle('edge', edge);
-  el.style.left = x + 'px'; el.style.top = y + 'px';
+  setClass(el, 'edge', edge);
+  el._px = x; el._py = y; if (!WAGON) placeAt(el, x, y);   // in the convoy game the label stacker places it with the others
 }
 function projectedIncome() {   // what dawn pays if every building standing now survives the night
   const got = { wood: 0, stone: 0, grain: 0 }; let crews = 0;
@@ -2091,9 +2132,9 @@ function projectedIncome() {   // what dawn pays if every building standing now 
 }
 function refreshHUD() {
   if (WAGON) {
-    for (const [id, ok] of [['rWood', has.wood()], ['rStone', has.stone()]]) { const e3 = document.getElementById(id); if (e3 && e3.closest('.r')) e3.closest('.r').style.display = ok ? '' : 'none'; }
-    const el = document.getElementById('iGrain'); if (el) { const d = daysOfFood(); el.textContent = d + ' day' + (d === 1 ? '' : 's'); el.className = d < 2 ? 'neg' : ''; el.title = `The column eats ${foodPerDay()} a day: ${S.roster.length} soldiers and the carters`; }
-    for (const id of ['iWood', 'iStone']) { const e2 = document.getElementById(id); if (e2) e2.textContent = ''; }
+    for (const [id, ok] of [['rWood', has.wood()], ['rStone', has.stone()]]) { const e3 = document.getElementById(id); if (e3 && e3.closest('.r')) setStyle(e3.closest('.r'), 'display', ok ? '' : 'none'); }
+    const el = document.getElementById('iGrain'); if (el) { const d = daysOfFood(); setText(el, d + ' day' + (d === 1 ? '' : 's')); setClass(el, 'neg', d < 2); el.title = `The column eats ${foodPerDay()} a day: ${S.roster.length} soldiers and the carters`; }
+    for (const id of ['iWood', 'iStone']) setText(document.getElementById(id), '');
   }
   const inc = projectedIncome().got;
   if (!WAGON) for (const [r, id] of [['wood', 'iWood'], ['stone', 'iStone'], ['grain', 'iGrain']]) {
@@ -2101,18 +2142,51 @@ function refreshHUD() {
     el.textContent = '+' + inc[r]; el.classList.toggle('zero', inc[r] <= STIPEND[r]);
   }
   refreshGoal();
-  const bbEl = document.getElementById('buildBtn'); if (bbEl) bbEl.innerHTML = S.state === 'night' ? 'Volley,<br>or hold' : 'Hold to<br>build';
-  const wn = $('#wepN'); if (wn) wn.textContent = hero.weapon === 'blade' ? 'Sabre' : 'Bow';
-  ui.wood.textContent = S.res.wood; ui.stone.textContent = S.res.stone; ui.grain.textContent = S.res.grain;
-  ui.day.textContent = WAGON ? `Region ${S.region + 1} \u00b7 day ${S.day}` : `Day ${S.day} of ${NIGHTS}`;
-  ui.phase.textContent = S.state === 'night'
+  setHTML(document.getElementById('buildBtn'), S.state === 'night' ? 'Volley,<br>or hold' : 'Hold to<br>build');
+  setText($('#wepN'), hero.weapon === 'blade' ? 'Sabre' : 'Bow'); if (WAGON) setHidden($('#wep'), true);   // one weapon, and the key is taught by a hint
+  countTo(ui.wood, S.res.wood); countTo(ui.stone, S.res.stone); countTo(ui.grain, S.res.grain);
+  setText(ui.day, WAGON ? `Region ${S.region + 1} of 3` : `Day ${S.day} of ${NIGHTS}`);
+  // the phase strip and the goal already say what to do; this line says where in the region the column is
+  if (WAGON) setText(ui.phase, S.state === 'night' && S.waves > 1 ? `Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}` : S.floor ? `Floor ${S.floor} of ${CONVOY.floors + 1}` : 'The region camp');
+  else setText(ui.phase, S.state === 'night'
     ? (S.waves > 1 ? `Night \u2014 assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}` : 'Night, hold the valley')
-    : WAGON ? ({ map: 'Choose the road', shop: 'Making ready', dusk: 'Dusk: make camp', circling: 'Circling the wagons', prep: 'Set the field' }[S.phase] || 'Daylight') : 'Daylight, build';
+    : WAGON ? ({ map: 'Choose the road', shop: 'Making ready', dusk: 'Dusk: make camp', circling: 'Circling the wagons', prep: 'Set the field' }[S.phase] || 'Daylight') : 'Daylight, build');
 }
 let bannerTimer = 0, shake = 0, freeze = 0, slowMo = 0, overviewK = 0, killer = null, shooter = null;
 function hitStop(ms) { freeze = Math.max(freeze, ms / 1000); }
 function kick(a) { if (QUALITY.shake) shake = Math.min(1.2, shake + a); }
-function banner(t, s, dur) { ui.bannerT.textContent = t; ui.bannerS.textContent = s || ''; ui.banner.classList.add('show'); bannerTimer = dur || 3.2; }
+// One channel each. The big centre banner is for the phases of the game only; everything else is a small callout under
+// the phase strip that replaces the last one, merges repeats ("×3") and gives its explanation only the first time.
+const BIG_BANNER = /^(Position phase|Assault |A quiet night|Behind the walls|The border fort sallies|The chief|Night|\d+ days on the road|A day on the road|Day \d)/;
+const calloutSeen = new Set(); let calloutT = 0, calloutN = 0;
+function banner(t, s, dur) {
+  if (!WAGON || BIG_BANNER.test(t) || REGION_NAME.includes(t)) { ui.bannerT.textContent = t; ui.bannerS.textContent = s || ''; ui.banner.classList.add('show'); bannerTimer = dur || 3.2; return; }
+  const el = $('#callout'), key = t.replace(/\d+/g, '#');
+  if (!el.hidden && el._key === key && calloutT > 0) { calloutN++; setText(el.firstChild, `${t} \u00d7${calloutN}`); }
+  else { calloutN = 1; el._key = key; setText(el.firstChild, t); setText(el.lastChild, calloutSeen.has(key) ? '' : (s || '')); calloutSeen.add(key); }
+  setClass(el, 'low', ui.banner.classList.contains('show')); setHidden(el, false); calloutT = Math.min(dur || 2.2, 2.6);
+}
+// ---- HUD writes: the page is touched only when a value really changes. Rewriting unchanged text or style every
+// frame costs a style and layout pass each time (the UX check measured 800-1,700 changes a second before this).
+function setText(el, v) { if (el && el._t !== v) { el._t = v; el.textContent = v; } }
+function setHTML(el, v) { if (el && el._h !== v) { el._h = v; el.innerHTML = v; el._size = null; } return el; }
+function setStyle(el, k, v) { if (!el) return; const c = el._st || (el._st = {}); if (c[k] !== v) { c[k] = v; if (k[0] === '-') el.style.setProperty(k, v); else el.style[k] = v; } }
+function setHidden(el, h) { if (el && el.hidden !== h) el.hidden = h; }
+function setClass(el, c, on) { on = !!on; if (el && el.classList.contains(c) !== on) { el.classList.toggle(c, on); el._size = null; } }
+// a fill bar is scaled, not resized: a transform never makes the page lay itself out again
+function setFill(el, f) { setStyle(el, 'transform', `scaleX(${Math.max(0, Math.min(1, f)).toFixed(3)})`); }
+// a screen label moves by transform only, and is measured only when its text or class changes
+function placeAt(el, x, y, anchor) { setStyle(el, 'transform', `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) ${anchor || 'translate(-50%,-100%)'}`); }
+function sizeOf(el) { return el._size || (el._size = { w: el.offsetWidth, h: el.offsetHeight }); }
+// shows at once, hides only once it has been unwanted for a moment, so a condition that wavers cannot blink it
+function steady(el, show, hold) { if (show) { el._offAt = null; setHidden(el, false); return true; }
+  if (el._offAt == null) el._offAt = clock; if (clock - el._offAt > (hold || 0.35)) setHidden(el, true); return !el.hidden; }
+// numbers count to their new value instead of jumping (Balatro, "Juice it or lose it")
+const tweens = new Map();
+function countTo(el, v) { if (!el) return; const t = tweens.get(el), shown = t ? t.cur : parseFloat(el._t);
+  if (!isFinite(shown)) { setText(el, String(v)); return; } if ((t ? t.to : shown) === v) return;
+  tweens.set(el, { from: shown, to: v, cur: shown, k: 0 }); }
+function stepTweens(dt) { for (const [el, t] of tweens) { t.k = Math.min(1, t.k + dt / 0.45); t.cur = t.from + (t.to - t.from) * (1 - Math.pow(1 - t.k, 3)); setText(el, String(Math.round(t.cur))); if (t.k >= 1) tweens.delete(el); } }
 const proj = new V3();
 function toScreen(p) { proj.copy(p).project(camera); return { x: (proj.x + 1) / 2 * innerWidth, y: (1 - proj.y) / 2 * innerHeight }; }
 const costHTML = c => RES.filter(r => c[r]).map(r => `<span><i class="ic ${r}"></i>${c[r]}</span>`).join('');
@@ -3140,6 +3214,7 @@ function updateHero(dt) {
 
 function volley() {
   if (!hero.alive || S.state !== 'night' || volleyCd > 0) return;
+  usedHint('volley');
   const rng = VOLLEY.range * S.heroRangeMul, from = hero.pos.clone().setY(hero.pos.y + 2.1);
   const near = nearest(enemies, hero.pos, e => e.pos.distanceTo(hero.pos) < rng);
   const aim = near ? Math.atan2(near.pos.x - hero.pos.x, near.pos.z - hero.pos.z) : hero.face;
@@ -3198,7 +3273,7 @@ function currentPrompt() {
 }
 function placePrompt() {
   if (!active || ui.prompt.hidden) return;
-  if (WAGON) { ui.prompt.style.left = innerWidth / 2 + 'px'; ui.prompt.style.top = (innerHeight - 56) + 'px'; return; }   // docked: it must never cover the rider
+  if (WAGON) { setStyle(ui.prompt, 'left', innerWidth / 2 + 'px'); setStyle(ui.prompt, 'top', (innerHeight - 56) + 'px'); return; }   // docked: it must never cover the rider
   const s = toScreen(tmp.copy(active.anchor).setY((active.anchor.y || 0) + 2.4));
   ui.prompt.style.left = clamp(s.x, 140, innerWidth - 140) + 'px';
   ui.prompt.style.top = clamp(s.y, ui.prompt.offsetHeight + 12, innerHeight - 10) + 'px';   // the panel hangs above its anchor
@@ -3213,7 +3288,7 @@ function renderPrompt() {
   }).join('');
   if (active.opts[sel] && active.opts[sel].run) {
     const touch = document.body.classList.contains('is-touch');
-    html += `<div class="hold"><i id="holdFill"></i></div><div class="phint">${touch ? 'Hold the button' : 'Hold Space'}${active.opts.length > 1 ? (touch ? ', tap to choose' : ', arrow keys to choose') : ''}</div>`;
+    html += `<div class="hold"><i id="holdFill"></i></div><div class="phint">${touch ? 'Hold the button' : QUALITY.tap && S.state !== 'night' ? 'Press Space' : 'Hold Space'}${active.opts.length > 1 ? (touch ? ', tap to choose' : ', arrow keys to choose') : ''}</div>`;
   }
   el.innerHTML = html; el.hidden = false; placePrompt();
   el.querySelectorAll('.opt').forEach(o => o.addEventListener('pointerdown', ev => { ev.stopPropagation(); sel = +o.dataset.i; hold = 0; renderPrompt(); }));
@@ -3225,7 +3300,7 @@ function renderPrompt() {
 function updatePrompt(dt) {
   const p = currentPrompt();
   const key = p ? p.key + '|' + (p.sig || '') + '|' + RES.map(r => S.res[r]).join(',') + '|' + sel : '';
-  if (!p) { if (active) { active = null; renderPrompt(); } hold = 0; }
+  if (!p) { if (active) { active = null; renderPrompt(); } hold = 0; showHold(0); }
   else {
     if (!active || active.key !== p.key) { sel = 0; hold = 0; }
     active = p; if (sel >= p.opts.length) sel = 0;
@@ -3236,10 +3311,11 @@ function updatePrompt(dt) {
     const pr = $('#prompt'); if (pr) pr.classList.toggle('holding', !!(holdInput && can && !needRelease));   // it answers the instant the key goes down
     if (holdInput && can && !needRelease) {
       if (hold === 0) { Sound.play('step', 0.6); kick(0.05); }
-      hold += dt / (p.hold || 0.6);
+      hold += QUALITY.tap && S.state !== 'night' ? 1 : dt / (p.hold || 0.6);   // the option: one press acts (never at night, where a tap is the volley)
       if (hold >= 1) { hold = 0; needRelease = true; o.run(); promptKey = ''; return; }
     } else hold = Math.max(0, hold - dt * 3);
-    const f = $('#holdFill'); if (f) f.style.width = (hold * 100) + '%';
+    const f = $('#holdFill'); if (f) setFill(f, hold);
+    showHold(hold, WAGON ? (p.at || hero.pos) : null);
     placePrompt();
   }
   promptKey = key; lastKey = p ? p.key : '';
@@ -3615,6 +3691,8 @@ function wireOptions() {
   bind('#oSfxV',   el => { Sound.st.sfxVol = el.value / 100; Sound.volumes(); },   el => el.value = Sound.st.sfxVol * 100);
   bind('#oBloom',  el => { QUALITY.bloom = el.checked; }, el => el.checked = QUALITY.bloom);
   bind('#oShake',  el => { QUALITY.shake = el.checked; try { localStorage.setItem('wagon-road-shake', el.checked ? '1' : '0'); } catch (e) {} }, el => el.checked = QUALITY.shake);
+  bind('#oTap',    el => { QUALITY.tap = el.checked; try { localStorage.setItem('wagon-road-tap', el.checked ? '1' : '0'); } catch (e) {} }, el => el.checked = QUALITY.tap);
+  bind('#oUi',     el => { QUALITY.ui = el.value; try { localStorage.setItem('wagon-road-ui', el.value); } catch (e) {} applyUi(); }, el => el.value = QUALITY.ui);
   $('#oClose').addEventListener('click', () => setPaused(false));
   $('#pauseBtn').addEventListener('click', () => setPaused(!paused));
   // on touch the old weapon button is the dash: tap to dash, keep a finger on it to gallop
@@ -4782,9 +4860,9 @@ function enterField(type) {
   // the carts bought since the last fight carry a label on the field, so a purchase is seen
   for (const p of convoy) if (p.isNew && p.building) { floatText(p.pos, 'New: ' + DEFS[p.cartKind].name.toLowerCase(), 7); p.isNew = false; }
   if (type === 'boss') return toFortPrep(names);
-  S.phase = 'dusk'; refreshHUD();
+  S.phase = 'dusk'; S.cartMoved = false; refreshHUD();
   const fk = FIELD_KIND[FIELD.kind];
-  banner('Position phase \u00b7 ' + fk.name + (type === 'elite' ? ', a chief\u2019s warband' : ''), `${fk.d.replace(/<[^>]+>/g, '')} About ${S.passCount * names.length} raiders, from ${names.length} directions. Ride to good ground and hold Space to circle the wagons.`, 6);
+  banner('Position phase \u00b7 ' + fk.name + (type === 'elite' ? ', a chief\u2019s warband' : ''), `${fk.d.replace(/<[^>]+>/g, '')} About ${S.passCount * names.length} raiders.`, 4);
 }
 // the border fort: the old castle valley. The wagons pull into the courtyard and the keep must stand.
 function toFortPrep(names) {
@@ -4806,7 +4884,7 @@ function toPrep(at, drumOn) {
   spawnCrew(at);
   bellPos.set(at.x, 0, at.z);
   drum.visible = drumOn; if (drumOn) drum.position.set(at.x, Math.max(groundY(at), 0), at.z);
-  $('#bellTag').innerHTML = drumOn ? '<b>The war drum</b>Hold Space here to begin the night<i></i>' : '<b>The bell</b>Hold Space here to begin the night<i></i>';
+  setHTML($('#bellTag'), drumOn ? '<b>The war drum</b><i></i>' : '<b>The bell</b>Hold Space here to begin the night<i></i>');   // the goal says what to do there
   distDirty = true; routeDirty = true; refreshHUD();
 }
 function waveFor() {
@@ -5089,7 +5167,7 @@ function updateDropGhost() {
   dropGhost.position.set(d.x, Math.max(groundY(d), 0) + 0.12, d.z); dropGhost.rotation.y = d.rot;
 }
 function setDown() {
-  const p = S.towing; if (!p) return;
+  const p = S.towing; if (!p) return; S.cartMoved = true;
   const d = dropSpot(p); if (!d.ok) return;
   S.towing = null; wagonAt(p, d.x, d.z, d.rot);
   // dropped on an open side of the ring, it closes that side again
@@ -5694,8 +5772,7 @@ function openMap() {
     g.addEventListener('mouseenter', () => { mapSel = mapOpts.indexOf(g.dataset.k); highlightMap(); });
   });
   $('#smapT').textContent = REGION_NAME[S.region] + ` \u00b7 region ${S.region + 1} of ${CONVOY.regions}`;
-  $('#smapP').innerHTML = `<b>Road phase.</b> Click a <b>glowing</b> stop to travel there. The border fort at the top ends the region: reach it and hold it.`
-    + `<br><span class="rules">Each dot on a road is one day. Everyone eats: <b>every 3 people eat 1 food a day</b>, plus 2 for the carters. That is <b>${foodPerDay()} a day</b> now. With no food, soldiers weaken and then die.</span>`;
+  $('#smapP').innerHTML = `Click a <b>glowing</b> stop. Each dot is a day on the road, and the column eats <b>${foodPerDay()} food a day</b>. Reach the border fort at the top and hold it.`;
   $('#smapLegend').innerHTML = Object.keys(LEGEND).map(t => `<span>${icon(t)}<span><b style="color:var(--gold);font-family:var(--serif);font-size:14px">${NODE_INFO[t].n}</b>: ${LEGEND[t]}</span></span>`).join('');
   $('#smapBack').hidden = true;   // the phases only go forward
   resBar($('#smapRes'));
@@ -5878,7 +5955,7 @@ function convoyPrompt() {
       const avail = atConvoyOf(k).length; if (!avail) continue;
       const n = clamp(S.placeN[k], 1, avail); sig.push(k + n);
       opts.push({ id: 'place-' + k, n: `${kindDot(k)}Place <span class="adj" data-adj="-1">◀</span> ${n} <span class="adj" data-adj="1">▶</span> ${KIND_WORD[k][n > 1 ? 1 : 0]} here`, c: {},
-        d: `${avail} waiting at the convoy. ◀ ▶ to choose how many${inGate(hero.pos) ? '. <b>Holding the gate they fight 50% harder</b>' : outForward(hero.pos) ? '. <b>Out here they fight 50% harder</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
+        d: `${avail} at the convoy${inGate(hero.pos) ? '. <b>Holding the gate: +50%</b>' : outForward(hero.pos) ? '. <b>Out here: +50%</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
     }
     const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
     if (here.length) opts.push({ id: 'back', n: `Send these ${here.length} back to the convoy`, c: {}, d: 'They guard the wagons again', run: () => sendBack(here) });
@@ -5896,37 +5973,89 @@ function featureLines() {
   if (f.some(k => k === 'woods' || k === 'rocks' || k === 'hamlet')) out.push('<b>Woods, rocks and houses</b> are solid: everyone goes round them');
   return out.length ? '<br>' + out.map(s => '• ' + s).join('<br>') : '';
 }
+// One step at a time (Hodent: three things at most; Thronefall teaches without walls of text). Done steps stay as a
+// ticked line, the next step is the one line to read, and the field's set pieces are named in one line, not explained:
+// each one explains itself in the action box when the rider reaches it.
+function fieldBrief() {
+  const f = FIELD.features || [], out = [];
+  if (f.includes('fort')) out.push('a ruined fort'); if (f.includes('wall')) out.push('a border wall'); if (f.includes('beacon')) out.push('a beacon mound');
+  if (BAG.cart && !BAG.taken) out.push('a raider baggage cart');
+  return out.length ? `<div class="brief">On this field: ${out.join(' \u00b7 ')}</div>` : '';
+}
+function nightTip() {
+  const alive = t => enemies.some(e => e.alive && e.etype === t);
+  if (alive('engine')) return 'A <b>siege engine</b> is shelling the ring. Only men out on the field, or your charge, can reach it';
+  if (alive('firearcher')) return '<b>Fire archers</b> (orange rings) burn your loads from afar: <b>ride them down</b>';
+  if (enemies.some(e => e.alive && e.carry)) return 'A thief is running with your loads: <b>ride him down</b>';
+  if (BAG.cart && !BAG.taken) return 'The <b>raider baggage</b> is out there, guarded';
+  return 'Stand still to shoot, gallop through foot raiders';
+}
 function convoyGoal(el) {
   const playing = S.state === 'day' || S.state === 'night';
-  el.hidden = !playing || !S.map || S.phase === 'map' || S.phase === 'shop'; if (el.hidden) return;
-  const head = `<b>${REGION_NAME[S.region]}</b>, floor ${S.floor} of ${CONVOY.floors + 1}.${keep.alive ? ` The keep: <b>${Math.max(0, Math.round(keep.hp))}</b> / ${keep.max}` : ''}<br>`;
-  const n = (S.preEntries || S.entries || []).length;
-  el.innerHTML = head + ({
-    dusk: `<b class="ph">Position phase</b> · step 1 of 3<br>Raiders are coming from <b>${n} directions</b> (red markers). Ride to good ground and <b>hold Space to circle the wagons</b>. Cliffs, the river and walls close sides of the ring.${featureLines()}`,
-    circling: '<b class="ph">Position phase</b><br>Circling the wagons…',
-    prep: `<b class="ph">Position phase</b> · step 2 of 3<br>Your crews are out working and carry loads back to the ring.<br>Hold Space…<br>${has.moveCarts() ? '• by a war cart: <b>move it</b><br>' : ''}${has.roads() ? '• on a road: <b>barricade</b> it (wood)<br>' : ''}• anywhere you stop: <b>place soldiers</b> (◀ ▶ how many). Men posted out on the roads fight 50% harder, and only they can reach siege engines<br>Guard the <b>supply wagons</b>.<br>Step 3: ${drum.visible ? 'beat the <b>war drum</b> in the ring' : 'ring the <b>bell</b>'} to start the night.`,
-  }[S.phase] || (S.state === 'night' ? `<b class="ph">Night</b><br>Hold until dawn. Red arrows point to raiders off screen. <b>Fire archers</b> (orange rings) burn your loads from beyond the carts' reach: <b>ride them down</b>, or post men out towards them. Thieves run for the passes with a load.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}` : ''));
+  setHidden(el, !playing || !S.map || S.phase === 'map' || S.phase === 'shop'); if (el.hidden) return;
+  const step = (done, t) => `<div class="st${done ? ' done' : ''}">${done ? '\u2713' : '\u203a'} ${t}</div>`;
+  const keepLine = keep.alive ? `<div class="sub">The keep: <b>${Math.max(0, Math.round(keep.hp))}</b> / ${keep.max}</div>` : '';
+  let h = '';
+  if (S.phase === 'dusk') h = `<b class="ph">Make camp</b>${step(false, 'Ride onto a road and <b>hold Space</b> to circle the wagons')}${fieldBrief()}`;
+  else if (S.phase === 'circling') h = `<b class="ph">Make camp</b>${step(false, 'Circling the wagons\u2026')}`;
+  else if (S.phase === 'prep') {
+    const posted = soldiers.some(x => x.alive && x.posted), moved = !!S.cartMoved;
+    const next = !posted ? 'Stop on a road ahead and <b>place soldiers</b>: posted men fight 50% harder'
+      : has.moveCarts() && !moved ? 'Stand by a war cart and <b>hold Space</b> to tow it into place'
+      : 'Ride to the <b>war drum</b> in the ring and <b>hold Space</b> to begin the night';
+    h = `<b class="ph">Set the field</b>${posted ? step(true, 'Soldiers posted') : ''}${moved ? step(true, 'Cart in place') : ''}${step(false, next)}${keepLine}`;
+  } else if (S.state === 'night') h = `<b class="ph">Hold until dawn</b>${step(false, nightTip())}${keepLine}`;
+  setHTML(el, h);
+}
+// ---------------- key hints: one at a time, when the key is useful, retired once the player has used it ----------------
+const HINTS = (() => { try { return JSON.parse(localStorage.getItem('wagon-road-hints') || '{}'); } catch (e) { return {}; } })();
+function usedHint(k) { HINTS[k] = (HINTS[k] || 0) + 1; try { localStorage.setItem('wagon-road-hints', JSON.stringify(HINTS)); } catch (e) {} }
+const hintEdge = {}; let rideT = 0;
+function updateHint(dt) {
+  const el = $('#help'); if (!el || !WAGON) return;
+  const edge = k => { const on = !!keys[k], was = hintEdge[k]; hintEdge[k] = on; return on && !was; };
+  if (edge('ShiftLeft') | edge('ShiftRight')) usedHint('gallop');
+  if (edge('Tab')) usedHint('tab');
+  if (keys.KeyW || keys.KeyA || keys.KeyS || keys.KeyD) { rideT += dt; if (rideT > 3 && !HINTS.ride) usedHint('ride'); }
+  const playing = (S.state === 'day' || S.state === 'night') && !paused && !['map', 'shop', 'dawn'].includes(S.phase);
+  let h = '';
+  if (playing) {
+    if (!HINTS.ride && S.phase === 'dusk') h = '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ride';
+    else if (!HINTS.esc && S.phase === 'dusk') { h = '<kbd>Esc</kbd> pause, options and every key'; if ((el._escT = (el._escT || 0) + dt) > 8) usedHint('esc'); }
+    else if ((HINTS.gallop || 0) < 3 && rideT > 6 && S.state === 'day') h = 'Hold <kbd>Shift</kbd>: gallop';
+    else if (!HINTS.tab && S.phase === 'prep') h = 'Hold <kbd>Tab</kbd>: the whole field';
+    else if ((HINTS.volley || 0) < 2 && S.state === 'night') h = 'Tap <kbd>Space</kbd>: a volley';
+  }
+  if (h) setHTML(el, h);
+  setHidden(el, !h);
 }
 // labels over the three supply wagons, and markers for the passes the raiders will use
 const tagBox = document.createElement('div'); document.body.appendChild(tagBox);
 const wTags = {}, rTags = {};
 // the lowest edge of the HUD panels above this x, so markers pinned to the edge never sit on them
+let clearTopMemo = null, promptMemo = null;   // the panels' boxes, read once a frame rather than once per label
+// the docked action box: a label pinned to the bottom edge steps above it rather than hide under it
+function belowPrompt(x, w, y) {
+  if (!ui.prompt || ui.prompt.hidden) return y;
+  const r = promptMemo || (promptMemo = ui.prompt.getBoundingClientRect());
+  return Math.abs(x - (r.left + r.right) / 2) < r.width / 2 + w / 2 + 8 && y > r.top - 6 ? r.top - 10 : y;
+}
 function clearTop(x) {
+  if (!clearTopMemo) clearTopMemo = ['#goal', '#status', '#keepBox', '#phases'].map(id => $(id)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect());
   let top = 60;
-  for (const id of ['#goal', '#status', '#keepBox', '#phases']) {
-    const e = $(id); if (!e || e.hidden) continue;
-    const r = e.getBoundingClientRect(); if (x > r.left - 90 && x < r.right + 90) top = Math.max(top, r.bottom);
-  }
+  for (const r of clearTopMemo) if (x > r.left - 90 && x < r.right + 90) top = Math.max(top, r.bottom);
   return top;
 }
 function screenTag(el, p, y, pin) {
-  const s = toScreen(tmp.set(p.x, p.y + y, p.z)), behind = proj.z > 1, m = 60;
-  let x = s.x, yy = s.y; const off = behind || x < m || x > innerWidth - m || yy < m + 40 || yy > innerHeight - m;
-  if (off && !pin) { el.hidden = true; return; }
+  // a label shown keeps a 28 px grace past the edge before it goes, so riding along the edge cannot blink it
+  const s = toScreen(tmp.set(p.x, p.y + y, p.z)), behind = proj.z > 1, m = 60, g = el.hidden ? 0 : 28;
+  let x = s.x, yy = s.y; const off = behind || x < m - g || x > innerWidth - m + g || yy < m + 40 - g || yy > innerHeight - m + g;
+  if (off && !pin) { steady(el, false, 0.25); if (el.hidden) return; }
+  else setHidden(el, false);
   if (behind) { x = innerWidth - x; yy = innerHeight - m; }
-  el.hidden = false; el.classList.toggle('edge', off);
-  x = clamp(x, m + 50, innerWidth - m - 50);
-  el.style.left = x + 'px'; el.style.top = clamp(yy, off ? clearTop(x) + 50 : m + 70, innerHeight - m) + 'px';
+  setClass(el, 'edge', off && pin);
+  el._px = clamp(x, m + 50, innerWidth - m - 50); el._py = belowPrompt(el._px, sizeOf(el).w, clamp(yy, off && pin ? clearTop(el._px) + 50 : m + 70, innerHeight - m));
+  el._offAt = off && !pin ? el._offAt : null;
 }
 let grouped = false;
 const groupTag = Object.assign(document.createElement('div'), { className: 'wtag group' });
@@ -5941,25 +6070,25 @@ function updateTags() {
     const el = wTags[k] || (wTags[k] = Object.assign(document.createElement('div'), { className: 'wtag' }));
     if (!el.parentNode) tagBox.appendChild(el);
     const p = convoy.find(q => q.cartKind === k);
-    if (!on || !p || grouped) { el.hidden = true; continue; }
+    if (!on || !p || grouped) { setHidden(el, true); continue; }
     const sp = SUPPLY[k], v = S.res[sp.res];
-    el.style.borderColor = sp.col;
-    el.innerHTML = p.building ? `<i class="ic ${sp.res}"></i><b>${sp.name}</b> ${v}` : `<b>${sp.name}</b> burned`;
+    setStyle(el, 'borderColor', sp.col);
+    setHTML(el, p.building ? `<i class="ic ${sp.res}"></i><b>${sp.name}</b> ${v}` : `<b>${sp.name}</b> burned`);
     screenTag(el, p.pos, 3.4, false);
   }
   if (on && grouped && sup.length) {
     const cx = sup.reduce((a, p) => a + p.x, 0) / sup.length, cz = sup.reduce((a, p) => a + p.z, 0) / sup.length;
-    groupTag.innerHTML = Object.keys(SUPPLY).filter(k => convoy.some(q => q.cartKind === k)).map(k => { const p = convoy.find(q => q.cartKind === k), sp = SUPPLY[k];
-      return `<span style="border-bottom:2px solid ${sp.col}"><i class="ic ${sp.res}"></i>${p && p.building ? S.res[sp.res] : 'burned'}</span>`; }).join('');
+    setHTML(groupTag, Object.keys(SUPPLY).filter(k => convoy.some(q => q.cartKind === k)).map(k => { const p = convoy.find(q => q.cartKind === k), sp = SUPPLY[k];
+      return `<span style="border-bottom:2px solid ${sp.col}"><i class="ic ${sp.res}"></i>${p && p.building ? S.res[sp.res] : 'burned'}</span>`; }).join(''));
     screenTag(groupTag, tmp2.set(cx, Math.max(groundY({ x: cx, z: cz }), 0), cz), 3.6, false);
-  } else groupTag.hidden = true;
+  } else setHidden(groupTag, true);
   const ids = on ? (S.preEntries || S.entries || []) : [];
-  for (const id in rTags) if (!ids.includes(id)) rTags[id].hidden = true;
+  for (const id in rTags) if (!ids.includes(id)) setHidden(rTags[id], true);
   for (const id of ids) {
     const el = rTags[id] || (rTags[id] = Object.assign(document.createElement('div'), { className: 'rtag' }));
     if (!el.parentNode) tagBox.appendChild(el);
-    const en = ENTRIES.find(e => e.id === id); if (!en || !NODES[id]) { el.hidden = true; continue; }
-    el.innerHTML = `<b>Raiders${S.state === 'night' ? '' : ` \u00b7 about ${S.passCount}`}</b>${en.name}<i></i>`;
+    const en = ENTRIES.find(e => e.id === id); if (!en || !NODES[id]) { setHidden(el, true); continue; }
+    setHTML(el, S.state === 'night' ? '<b>Raiders</b><i></i>' : `<b>Raiders \u00b7 about ${S.passCount}</b>${en.name}<i></i>`);   // by night the arrows carry the count; the name has done its work
     screenTag(el, NODES[id].pos, 6, true);
   }
   // labels must not hide each other. Fixed order, so two labels never swap places from one
@@ -5968,20 +6097,21 @@ function updateTags() {
   const shown = [...(bt && !bt.hidden ? [bt] : []), groupTag, ...Object.keys(SUPPLY).map(k => wTags[k]), ...ids.map(id => rTags[id])].filter(el => el && !el.hidden);
   const placed = [];
   for (const el of shown) {
-    const x = parseFloat(el.style.left), w = el.offsetWidth, h = el.offsetHeight + 4; let y = parseFloat(el.style.top);
+    const x = el._px, sz = sizeOf(el), w = sz.w, h = sz.h + 4; let y = el._py;
     for (let guard = 0; guard < 8; guard++) {
       const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h));
       if (!hit) break; y = hit.y - Math.max(hit.h, h);
     }
     el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : el._y + (y - el._y) * 0.25;
-    el.style.top = el._y + 'px'; placed.push({ x, y, w, h });
+    placeAt(el, x, el._y); placed.push({ x, y, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
   const hs = toScreen(tmp.set(hero.pos.x, hero.pos.y + 1.2, hero.pos.z));
   for (const el of shown) {
-    const r = el.getBoundingClientRect(), dx = Math.max(r.left - hs.x, 0, hs.x - r.right), dy = Math.max(r.top - hs.y, 0, hs.y - r.bottom);
+    const sz = sizeOf(el), l = el._px - sz.w / 2, t = el._y - sz.h;   // from what is already known: no layout read
+    const dx = Math.max(l - hs.x, 0, hs.x - (l + sz.w)), dy = Math.max(t - hs.y, 0, hs.y - el._y);
     const near = hero.alive && Math.hypot(dx, dy) < 46;
-    el.style.opacity = near ? 0.12 : '';
+    setStyle(el, 'opacity', near ? '0.12' : '');
   }
   updateThreats();
   updatePhases();
@@ -5996,19 +6126,25 @@ function updateThreats() {
     let dx = s.x - innerWidth / 2, dy = s.y - innerHeight / 2;
     if (behind) { dx = -dx; dy = -dy; }
     else if (s.x > 30 && s.x < innerWidth - 30 && s.y > 30 && s.y < innerHeight - 30) continue;   // on screen: you can see it
-    const k = ((Math.round(Math.atan2(dy, dx) / (TAU / 12)) % 12) + 12) % 12;
+    const k = ((Math.round(Math.atan2(dy, dx) / (TAU / 8)) % 8) + 8) % 8;
     (bins[k] = bins[k] || { n: 0, x: 0, y: 0 }); bins[k].n++; bins[k].x += dx; bins[k].y += dy;
   }
-  let i = 0;
-  for (const k in bins) {
-    const b = bins[k], a = Math.atan2(b.y, b.x), el = threatEls[i] || (threatEls[i] = Object.assign(document.createElement('div'), { className: 'threat' }));
-    if (!el.parentNode) $('#threats').appendChild(el);
-    const hx = innerWidth / 2 - 40, hy = innerHeight / 2 - 60, t = Math.min(hx / Math.abs(Math.cos(a) || 1e-6), hy / Math.abs(Math.sin(a) || 1e-6));
-    const x = innerWidth / 2 + Math.cos(a) * t;
-    el.style.left = x + 'px'; el.style.top = clamp(innerHeight / 2 + Math.sin(a) * t, clearTop(x) + 30, innerHeight - 70) + 'px';
-    el.style.setProperty('--a', (a + Math.PI / 2) + 'rad'); el.innerHTML = `<b>${b.n}</b>`; el.hidden = false; i++;
+  // one arrow per direction (eight of them), each its own element, eased to its place, and kept a moment after its
+  // raiders pass out of view: before, arrows were handed from one direction to another and blinked (3 a second)
+  const top = Object.keys(bins).sort((a, b) => bins[b].n - bins[a].n).slice(0, 5);
+  for (let k = 0; k < 8; k++) {
+    const el = threatEls[k] || (threatEls[k] = Object.assign(document.createElement('div'), { className: 'threat', hidden: true }));
+    if (!el.parentNode) { el.innerHTML = '<b></b>'; $('#threats').appendChild(el); }
+    const b = top.includes(String(k)) ? bins[k] : null;
+    if (!steady(el, !!b, 0.6)) continue; if (!b) continue;
+    const a = Math.atan2(b.y, b.x), hx = innerWidth / 2 - 40, hy = innerHeight / 2 - 60, t = Math.min(hx / Math.abs(Math.cos(a) || 1e-6), hy / Math.abs(Math.sin(a) || 1e-6));
+    const x = innerWidth / 2 + Math.cos(a) * t; let y = belowPrompt(x, 46, clamp(innerHeight / 2 + Math.sin(a) * t, clearTop(x) + 30, innerHeight - 110));
+    for (const id in rTags) { const r = rTags[id]; if (r.hidden || r._px == null) continue; const sz = sizeOf(r);   // step aside from a pass marker
+      if (Math.abs(r._px - x) < sz.w / 2 + 26 && y > r._y - sz.h - 26 && y < r._y + 26) y = r._y - sz.h / 2 > innerHeight / 2 ? r._y - sz.h - 30 : r._y + 30; }
+    el._x = el._x == null ? x : el._x + (x - el._x) * 0.2; el._yy = el._yy == null ? y : el._yy + (y - el._yy) * 0.2;
+    el._a = el._a == null ? a : el._a + angDiff(a, el._a) * 0.2;
+    placeAt(el, el._x, el._yy, 'translate(-50%,-50%)'); setStyle(el, '--a', (el._a + Math.PI / 2).toFixed(2) + 'rad'); setText(el.firstChild, String(b.n));
   }
-  for (; i < threatEls.length; i++) threatEls[i].hidden = true;
 }
 const PHASE_OF = { map: 'road', shop: 'build', dusk: 'position', circling: 'position', prep: 'position', quietPos: 'position', night: 'night', dawn: 'night', quietNight: 'night' };
 S.phaseLog = [];
@@ -6041,11 +6177,11 @@ function updateConvoy(dt) {
   campfire.intensity = S.state === 'night' && S.camp ? 9 * (0.9 + Math.sin(clock * 11) * 0.1) : 0;
   for (const s of soldiers) if (s.alive && s.roster) s.roster.hp = s.hp;
   if (S.state === 'night') { S.drumT = Math.max(0, (S.drumT || 0) - dt); if (!(S.drumT > 0)) S.drum = Math.max(0, (S.drum || 0) - dt * 0.12); }
-  const dEl = $('#drum'); if (dEl) { dEl.style.display = S.state === 'night' ? '' : 'none'; $('#drumI').style.width = (S.drumT > 0 ? S.drumT / 8 * 100 : (S.drum || 0) / 8 * 100) + '%'; dEl.classList.toggle('full', S.drumT > 0); }
+  const dEl = $('#drum'); if (dEl) { setStyle(dEl, 'display', S.state === 'night' ? '' : 'none'); setFill($('#drumI'), S.drumT > 0 ? S.drumT / 8 : (S.drum || 0) / 8); dEl.classList.toggle('full', S.drumT > 0); }
   const mixEl = $('#mix');
   if (mixEl && Math.floor(clock * 4) !== Math.floor((clock - dt) * 4)) {
     const src = soldiers.length ? soldiers.filter(x => x.alive) : S.roster;
-    mixEl.innerHTML = ['spear', 'archer', 'horse'].map(k => `${kindDot(k)}${src.filter(x => (x.type || 'spear') === k).length} ${{ spear: 'spear', archer: 'bow', horse: 'horse' }[k]}`).join(' &nbsp;');
+    setHTML(mixEl, ['spear', 'archer', 'horse'].map(k => [k, src.filter(x => (x.type || 'spear') === k).length]).filter(([, n]) => n).map(([k, n]) => `${kindDot(k)}${n} ${{ spear: 'spear', archer: 'bow', horse: 'horse' }[k]}`).join(' &nbsp;'));   // only the kinds you have
   }
   if (Math.floor(clock * 4) !== Math.floor((clock - dt) * 4)) { refreshGoal(); refreshHUD(); }
 }
@@ -6126,14 +6262,14 @@ function frame(now) {
   if (freeze > 0) freeze -= dt;                  // a few frames of stillness on a heavy hit
   else if (!paused) { let d = dt; if (slowMo > 0) { slowMo -= dt; d *= 0.3; } update(d); }   // the night's last raider falls in slow time
   bloom.enabled = QUALITY.bloom; composer.render();   // the ink pass always runs; only the bloom is optional
-  perfTick(dt);
+  perfTick(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null;
   requestAnimationFrame(frame);
 }
 function update(dt) {
   clock += dt;
   const playing = S.state === 'day' || S.state === 'night';
   routeGroup.visible = false;
-  updateBellTag();
+  updateBellTag(); updateHint(dt);
   if (playing) updateHero(dt);
   if (WAGON) updateConvoy(dt);
   if (S.state === 'night') { updateNight(dt); updateDefences(dt); }
@@ -6207,13 +6343,14 @@ function update(dt) {
   for (const b of buildings) if (b.bar) updateBar(b, b.bar);
   for (const e of enemies) if (e.alive) updateBar(e, e.bar);
   for (const s of soldiers) if (s.alive) updateBar(s, s.bar);
-  ui.keepN.textContent = WAGON ? (S.state === 'night' ? soldiers.filter(x => x.alive).length : S.roster.length) + ' / ' + LEVELS[S.level].soldiers : Math.max(0, Math.round(keep.hp));
-  $('#stamI').style.width = (hero.stam / SPRINT.max * 100) + '%';
-  $('#heroN').textContent = hero.alive ? Math.round(hero.hp) : 'down'; $('#heroBarI').style.width = (hero.alive ? hero.hp / hero.max * 100 : 0) + '%';
+  setText(ui.keepN, String(WAGON ? (S.state === 'night' ? soldiers.filter(x => x.alive).length : S.roster.length) + ' / ' + LEVELS[S.level].soldiers : Math.max(0, Math.round(keep.hp))));
+  setFill($('#stamI'), hero.stam / SPRINT.max);
+  setText($('#heroN'), hero.alive ? String(Math.round(hero.hp)) : 'down'); setFill($('#heroBarI'), hero.alive ? hero.hp / hero.max : 0);
   hero.hitFlash = Math.max(0, (hero.hitFlash || 0) - dt);
-  $('#hurt').style.opacity = hero.alive && S.state === 'night' ? Math.max(clamp(1 - hero.hp / hero.max - 0.35, 0, 1) * 1.4, hero.hitFlash * 1.6) : 0;
-  ui.keepBar.style.width = (WAGON ? (S.state === 'night' ? soldiers.reduce((a, x) => a + (x.alive ? x.hp : 0), 0) / Math.max(1, soldiers.reduce((a, x) => a + x.max, 0)) : S.roster.reduce((a, x) => a + x.hp, 0) / Math.max(1, S.roster.reduce((a, x) => a + x.max, 0))) : keep.hp / keep.max) * 100 + '%';
+  setStyle($('#hurt'), 'opacity', (hero.alive && S.state === 'night' ? Math.max(clamp(1 - hero.hp / hero.max - 0.35, 0, 1) * 1.4, hero.hitFlash * 1.6) : 0).toFixed(2));
+  setFill(ui.keepBar, (WAGON ? (S.state === 'night' ? soldiers.reduce((a, x) => a + (x.alive ? x.hp : 0), 0) / Math.max(1, soldiers.reduce((a, x) => a + x.max, 0)) : S.roster.reduce((a, x) => a + x.hp, 0) / Math.max(1, S.roster.reduce((a, x) => a + x.max, 0))) : keep.hp / keep.max));
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
+  if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) setHidden($('#callout'), true); }
 }
 requestAnimationFrame(frame);
 // Shader warm-up: three.js compiles a material's shader the first time something using it is drawn, which can hitch
