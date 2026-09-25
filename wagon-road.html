@@ -164,6 +164,13 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 @media (max-width:760px){ #phases span{ font-size:11px; padding:3px 7px 3px 3px; } #phases{ top:calc(4px + env(safe-area-inset-top,0px)); } }
 .is-paused #threats{ display:none !important; }
 #smap, #shop, #dawn{ padding-top:58px; }
+/* the dawn sheet can be taller than the window (report, ledger, cards): it scrolls, and centres only when it fits */
+#dawn{ overflow-y:auto; place-items:start center; }
+#dawn .sheet{ margin-block:auto; }
+#dawn .tablet .art{ height:clamp(64px,12vh,140px); object-fit:contain; }
+#dawn .ledger{ margin:4px auto 10px; font-size:15px; gap:2px; }
+#dawn .sheet > p{ margin:0 auto 8px !important; }
+#dawn .tablet{ padding:12px 14px; }
 .threat{ position:fixed; z-index:6; transform:translate(-50%,-50%); pointer-events:none; color:#fff; font-weight:700; font-size:14px; display:grid; place-items:center; width:46px; height:46px; }
 .threat::before{ content:''; position:absolute; inset:8px; background:#c8321f; clip-path:polygon(50% 0,100% 70%,68% 70%,68% 100%,32% 100%,32% 70%,0 70%); transform:rotate(var(--a)); filter:drop-shadow(0 0 4px rgba(0,0,0,.6)); }
 .threat b{ position:relative; text-shadow:0 1px 2px #000; margin-top:6px; }
@@ -322,7 +329,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 16 · 24 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 17 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -344,7 +351,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 16 · 24 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 17 · 24 Sep 2026</p>
   </div>
 </div>
 
@@ -2139,6 +2146,74 @@ function morningMuster() {
   for (let i = soldiers.length - 1; i >= 0; i--) { const s = soldiers[i]; if (!s.alive || !s.house.alive) { scene.remove(s.m.g); scene.remove(s.bar); soldiers.splice(i, 1); } }
   for (const b of buildings) if (b.kind === 'house') { b.soldiers = b.soldiers.filter(s => s.alive); for (const s of b.soldiers) { s.hp = s.max = SOLDIER.hp * S.vetMul; s.pos.copy(s.home); } spawnSoldiers(b); }
 }
+// Soldiers find their way on a walkability grid built from the same blocked() everyone moves by, so
+// fords and standing bridges are open and water, cliffs and walls are not. A man walks straight while
+// the line is clear, and otherwise follows an A* path, pulled tight. Walking straight at a post across
+// the river used to press him into the bank, where he stood all night.
+const NAV = { key: '', xs: '', walk: null, n: 141, half: 70 };
+function navGrid() {
+  const base = (FIELD.kind || '') + RIVER.length + ':' + (RIVER[0] || []).join(',') + ':' + (FIELD.castle ? 1 : 0) + Object.keys(NODES).length;
+  const xs = CROSSINGS.map(c => (c.ford || c.intact) ? 1 : 0).join('');
+  if (NAV.key === base && NAV.xs === xs) return NAV;
+  const { n, half } = NAV;
+  // a cell is open only if its centre and eight points round it are, so a clear line on the grid is clear on the ground
+  const o = 0.55, q = 0.39, open = (x, z) => !blocked(x, z) && !blocked(x + o, z) && !blocked(x - o, z) && !blocked(x, z + o) && !blocked(x, z - o) && !blocked(x + q, z + q) && !blocked(x - q, z + q) && !blocked(x + q, z - q) && !blocked(x - q, z - q);
+  if (NAV.key !== base) {   // a new field: the whole grid (about a third of a second, once)
+    const walk = new Uint8Array(n * n);
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) walk[j * n + i] = open(i - half, j - half) ? 1 : 0;
+    NAV.walk = walk;
+  } else {                  // a bridge burned or rebuilt: only the ground round the crossings
+    for (const c of CROSSINGS) { const R = Math.ceil((c.span || RIVER_HALF) + 3);
+      for (let i = Math.round(c.x) - R; i <= Math.round(c.x) + R; i++) for (let j = Math.round(c.z) - R; j <= Math.round(c.z) + R; j++) {
+        const ii = i + half, jj = j + half; if (ii >= 0 && jj >= 0 && ii < n && jj < n) NAV.walk[jj * n + ii] = open(i, j) ? 1 : 0; } }
+  }
+  NAV.key = base; NAV.xs = xs; return NAV;
+}
+const navOpen = (x, z) => { const i = Math.round(x) + NAV.half, j = Math.round(z) + NAV.half; return i >= 0 && j >= 0 && i < NAV.n && j < NAV.n && NAV.walk[j * NAV.n + i] === 1; };
+function lineClear(a, b) {
+  const d = Math.hypot(b.x - a.x, b.z - a.z), k = Math.ceil(d / 0.5);
+  for (let i = 1; i <= k; i++) { const t = i / k; if (!navOpen(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return false; }
+  return true;
+}
+function navSnap(p, R) { const { n, half, walk } = NAV, i0 = Math.round(p.x) + half, j0 = Math.round(p.z) + half;
+  for (let r = 0; r < (R || 4); r++) for (let di = -r; di <= r; di++) for (let dj = -r; dj <= r; dj++) { const i = i0 + di, j = j0 + dj; if (i >= 0 && j >= 0 && i < n && j < n && walk[j * n + i]) return [i, j]; }
+  return null; }
+function findPath(a, b) {
+  const { n, half, walk } = NAV, idx = (i, j) => j * n + i;
+  const snap = p => { const i0 = Math.round(p.x) + half, j0 = Math.round(p.z) + half;
+    for (let r = 0; r < 4; r++) for (let di = -r; di <= r; di++) for (let dj = -r; dj <= r; dj++) { const i = i0 + di, j = j0 + dj; if (i >= 0 && j >= 0 && i < n && j < n && walk[idx(i, j)]) return [i, j]; }
+    return null; };
+  const s0 = snap(a), g0 = snap(b); if (!s0 || !g0) return null;
+  const G = new Float32Array(n * n).fill(Infinity), from = new Int32Array(n * n).fill(-1), closed = new Uint8Array(n * n);
+  const heap = [], push = (c, f) => { heap.push([f, c]); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top[1]; };
+  const start = idx(...s0), goal = idx(...g0), gi = g0[0], gj = g0[1];
+  G[start] = 0; push(start, 0); let steps = 0;
+  while (heap.length && steps++ < 12000) {
+    const c = pop(); if (closed[c]) continue; closed[c] = 1; if (c === goal) break;
+    const ci = c % n, cj = (c - ci) / n;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) { if (!di && !dj) continue;
+      const i = ci + di, j = cj + dj; if (i < 0 || j < 0 || i >= n || j >= n) continue; const q = idx(i, j); if (!walk[q] || closed[q]) continue;
+      if (di && dj && (!walk[idx(ci + di, cj)] || !walk[idx(ci, cj + dj)])) continue;   // no cutting a corner of water
+      const g = G[c] + (di && dj ? 1.414 : 1); if (g < G[q]) { G[q] = g; from[q] = c; push(q, g + Math.hypot(i - gi, j - gj)); } }
+  }
+  if (from[goal] < 0 && goal !== start) return null;
+  const path = []; for (let c = goal; c !== start && c >= 0; c = from[c]) { const i = c % n; path.push(new V3(i - half, 0, (c - i) / n - half)); }
+  path.reverse(); path.push(new V3(b.x, 0, b.z)); return path;
+}
+function navGoal(s, goal) {
+  if (!WAGON) return goal;
+  navGrid();
+  if (lineClear(s.pos, goal)) { s.path = null; return goal; }
+  if (!s.path || !s.pathGoal || Math.hypot(s.pathGoal.x - goal.x, s.pathGoal.z - goal.z) > 1.5 || clock > s.pathT) {
+    s.path = findPath(s.pos, goal); s.pathGoal = new V3(goal.x, 0, goal.z); s.pathT = clock + 2.5;
+    if (!s.path) return goal;
+  }
+  // pull the path tight: aim at the farthest point he can walk to in a straight line
+  while (s.path.length > 1 && lineClear(s.pos, s.path[1])) s.path.shift();
+  if (s.path.length > 1 && Math.hypot(s.pos.x - s.path[0].x, s.pos.z - s.path[0].z) < 0.5) s.path.shift();
+  return s.path[0];
+}
 function updateSoldiers(dt) {
   for (const s of soldiers) {
     const g = s.m.g;
@@ -2162,15 +2237,18 @@ function updateSoldiers(dt) {
       // badly wounded men fall back to the wagons rather than die at their post
       if (WAGON && s.hp < s.max * 0.25 && S.camp && !s.fallback) { s.fallback = true; s.home = new V3(S.camp.cx + (Math.random() - 0.5) * 3, 0, S.camp.cz + (Math.random() - 0.5) * 3); s.posted = false; }
     }
-    if (t) {
+    // somehow in the water (a bridge burned under him, a shove): wade to the nearest dry ground first
+    const wet = WAGON && blocked(s.pos.x, s.pos.z) && (navGrid(), navSnap(s.pos, 8));
+    if (wet) moveDirect(s.pos, new V3(wet[0] - NAV.half, 0, wet[1] - NAV.half), 3 * dt);
+    else if (t) {
       const dmg = st.dmg * (WAGON ? rankMul(s.type || 'spear') : 1) * (WAGON && s.type === 'spear' && rankOf('spear') >= 3 && t.m && t.m.rider ? 2 : 1) * (s.ambush ? 1.5 : 1) * (S.vetMul > 1 ? 1.3 : 1) * S.morale * (S.drumT > 0 ? 1.33 : 1) * (s.hornT > 0 ? 1.5 : 1) * (WAGON ? S.soldierStr * (s.hungry ? 0.7 : 1) : 1), d = t.pos.distanceTo(s.pos);
       if (st.range && d < st.range) { if (s.cd <= 0) { const fire = WAGON && rankOf('archer') >= 3; shoot(s.pos.clone().setY(s.pos.y + 1.3), t, dmg, fire ? 'fire' : 'friend', false, null, 'archers'); if (fire) ignite(t, 2.5); s.cd = st.cd; s.atkT = 0.3; } }
       else if (!st.range && d < st.reach + t.t.rad) { if (s.cd <= 0) { damage(t, dmg, s.pos, s.type === 'horse' ? 'horse' : 'spears');
         // a blow lands with weight: the raider is shoved back (hard, from a horseman of rank 3)
         if (WAGON && t.alive && t.etype !== 'captain') { const kx = t.pos.x - s.pos.x, kz = t.pos.z - s.pos.z, kl = Math.hypot(kx, kz) || 1, kk = s.type === 'horse' ? (rankOf('horse') >= 3 ? 1.4 : 0.6) : 0.25;
           const ox = t.pos.x, oz = t.pos.z; t.pos.x += kx / kl * kk; t.pos.z += kz / kl * kk; if (blocked(t.pos.x, t.pos.z)) { t.pos.x = ox; t.pos.z = oz; } t.punch = 0.16; } s.cd = st.cd; s.atkT = 0.3; } }
-      else moveLand(s.pos, t.pos, st.speed * (s.following || s.sprintT > 0 ? 1.4 : 1) * dt);
-    } else if (s.pos.distanceTo(anchor) > 0.3) moveLand(s.pos, anchor, (s.following || s.sprintT > 0 ? st.walk : 3) * dt);
+      else moveLand(s.pos, navGoal(s, t.pos), st.speed * (s.following || s.sprintT > 0 ? 1.4 : 1) * dt);
+    } else if (s.pos.distanceTo(anchor) > 0.3) moveLand(s.pos, navGoal(s, anchor), (s.following || s.sprintT > 0 ? st.walk : 3) * dt);
     const mv = tmp.subVectors(s.pos, prev), moving = mv.lengthSq() > 1e-6;
     if (moving) g.rotation.y = Math.atan2(mv.x, mv.z);
     else if (t) g.rotation.y = Math.atan2(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
@@ -2977,7 +3055,7 @@ function focusTablet(i) {
   const tabs = [...$('#tablets').querySelectorAll('button')]; if (!tabs.length) return;
   dawnSel = (i + tabs.length) % tabs.length;
   tabs.forEach((t, k) => t.classList.toggle('sel', k === dawnSel));
-  tabs[dawnSel].focus({ preventScroll: true });
+  tabs[dawnSel].focus({ preventScroll: true }); tabs[dawnSel].scrollIntoView({ block: 'nearest' });
 }
 function tagHTML(u) {
   const chips = u.tags.map(k => `<i class="tg tg-${k}"><span class="cn">${TAGS[k]}</span>${TAG_EN[k]}</i>`);
@@ -4042,7 +4120,10 @@ function placeSoldiers(kind, n) {
   list.forEach((s, i) => {
     const j = already + i, ring = Math.floor(j / 7), a = (j % 7) / 7 * TAU + ring * 0.45, r = j ? 1.1 + ring * 1.0 : 0;
     s.following = false; s.posted = true; s.atConvoy = false; s.ambush = outForward(spot);
-    s.home = new V3(spot.x + Math.sin(a) * r, 0, spot.z + Math.cos(a) * r);
+    // a post by the water keeps every man on dry ground on the rider's own bank
+    s.home = spot.clone().setY(0);
+    for (let k = 0; k < 14; k++) { const aa = a + k * 0.9, rr = r * (k < 7 ? 1 : 0.6), x = spot.x + Math.sin(aa) * rr, z = spot.z + Math.cos(aa) * rr;
+      if (!blocked(x, z) && !crossesRiver(spot.x, spot.z, x, z)) { s.home.set(x, 0, z); break; } }
   });
   if (list.length) banner(`${list.length} ${KIND_WORD[kind][list.length > 1 ? 1 : 0]} march here`, 'They wait here and fight whatever comes near.', 1.8);
   convoyHomes(); return list.length;
@@ -4496,7 +4577,7 @@ function applyPalisades() {
 let circling = null;
 // the ground round each raider pass where no camp may be pitched, drawn while you choose
 const passZones = new THREE.Group(); scene.add(passZones);
-const PASS_KEEP = 20;
+const PASS_KEEP = 27;
 function drawPassZones() {
   while (passZones.children.length) { const m = passZones.children.pop(); m.geometry.dispose(); }
   const mat = new THREE.MeshBasicMaterial({ color: '#d2462f', transparent: true, opacity: 0.45, depthWrite: false, depthTest: false });
@@ -4506,6 +4587,7 @@ function drawPassZones() {
       const m = new THREE.Mesh(g, mat); m.rotation.x = -Math.PI / 2; m.position.set(P.pos.x, Math.max(P.pos.y, 0) + 0.3, P.pos.z); m.renderOrder = 4; passZones.add(m); } }
 }
 function circleWagons(plan) {
+  navGrid();   // the soldiers' map of this ground, built while the wagons wheel round
   clearCampGround(plan.cx, plan.cz, CONVOY.ringR + 2.2);
   S.camp = plan; S.phase = 'circling';
   const extra = combatCarts().filter(p => !plan.slots.some(s => s.plot === p));
@@ -4847,7 +4929,7 @@ const RANK_ARMS = {
   rockets:{ name: 'Rocket carts', img: 'rockets', owned: () => convoy.some(p => p.building && p.cartKind === 'rockets'), each: '+35% damage', trait: 'Wider bursts: rockets hit twice the area' },
   bombard:{ name: 'Bombard carts', img: 'bombard', owned: () => convoy.some(p => p.building && p.cartKind === 'bombard'), each: '+35% damage', trait: 'Grapeshot: every ball wounds all around it' },
   walls:  { name: 'Walls and carts', img: 'barricade', owned: () => true, each: 'every cart +30% HP, mended now', trait: 'Iron-shod: raiders hacking at a cart are hurt by it' },
-  hero:   { name: 'The commander', img: 'level', owned: () => true, each: '+30% bow and charge damage', trait: 'Volley master: the volley recharges twice as fast' },
+  hero:   { name: 'The commander', img: 'commander', owned: () => true, each: '+30% bow and charge damage', trait: 'Volley master: the volley recharges twice as fast' },
 };
 S.rank = {};
 const rankOf = k => S.rank[k] || 0;
@@ -4878,6 +4960,7 @@ function offerRewards() {
     b.addEventListener('click', () => choose(u)); b.addEventListener('mouseenter', () => focusTablet(i)); tabs.appendChild(b);
   });
   S.dawnPicks = picks; $('#dawn').hidden = false; Sound.play('dawn');
+  ui.banner.classList.remove('show'); bannerTimer = 0;   // a night's banner must not show through the morning
   setTimeout(() => focusTablet(0), 50);
 }
 choose = function (u) {
@@ -4931,6 +5014,7 @@ const THUMBS = {
   miner: () => group([makeWorkerModel('pick').g, 0, 0, 0.5], [pile('#a39d92', new THREE.DodecahedronGeometry(0.34, 0), 5), 0.2, -1.1]),
   archers: () => group([makeUnitModel('archer').g, -0.45, 0, 0.5], [makeUnitModel('archer').g, 0.5, 0.2, -0.3]),
   horseman: () => makeUnitModel('horse').g,
+  commander: () => makeHeroModel().g,
   palisade: () => { const g = makePalisadeWagon(); g.userData.wingL.visible = g.userData.wingR.visible = true; return g; },
   farmers: () => group([makeWorkerModel('hoe').g, -0.5, 0, 0.4], [makeWorkerModel('hoe').g, 0.5, 0.3, -0.3], [pile(C.milletRipe, new THREE.DodecahedronGeometry(0.28, 0), 4), 0, -1]),
   woodcutters: () => group([makeWorkerModel('axe').g, -0.5, 0, 0.5], [makeWorkerModel('axe').g, 0.6, 0.2, -0.4], [logs(3), 0, -1.1]),
@@ -5542,7 +5626,7 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { dash, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
