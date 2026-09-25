@@ -329,7 +329,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 18 · 25 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 19 · 25 Sep 2026</p>
   </div>
 </div>
 
@@ -350,7 +350,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 18 · 25 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 19 · 25 Sep 2026</p>
   </div>
 </div>
 
@@ -598,6 +598,9 @@ function ridged(x, z) { let s = 0, a = 1, f = 1, w = 0; for (let o = 0; o < 4; o
 const VALLEY = { cx: -2, cz: -38, rx: 68, rz: 60 };
 // which of the fixed valley's landmarks exist: the convoy generates new ground for most fights
 const FIELD = { castle: true, southWall: true, greatWall: true };
+// the set pieces on a generated field (see genPieces): solid ground in a 0.5-unit grid, mounds, woods
+const SOLID_N = 460, SOLID_H = 115, SOLID = new Uint8Array(SOLID_N * SOLID_N), PIECES = [], MOUNDS = [], WOODS = [];
+const EARTH = ['#a68a5e', '#9b7f55', '#b09468'], EARTH_DARK = '#7d6545', TILE = '#4a4a50', PLASTER = '#d6c8a8';
 function mountainAmount(x, z) {
   const dx = (x - VALLEY.cx) / VALLEY.rx, dz = (z - VALLEY.cz) / VALLEY.rz, e = Math.hypot(dx, dz), ang = Math.atan2(dz, dx);
   const wob = 0.06 * Math.sin(ang * 5 + 1) + 0.04 * Math.sin(ang * 11);
@@ -615,7 +618,7 @@ function hgt(x, z) {
   if (FIELD.castle) h *= smooth(CASTLE_R + 1, CASTLE_R + 4, Math.hypot(x, z));
   if (!FIELD.castle) for (const c of CROSSINGS) { const d = Math.hypot(x - c.x, z - c.z); if (d < 9) h *= smooth((c.span || 3) + 0.5, (c.span || 3) + 5, d); }
   const w = 1 - smooth(RIVER_HALF - 0.4, RIVER_HALF + 0.8, rv);
-  return h - 1.1 * w;
+  return h - 1.1 * w + (MOUNDS.length ? moundH(x, z) : 0);
 }
 const ridgeZ = x => VALLEY.cz - VALLEY.rz * 1.12 * Math.sqrt(Math.max(0.04, 1 - (x / (VALLEY.rx * 1.05)) ** 2)) + 2 * Math.sin(x / 9);
 
@@ -1063,6 +1066,7 @@ function decorate() {
     if (roadDist(x, z) < 2.6 || (FIELD.greatWall && Math.abs(z - ridgeZ(x)) < 3)) return false;
     for (const p of avoid) if (Math.hypot(p.x - x, p.z - z) < pad) return false;
     const me = own || 0.5;
+    if (solidNear(x, z, me + 0.3)) return false;
     for (const d of decor) if (Math.hypot(d.x - x, d.z - z) < d.r + me) return false;
     return true;
   };
@@ -1076,8 +1080,14 @@ function decorate() {
     const hide = bank.place(v, x, hgt(x, z), z, s, rnd() * TAU);
     occupy(x, z, 0.9 * s, hide);
   };
+  // poplars in rows along a road or two, the way the roads of the north are planted
+  if (!FIELD.castle) for (let n = 0; n < 2; n++) {
+    const e = EDGE_DEF[Math.floor(rnd() * EDGE_DEF.length)]; if (!e || e[0][0] === 'P' || e[1][0] === 'P') continue;
+    const A = NODE_DEF[e[0]], Bn = NODE_DEF[e[1]], L = Math.hypot(Bn[0] - A[0], Bn[1] - A[1]), nx = -(Bn[1] - A[1]) / L, nz = (Bn[0] - A[0]) / L;
+    for (let d = 6; d < L - 6; d += 3.4) for (const s of [-1, 1]) { const x = A[0] + (Bn[0] - A[0]) * d / L + nx * s * 3.3, z = A[1] + (Bn[1] - A[1]) * d / L + nz * s * 3.3; if (roadDist(x, z) > 2.9 && clear(x, z, 2, 0.8)) tree(x, z, 0.7 + rnd() * 0.25, true); }
+  }
   // groves in the valley and pines on the slopes
-  for (let g = 0; g < 16; g++) {
+  for (let g = 0; g < 22; g++) {
     const a = rnd() * TAU, r = 18 + rnd() * 34, cx = Math.cos(a) * r, cz = Math.sin(a) * r;
     for (let k = 0; k < 9; k++) { const x = cx + (rnd() - 0.5) * 9, z = cz + (rnd() - 0.5) * 9; if (clear(x, z, 3.2, 1.1)) tree(x, z, 0.8 + rnd() * 0.6, rnd() < 0.35); }
   }
@@ -1113,6 +1123,7 @@ function decorate() {
   }
   tufts.count = ti; tufts.receiveShadow = true; scene.add(tufts);
   if (!FIELD.castle) fieldDetail(clear, tree);
+  plantWoods(tree);
   return tree;
 }
 
@@ -1724,6 +1735,198 @@ function makeBridge(c) {
    Everything the terrain, river, walls, trees and bridges add goes into one group, so a fresh
    battlefield is: change the valley data, throw the group away, build it again. */
 const world = new THREE.Group(); scene.add(world);
+/* ---------------- set pieces: the frontier's own works on the field ----------------
+   Research note (see CLAUDE.md): generated fields read best when a few hand-made pieces are
+   placed by rules, each with one clear job. The Ming northern frontier supplies them: forts
+   (堡) at road junctions, stretches of rammed-earth border wall (边墙) with gates where roads
+   pass, beacon mounds (烽火台) on the heights, and the woods, rocks and hamlets of the valleys.
+   Walls, towers, woods, rocks and houses are solid: they sit in SOLID, a 0.5-unit grid that
+   blocked() reads, so the rider, soldiers, crews and raiders all move round them, and a ring
+   pitched against them has those sides closed. Roads always stay open: every wall leaves a
+   gate wherever a road crosses it, and nothing else is placed on a road. */
+function solidIdx(x, z) { const i = Math.floor((x + SOLID_H) * 2), j = Math.floor((z + SOLID_H) * 2); return i < 0 || j < 0 || i >= SOLID_N || j >= SOLID_N ? -1 : j * SOLID_N + i; }
+function solidAt(x, z) { const k = solidIdx(x, z); return k >= 0 && SOLID[k] === 1; }
+function solidLine(a, b) { const d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.ceil(d / 0.5); for (let i = 1; i <= n; i++) { const t = i / n; if (solidAt(a.x + (b.x - a.x) * t, a.z + (b.z - a.z) * t)) return true; } return false; }
+function solidNear(x, z, r) { for (let dz = -r; dz <= r; dz += 0.5) for (let dx = -r; dx <= r; dx += 0.5) if (dx * dx + dz * dz <= r * r && solidAt(x + dx, z + dz)) return true; return false; }
+function fillSolid(x0, z0, x1, z1, test) {
+  for (let z = Math.floor(z0 * 2) / 2; z <= z1; z += 0.5) for (let x = Math.floor(x0 * 2) / 2; x <= x1; x += 0.5) { const k = solidIdx(x + 0.25, z + 0.25); if (k >= 0 && test(x + 0.25, z + 0.25)) SOLID[k] = 1; }
+}
+function solidCircle(x, z, r) { fillSolid(x - r, z - r, x + r, z + r, (px, pz) => Math.hypot(px - x, pz - z) < r); }
+function solidSeg(ax, az, bx, bz, half) { fillSolid(Math.min(ax, bx) - half, Math.min(az, bz) - half, Math.max(ax, bx) + half, Math.max(az, bz) + half, (px, pz) => segDist(px, pz, ax, az, bx, bz) < half); }
+function moundH(x, z) { let h = 0; for (const m of MOUNDS) { const d = Math.hypot(x - m.x, z - m.z); if (d < m.r) h = Math.max(h, m.h * smooth(m.r, m.r * 0.35, d)); } return h; }
+
+// A run of wall along a polyline: split into short blocks, leaving a gate wherever a road crosses,
+// a gap where water runs, and now and then a breach. Returns the blocks that stand.
+function wallRuns(pts, opt) {
+  const blocks = []; let breachAt = opt.breach ? 0.25 + Math.random() * 0.5 : -1, total = 0;
+  for (let i = 0; i < pts.length - 1; i++) total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1]);
+  let run = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1], L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / 1.5));
+    for (let k = 0; k < n; k++) {
+      const x0 = ax + (bx - ax) * k / n, z0 = az + (bz - az) * k / n, x1 = ax + (bx - ax) * (k + 1) / n, z1 = az + (bz - az) * (k + 1) / n, mx = (x0 + x1) / 2, mz = (z0 + z1) / 2;
+      run += L / n; const f = run / total;
+      if (roadDist(mx, mz) < opt.gate) { if (opt.gatePts && !opt.gatePts.some(g => Math.hypot(g[0] - mx, g[1] - mz) < 4)) opt.gatePts.push([mx, mz]); continue; }   // a gate for every road
+      if (riverDist(mx, mz) < RIVER_HALF + 1.2) continue;                // water is its own wall
+      if (breachAt >= 0 && Math.abs(f - breachAt) * total < 1.6) continue;   // a breach, fallen long ago
+      if (opt.inside && !opt.inside(mx, mz)) continue;
+      blocks.push({ x0, z0, x1, z1, mx, mz, yaw: Math.atan2(x1 - x0, z1 - z0), len: L / n });
+      solidSeg(x0, z0, x1, z1, opt.thick / 2 + 0.25);
+    }
+  }
+  return blocks;
+}
+function nearJunction(x, z, r) { return Object.keys(NODE_DEF).some(k => Math.hypot(NODE_DEF[k][0] - x, NODE_DEF[k][1] - z) < r); }
+function nearPass(x, z, r) { return ENTRIES.some(e => Math.hypot(NODE_DEF[e.id][0] - x, NODE_DEF[e.id][1] - z) < r); }
+function inValley(x, z, e) { return Math.hypot((x - VALLEY.cx) / VALLEY.rx, (z - VALLEY.cz) / VALLEY.rz) < e; }
+function freeOfPieces(x, z, r) { return PIECES.every(p => Math.hypot(p.x - x, p.z - z) > r + (p.r || 0)); }
+
+function genPieces(kind) {
+  SOLID.fill(0); PIECES.length = 0; MOUNDS.length = 0; WOODS.length = 0;
+  const R = Math.random, J = Object.keys(NODE_DEF).filter(k => k[0] === 'J');
+  const chance = { fort: { valley: 0.5, steppe: 0.4, river: 0.35, gorge: 0.5, front: 0.3, island: 0.8, twin: 0.25 }, wall: { valley: 0.45, steppe: 0.6, river: 0.2, gorge: 0.7, front: 0.75, island: 0, twin: 0 },
+    hamlet: { valley: 0.5, steppe: 0.5, river: 0.5, gorge: 0.2, front: 0.4, island: 0.3, twin: 0.4 } };
+  const pick = t => R() < (chance[t][kind] ?? 0.3);
+  // a ruined fort on a junction well back from the passes: camp inside and its walls turn raiders to the gates
+  if (pick('fort')) {
+    const cands = J.filter(k => { const [x, z] = NODE_DEF[k]; return !nearPass(x, z, PASS_KEEP + 3) && riverDist(x, z) > 12 && inValley(x, z, 0.8); });
+    if (kind === 'island') cands.unshift('J1');
+    const k = cands[0] && (kind === 'island' ? cands[0] : cands[Math.floor(R() * cands.length)]);
+    if (k) {
+      const [cx, cz] = NODE_DEF[k], half = 9.5, rot = R() * Math.PI / 2, c = Math.cos(rot), s = Math.sin(rot);
+      const P = (u, v) => [cx + u * c - v * s, cz + u * s + v * c];
+      const pts = [P(-half, -half), P(half, -half), P(half, half), P(-half, half), P(-half, -half)];
+      const gatePts = [], blocks = wallRuns(pts, { gate: 3.0, thick: 1.4, breach: R() < 0.6, gatePts });
+      const towers = [[-half, -half], [half, -half], [half, half], [-half, half]].map(([u, v]) => P(u, v)).filter(([x, z]) => roadDist(x, z) > 3 && riverDist(x, z) > RIVER_HALF + 2);
+      for (const [x, z] of towers) solidCircle(x, z, 1.9);
+      PIECES.push({ kind: 'fort', x: cx, z: cz, r: half + 1, rot, blocks, towers, gatePts });
+    }
+  }
+  // a stretch of the border wall across the valley, with a gate on every road and watchtowers along it
+  if (pick('wall')) {
+    for (let t = 0; t < 30; t++) {
+      const a = kind === 'front' ? Math.PI / 2 + (R() - 0.5) * 0.5 : kind === 'gorge' ? (R() - 0.5) * 0.4 : R() * Math.PI;
+      const nx = Math.sin(a), nz = -Math.cos(a), off = (kind === 'front' ? -1 : R() < 0.5 ? -1 : 1) * (8 + R() * 12);
+      const ox = VALLEY.cx + nx * off, oz = VALLEY.cz + nz * off, dx = Math.cos(a), dz = Math.sin(a);
+      const pts = []; for (let u = -120; u <= 120; u += 6) { const w = Math.sin(u * 0.05 + t) * 2.2; pts.push([ox + dx * u + nx * w, oz + dz * u + nz * w]); }
+      // the wall must not run over a junction, a pass or the pieces already placed
+      if (pts.some(([x, z]) => inValley(x, z, 1.05) && (nearJunction(x, z, 3) || !freeOfPieces(x, z, 2)))) continue;
+      const gatePts = [], blocks = wallRuns(pts, { gate: 3.0, thick: 1.3, breach: R() < 0.5, gatePts, inside: (x, z) => inValley(x, z, 1.25) && hgt(x, z) < 7 });
+      if (blocks.length < 10) continue;
+      const towers = []; let acc = 0;
+      for (const b of blocks) { acc += b.len; if (acc > 13 && roadDist(b.mx, b.mz) > 4) { acc = 0; towers.push([b.mx, b.mz, b.yaw]); solidCircle(b.mx, b.mz, 1.9); } }
+      // gate towers either side of each road that passes the wall
+      const gates = [];
+      for (const b of blocks) for (const o of blocks) if (o !== b && Math.hypot(o.mx - b.mx, o.mz - b.mz) < 7.5 && Math.hypot(o.mx - b.mx, o.mz - b.mz) > 4.5 && roadDist((o.mx + b.mx) / 2, (o.mz + b.mz) / 2) < 2 && !gates.some(g => Math.hypot(g[0] - b.mx, g[1] - b.mz) < 3)) gates.push([b.mx, b.mz, b.yaw], [o.mx, o.mz, o.yaw]);
+      PIECES.push({ kind: 'wall', x: ox, z: oz, r: 0, blocks, towers, gates, gatePts: gatePts.filter(([x, z]) => inValley(x, z, 1.1)) });
+      break;
+    }
+  }
+  // beacon mounds on the roads: the road climbs over them, and a cart set down on top reaches farther
+  const nBeacon = kind === 'steppe' ? 2 : kind === 'gorge' ? 0 : 1 + (R() < 0.4 ? 1 : 0);
+  for (let i = 0, t = 0; i < nBeacon && t < 60; t++) {
+    const e = EDGE_DEF[Math.floor(R() * EDGE_DEF.length)]; if (!e || e[0][0] === 'P' || e[1][0] === 'P') continue;
+    const A = NODE_DEF[e[0]], Bn = NODE_DEF[e[1]], u = 0.3 + R() * 0.4, x = A[0] + (Bn[0] - A[0]) * u, z = A[1] + (Bn[1] - A[1]) * u;
+    if (nearJunction(x, z, 7) || nearPass(x, z, PASS_KEEP) || riverDist(x, z) < 10 || !freeOfPieces(x, z, 8) || !inValley(x, z, 0.85)) continue;
+    const L = Math.hypot(Bn[0] - A[0], Bn[1] - A[1]), sx = -(Bn[1] - A[1]) / L, sz = (Bn[0] - A[0]) / L, side = R() < 0.5 ? 1 : -1;
+    const tx = x + sx * side * 3.6, tz = z + sz * side * 3.6;
+    MOUNDS.push({ x, z, r: 8, h: 3.0 }); solidCircle(tx, tz, 1.7);
+    PIECES.push({ kind: 'beacon', x, z, r: 7.5, tx, tz }); i++;
+  }
+  // woods: thick stands the rider and the raiders must go round, never on a road
+  const nWoods = kind === 'steppe' ? 1 : kind === 'gorge' ? 2 : 2 + Math.floor(R() * 3);
+  for (let i = 0, t = 0; i < nWoods && t < 80; t++) {
+    const a = R() * TAU, e = 0.3 + R() * 0.6, x = VALLEY.cx + Math.cos(a) * VALLEY.rx * e, z = VALLEY.cz + Math.sin(a) * VALLEY.rz * e, r = 4.5 + R() * 4;
+    if (roadDist(x, z) < r + 3 || riverDist(x, z) < r + 3 || !freeOfPieces(x, z, r + 3) || nearPass(x, z, 12)) continue;
+    const lobes = [...Array(5)].map(() => [x + (R() - 0.5) * r, z + (R() - 0.5) * r, r * (0.45 + R() * 0.35)]);
+    const inside = (px, pz) => lobes.some(([lx, lz, lr]) => Math.hypot(px - lx, pz - lz) < lr);
+    fillSolid(x - r * 1.5, z - r * 1.5, x + r * 1.5, z + r * 1.5, (px, pz) => inside(px, pz) && roadDist(px, pz) > 3.2);
+    WOODS.push({ x, z, r, lobes, inside }); PIECES.push({ kind: 'woods', x, z, r }); i++;
+  }
+  // rock outcrops: boulders piled where the ground breaks
+  const nRocks = kind === 'steppe' ? 1 : 1 + Math.floor(R() * 3);
+  for (let i = 0, t = 0; i < nRocks && t < 60; t++) {
+    const a = R() * TAU, e = 0.3 + R() * 0.55, x = VALLEY.cx + Math.cos(a) * VALLEY.rx * e, z = VALLEY.cz + Math.sin(a) * VALLEY.rz * e;
+    if (roadDist(x, z) < 6 || riverDist(x, z) < 6 || !freeOfPieces(x, z, 6)) continue;
+    const stones = [...Array(4 + Math.floor(R() * 4))].map(() => [x + (R() - 0.5) * 5, z + (R() - 0.5) * 5, 0.9 + R() * 1.3]);
+    for (const [sx, sz, sr] of stones) if (roadDist(sx, sz) > sr + 2.5) solidCircle(sx, sz, sr * 0.9);
+    PIECES.push({ kind: 'rocks', x, z, r: 4, stones }); i++;
+  }
+  // a hamlet by a road: a few walled farmhouses round a threshing floor
+  if (pick('hamlet')) for (let t = 0; t < 40; t++) {
+    const e = EDGE_DEF[Math.floor(R() * EDGE_DEF.length)]; if (!e) break;
+    const A = NODE_DEF[e[0]], Bn = NODE_DEF[e[1]], L = Math.hypot(Bn[0] - A[0], Bn[1] - A[1]), u = 0.35 + R() * 0.3, side = R() < 0.5 ? 1 : -1;
+    const x = A[0] + (Bn[0] - A[0]) * u - (Bn[1] - A[1]) / L * side * 8, z = A[1] + (Bn[1] - A[1]) * u + (Bn[0] - A[0]) / L * side * 8;
+    if (roadDist(x, z) < 6 || riverDist(x, z) < 6 || nearPass(x, z, 14) || !freeOfPieces(x, z, 8) || !inValley(x, z, 0.9)) continue;
+    const rot = Math.atan2(Bn[0] - A[0], Bn[1] - A[1]), houses = [];
+    for (let h = 0; h < 3 + Math.floor(R() * 2); h++) {
+      const a = h / 4 * TAU + R() * 0.4, hx = x + Math.cos(a) * 4.2, hz = z + Math.sin(a) * 4.2;
+      if (roadDist(hx, hz) < 3.5) continue;
+      houses.push([hx, hz, rot + (h % 2) * Math.PI / 2]); fillSolid(hx - 2, hz - 2, hx + 2, hz + 2, (px, pz) => { const dx = px - hx, dz = pz - hz, r2 = rot + (h % 2) * Math.PI / 2; const u2 = dx * Math.cos(r2) - dz * Math.sin(r2), v2 = dx * Math.sin(r2) + dz * Math.cos(r2); return Math.abs(u2) < 1.5 && Math.abs(v2) < 1.1; });
+    }
+    if (houses.length >= 2) { PIECES.push({ kind: 'hamlet', x, z, r: 7, houses, rot }); break; }
+  }
+  FIELD.features = [...new Set(PIECES.map(p => p.kind))];
+}
+
+// ---------------- building the pieces ----------------
+function buildPieces() {
+  const parts = [];
+  const add = (geo, color, m) => parts.push({ geo, color, m });
+  const g0 = (x, z) => Math.max(hgt(x, z), 0);
+  const wallBlocks = (blocks, h0, thick, crenel) => {
+    for (const b of blocks) {
+      const h = h0 * (0.75 + rnd() * 0.35), y = Math.min(g0(b.x0, b.z0), g0(b.x1, b.z1)) - 0.3;
+      add(B(thick, h + 0.3, b.len + 0.05), EARTH[Math.floor(rnd() * 3)], TM(b.mx, y + (h + 0.3) / 2, b.mz, 0, b.yaw, 0));
+      add(B(thick + 0.08, 0.12, b.len + 0.06), EARTH_DARK, TM(b.mx, y + h * 0.45, b.mz, 0, b.yaw, 0));      // the lines of the rammed layers
+      if (crenel && rnd() < 0.8) for (const s of [-1, 1]) add(B(0.3, 0.45, 0.55), EARTH[1], TM(b.mx + Math.cos(b.yaw) * s * (thick / 2 - 0.15), y + h + 0.5, b.mz - Math.sin(b.yaw) * s * (thick / 2 - 0.15), 0, b.yaw, 0));
+    }
+  };
+  const tower = (x, z, yaw, w, h, roof) => {
+    const y = g0(x, z) - 0.3;
+    add(B(w, h, w), EARTH[2], TM(x, y + h / 2, z, 0, yaw, 0));
+    add(B(w + 0.1, 0.14, w + 0.1), EARTH_DARK, TM(x, y + h * 0.5, z, 0, yaw, 0));
+    if (roof) { add(new THREE.ConeGeometry(w * 0.85, 1.2, 4), TILE, TM(x, y + h + 0.6, z, 0, yaw + Math.PI / 4, 0)); add(B(w * 0.8, 0.8, w * 0.8), PLASTER, TM(x, y + h + 0.1, z, 0, yaw, 0)); }
+    else for (const [u, v] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) add(B(0.45, 0.5, 0.45), EARTH[1], TM(x + (u * Math.cos(yaw) + v * Math.sin(yaw)) * (w / 2 - 0.2), y + h + 0.25, z + (-u * Math.sin(yaw) + v * Math.cos(yaw)) * (w / 2 - 0.2), 0, yaw, 0));
+  };
+  for (const p of PIECES) {
+    if (p.kind === 'fort') { wallBlocks(p.blocks, 3.0, 1.4, true); for (const [x, z] of p.towers) tower(x, z, p.rot, 3.4, 4.6, true); }
+    if (p.kind === 'wall') { wallBlocks(p.blocks, 2.4, 1.3, false); for (const [x, z, yaw] of p.towers) tower(x, z, yaw, 3.0, 4.2, false); for (const [x, z, yaw] of p.gates) tower(x, z, yaw, 2.4, 3.8, true); }
+    if (p.kind === 'beacon') {
+      const y = g0(p.tx, p.tz) - 0.2;
+      add(CYL(1.05, 1.55, 4.2, 4), EARTH[0], TM(p.tx, y + 2.1, p.tz, 0, Math.PI / 4, 0));
+      add(CYL(1.12, 1.12, 0.15, 4), EARTH_DARK, TM(p.tx, y + 1.6, p.tz, 0, Math.PI / 4, 0));
+      add(CYL(0.55, 0.45, 0.5, 6), '#3a2e26', TM(p.tx, y + 4.45, p.tz));                     // the brazier
+      add(CYL(0.05, 0.05, 2.6, 4), '#4a3322', TM(p.tx + 0.8, y + 5.4, p.tz)); add(B(0.04, 0.5, 0.9), C.lacquer, TM(p.tx + 0.8, y + 6.4, p.tz + 0.45));
+    }
+    if (p.kind === 'rocks') for (const [x, z, r] of p.stones) add(new THREE.DodecahedronGeometry(r, 0), rnd() < 0.5 ? C.rock : '#8d887e', TM(x, g0(x, z) + r * 0.35, z, rnd(), rnd() * 3, rnd(), 1, 0.75 + rnd() * 0.4, 1));
+    if (p.kind === 'hamlet') {
+      for (const [x, z, rot] of p.houses) {
+        const y = g0(x, z);
+        add(B(2.9, 1.7, 2.1), PLASTER, TM(x, y + 0.85, z, 0, rot, 0));
+        add(B(3.0, 0.2, 2.2), EARTH_DARK, TM(x, y + 0.1, z, 0, rot, 0));
+        add(new THREE.CylinderGeometry(0.02, 1.9, 1.1, 4, 1).scale(1.1, 1, 0.8), TILE, TM(x, y + 2.2, z, 0, rot + Math.PI / 4, 0));
+        add(B(0.7, 1.1, 0.06), '#3b2b1f', TM(x + Math.sin(rot) * 1.06, y + 0.55, z + Math.cos(rot) * 1.06, 0, rot, 0));
+      }
+      add(CYL(2.2, 2.2, 0.08, 12), '#b8a47a', TM(p.x, g0(p.x, p.z) + 0.04, p.z));              // the threshing floor
+      for (let i = 0; i < 3; i++) add(new THREE.ConeGeometry(0.6, 1.3, 8), '#c9a95a', TM(p.x + (i - 1) * 1.4, g0(p.x, p.z) + 0.65, p.z + 0.6));   // straw stacks
+    }
+  }
+  // the beacons are lit: a flame in each brazier, which the bloom catches after dark
+  for (const p of PIECES) if (p.kind === 'beacon') { const fl = part(new THREE.ConeGeometry(0.42, 1.0, 6), M('#ff9a3a', { emissive: '#ff6a00', emissiveIntensity: 1.6 }), p.tx, Math.max(hgt(p.tx, p.tz), 0) + 5.1, p.tz, scene); fl.castShadow = false; }
+  if (!parts.length) return;
+  const mesh = new THREE.Mesh(mergeParts(parts), toonMat({ vertexColors: true })); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+}
+// the woods themselves: trees packed close inside the solid ground, so what blocks is what you see
+function plantWoods(tree) {
+  for (const w of WOODS) for (let i = 0; i < 260; i++) {
+    const x = w.x + (rnd() - 0.5) * w.r * 3, z = w.z + (rnd() - 0.5) * w.r * 3;
+    if (!solidAt(x, z) || !w.inside(x, z)) continue;
+    if (decor.some(d => Math.hypot(d.x - x, d.z - z) < d.r + 0.55)) continue;
+    tree(x, z, 0.8 + rnd() * 0.6, rnd() < 0.3);
+  }
+}
+
 function buildWorld() {
   for (const o of [...world.children]) { world.remove(o); o.traverse(n => { if (n.geometry) n.geometry.dispose(); }); }
   treeSpots.length = 0; avoid.length = 0;
@@ -1731,6 +1934,7 @@ function buildWorld() {
   try {
     buildGraph(); buildTerrain();
     if (FIELD.castle) paveCourtyard();
+    buildPieces();
     decorate();
     for (const c of CROSSINGS) if (c.bridge) makeBridge(c);
   } finally { delete scene.add; }
@@ -2057,6 +2261,7 @@ const crossLateral = (c, x, z) => Math.abs(-(x - c.x) * Math.sin(c.dir) + (z - c
 function blocked(x, z, forHero) {
   const r = Math.hypot(x, z);
   if (FIELD.castle && Math.abs(r - CASTLE_R) < 0.9 && (Math.min(Math.abs(x), Math.abs(z)) > 1.9 || z > 5)) return true;
+  if (solidAt(x, z)) return true;                // walls, towers, woods, rocks, houses
   if (riverDist(x, z) < RIVER_HALF + 0.1) {
     if (forHero && S.fordMarker) return false;
     for (const c of CROSSINGS) if ((c.ford || c.intact) && Math.hypot(x - c.x, z - c.z) < (c.span || RIVER_HALF) + 0.8 && crossLateral(c, x, z) < 1.4) return false;
@@ -2155,7 +2360,7 @@ function morningMuster() {
 // the river used to press him into the bank, where he stood all night.
 const NAV = { key: '', xs: '', walk: null, n: 141, half: 70 };
 function navGrid() {
-  const base = (FIELD.kind || '') + RIVER.length + ':' + (RIVER[0] || []).join(',') + ':' + (FIELD.castle ? 1 : 0) + Object.keys(NODES).length;
+  const base = (FIELD.gen || 0) + ':' + (FIELD.kind || '') + RIVER.length + ':' + (RIVER[0] || []).join(',') + ':' + (FIELD.castle ? 1 : 0) + Object.keys(NODES).length;
   const xs = CROSSINGS.map(c => (c.ford || c.intact) ? 1 : 0).join('');
   if (NAV.key === base && NAV.xs === xs) return NAV;
   const { n, half } = NAV;
@@ -2464,7 +2669,17 @@ function followPath(e, dt) {
     const came = e.from; e.from = e.to; e.to = decide(e, e.to, came);
   }
 }
+// No raider ends a frame inside a wall: pushed in by a charge he is set on open ground, and a step
+// into one slides along it or is taken back.
 function updateEnemy(e, dt) {
+  if (!PIECES.length || !e.alive) return updateEnemyStep(e, dt);
+  const ox = e.pos.x, oz = e.pos.z;
+  if (solidAt(ox, oz)) { navGrid(); const s = navSnap(e.pos, 6); if (s) { e.pos.x = s[0] - NAV.half; e.pos.z = s[1] - NAV.half; } return updateEnemyStep(e, dt); }
+  const r = updateEnemyStep(e, dt);
+  if (e.alive && solidAt(e.pos.x, e.pos.z)) { if (!solidAt(e.pos.x, oz)) e.pos.z = oz; else if (!solidAt(ox, e.pos.z)) e.pos.x = ox; else { e.pos.x = ox; e.pos.z = oz; } }
+  return r;
+}
+function updateEnemyStep(e, dt) {
   const g = e.m.g;
   if (!e.alive) {
     e.dying -= dt; const k = Math.max(e.dying / 0.4, 0.01);
@@ -4115,7 +4330,9 @@ const KIND_COL = { spear: '#e0643f', archer: '#8fd060', horse: '#62a8ec' };
 const kindDot = k => `<i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${KIND_COL[k]};margin-right:6px;vertical-align:1px"></i>`;
 // out beyond the ring (or outside the fort's walls) posted men fight 30% harder: holding the
 // road is the reward for leaving the wagons, and the prompt says so
-const outForward = p => S.camp ? Math.hypot(p.x - S.camp.cx, p.z - S.camp.cz) > CONVOY.ringR + 6 : FIELD.castle ? Math.hypot(p.x, p.z) > CASTLE_R + 1 : false;
+// holding a gateway of a fort or a border wall is worth as much as being posted forward
+const inGate = p => PIECES.some(q => q.gatePts && q.gatePts.some(g => Math.hypot(g[0] - p.x, g[1] - p.z) < 4));
+const outForward = p => inGate(p) || (S.camp ? Math.hypot(p.x - S.camp.cx, p.z - S.camp.cz) > CONVOY.ringR + 6 : FIELD.castle ? Math.hypot(p.x, p.z) > CASTLE_R + 1 : false);
 // send a number of one kind from the convoy to where the commander stands; they wait there
 S.placeN = { spear: 4, archer: 2, horse: 1 };
 const atConvoyOf = k => soldiers.filter(s => s.alive && s.type === k && s.atConvoy);
@@ -4301,8 +4518,10 @@ function genFieldData(nPass, kind) {
   EDGE_DEF.push(...segs);
   computeCrossings((c, i) => i === 0 ? 'ford' : 'bridge');
   FIELD.south = kind === 'front' || kind === 'twin';
+  FIELD.gen = (FIELD.gen || 0) + 1; genPieces(kind);
 }
 function loadFort() {
+  SOLID.fill(0); PIECES.length = 0; MOUNDS.length = 0; WOODS.length = 0; FIELD.features = []; FIELD.gen = (FIELD.gen || 0) + 1;
   Object.assign(FIELD, { castle: true, southWall: true, greatWall: true, kind: 'fort', hills: 1, riverLine: null });
   for (const k in NODE_DEF) delete NODE_DEF[k];
   Object.assign(NODE_DEF, JSON.parse(JSON.stringify(ORIG.NODE_DEF)));
@@ -4684,7 +4903,7 @@ function dropSpot(cart) {
   if (e) {
     const A = NODES[e.a].pos, Bn = NODES[e.b].pos, dx = Bn.x - A.x, dz = Bn.z - A.z, L2 = dx * dx + dz * dz || 1;
     const t = clamp(((p.x - A.x) * dx + (p.z - A.z) * dz) / L2, 0.05, 0.95), x = A.x + dx * t, z = A.z + dz * t;
-    if (!blocked(x, z)) return { x, z, rot: Math.atan2(dx, dz) + Math.PI / 2, ok: true, why: 'Across the road: raiders must deal with it on the way' };
+    if (!blocked(x, z)) return { x, z, rot: Math.atan2(dx, dz) + Math.PI / 2, ok: true, why: 'Across the road: raiders must deal with it on the way' + (hgt(x, z) >= HIGH_GROUND ? '. <b>High ground: a crossbow, rocket or bombard cart here reaches 25% farther</b>' : '') };
   }
   if (FIELD.castle && Math.hypot(p.x, p.z) < CASTLE_R + 6) return { x: p.x, z: p.z, rot: p.rotY, ok: true, why: 'It stands by the fort' };
   return { x: p.x, z: p.z, rot: p.rotY, ok: false, why: 'Carts stand on a road or in the ring, where raiders can reach them. Stop on a road and a marker shows where it goes' };
@@ -4714,7 +4933,7 @@ function setDown() {
   }
   const e = nearestEdgeKey(p.x, p.z, 2.6);
   p.edgeKey = e && !(S.camp && Math.hypot(p.x - S.camp.cx, p.z - S.camp.cz) < CONVOY.ringR + 1.5) ? e.key : null;
-  applyPalisades(); refreshGaps(); distDirty = true; Sound.play('build'); puff(p.pos, '#d9c7a0', 4);
+  applyPalisades(); refreshGaps(); recomputeMods(); distDirty = true; Sound.play('build'); puff(p.pos, '#d9c7a0', 4);
 }
 function roadBuild(kind) {
   const e = nearestEdgeKey(hero.pos.x, hero.pos.z, 3); if (!e) return;
@@ -4726,7 +4945,7 @@ function roadBuild(kind) {
 }
 function beginNight() {
   if (S.towing) { if (dropSpot(S.towing).ok) setDown(); else { wagonAt(S.towing, S.camp ? S.camp.cx + 2 : 0, S.camp ? S.camp.cz : -4, S.towing.rotY); S.towing = null; } }
-  shelterCrew();
+  shelterCrew(); recomputeMods();
   drum.visible = false; S.phase = 'night';
   startNight();
 }
@@ -4746,7 +4965,7 @@ function fireArcher(e, dt) {
   if (foe) return { attacking: foe, look: foe.pos };
   if (d > e.t.standOff + 0.5) {
     if (!e.inCamp) return null;                     // still on the roads: follow them in
-    moveLand(e.pos, T, e.speed * dt * (e.slowT > 0 ? 0.5 : 1)); return { attacking: null, look: null };
+    raidStep(e, T, e.speed * dt * (e.slowT > 0 ? 0.5 : 1)); return { attacking: null, look: null };
   }
   e.inCamp = true; e.fireCd = (e.fireCd === undefined ? Math.random() * 1.5 : e.fireCd) - dt;
   // the loads are what they are burning: a supply wagon in reach first, then any cart, then the keep
@@ -4829,7 +5048,7 @@ function convoyEnemy(e, dt) {
   }
   if (e.etype === 'horse' || e.etype === 'torch') {
     // the road ends at the nearest junction, which can be well short of the ring: close the rest straight
-    if (dc > c.R + 6) { moveLand(e.pos, tmp.set(c.cx, 0, c.cz), e.speed * dt * (e.slowT > 0 ? 0.5 : 1)); return { attacking: null, look: null }; }
+    if (dc > c.R + 6) { raidStep(e, new V3(c.cx, 0, c.cz), e.speed * dt * (e.slowT > 0 ? 0.5 : 1)); return { attacking: null, look: null }; }
     return null;
   }
   const foe = nearest([hero, ...soldiers], e.pos, f => f.alive && f.pos.distanceTo(e.pos) < 1.4 + e.t.rad);
@@ -4843,12 +5062,15 @@ function convoyEnemy(e, dt) {
   const cart = side.plot && side.plot.building;
   if (cart) {
     if (cart.pos.distanceTo(e.pos) < cart.radius + e.t.rad + 0.4) return { attacking: cart, look: cart.pos };
-    moveDirect(e.pos, cart.pos, step); return { attacking: null, look: cart.pos };
+    raidStep(e, cart.pos, step); return { attacking: null, look: cart.pos };
   }
   if (Math.hypot(e.pos.x - side.x, e.pos.z - side.z) < 1.1) e.inside = true;
-  moveDirect(e.pos, tmp.set(side.x, 0, side.z), step);
+  raidStep(e, new V3(side.x, 0, side.z), step);
   return { attacking: null, look: null };
 }
+// A raider off the road walks straight at what he wants, unless a wall, a wood or a house is in the
+// way: then he takes the walkers' path round it (through a gate, round the end of the woods).
+function raidStep(e, goal, step) { moveDirect(e.pos, PIECES.length && solidLine(e.pos, goal) ? navGoal(e, goal) : goal, step); }
 function lootOrFight(e, dt, step) {
   const sup = nearest(buildings, e.pos, b => b.alive && isSupply(b.kind) && S.res[SUPPLY[b.kind].res] > 0);
   if (!sup) {
@@ -4856,9 +5078,9 @@ function lootOrFight(e, dt, step) {
     // empty food wagon used to end the run for a wagon with nothing in it)
     const t = nearest(buildings, e.pos, b => b.alive && b.plot.cart && !isSupply(b.kind)); if (!t) return null;
     if (t.pos.distanceTo(e.pos) < t.radius + e.t.rad + 0.4) return { attacking: t, look: t.pos };
-    moveDirect(e.pos, t.pos, step); return { attacking: null, look: t.pos };
+    raidStep(e, t.pos, step); return { attacking: null, look: t.pos };
   }
-  if (sup.pos.distanceTo(e.pos) > sup.radius + e.t.rad + 0.4) { e.lootT = 0; moveDirect(e.pos, sup.pos, step); return { attacking: null, look: sup.pos }; }
+  if (sup.pos.distanceTo(e.pos) > sup.radius + e.t.rad + 0.4) { e.lootT = 0; raidStep(e, sup.pos, step); return { attacking: null, look: sup.pos }; }
   e.lootT = (e.lootT || 0) + dt; e.atkT = 0.3;
   if (e.lootT >= 1.3) {
     const sp = SUPPLY[sup.kind], take = Math.min(CONVOY.sack, S.res[sp.res]);
@@ -5386,7 +5608,7 @@ function convoyPrompt() {
       const avail = atConvoyOf(k).length; if (!avail) continue;
       const n = clamp(S.placeN[k], 1, avail); sig.push(k + n);
       opts.push({ id: 'place-' + k, n: `${kindDot(k)}Place <span class="adj" data-adj="-1">◀</span> ${n} <span class="adj" data-adj="1">▶</span> ${KIND_WORD[k][n > 1 ? 1 : 0]} here`, c: {},
-        d: `${avail} waiting at the convoy. ◀ ▶ to choose how many${outForward(hero.pos) ? '. <b>Out here they fight 50% harder</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
+        d: `${avail} waiting at the convoy. ◀ ▶ to choose how many${inGate(hero.pos) ? '. <b>Holding the gate they fight 50% harder</b>' : outForward(hero.pos) ? '. <b>Out here they fight 50% harder</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
     }
     const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
     if (here.length) opts.push({ id: 'back', n: `Send these ${here.length} back to the convoy`, c: {}, d: 'They guard the wagons again', run: () => sendBack(here) });
@@ -5394,13 +5616,22 @@ function convoyPrompt() {
   if (!opts.length) return null;
   return { key: 'f|' + opts.map(o => o.id || o.n).join('|'), sig: sig.join(','), anchor, hold: 0.7, opts };
 }
+// what stands on this field, one line each, so the player knows what the ground offers
+function featureLines() {
+  const f = FIELD.features || [], out = [];
+  if (f.includes('fort')) out.push('A <b>ruined fort</b>: camp inside and its walls turn the raiders to its gates. <b>Men posted in a gateway fight 50% harder</b>');
+  if (f.includes('wall')) out.push('A <b>border wall</b> crosses the field: raiders must come through its gates, and men posted in one fight 50% harder');
+  if (f.includes('beacon')) out.push('A <b>beacon mound</b> on a road: a war cart set down on top reaches 25% farther');
+  if (f.some(k => k === 'woods' || k === 'rocks' || k === 'hamlet')) out.push('<b>Woods, rocks and houses</b> are solid: everyone goes round them');
+  return out.length ? '<br>' + out.map(s => '• ' + s).join('<br>') : '';
+}
 function convoyGoal(el) {
   const playing = S.state === 'day' || S.state === 'night';
   el.hidden = !playing || !S.map || S.phase === 'map' || S.phase === 'shop'; if (el.hidden) return;
   const head = `<b>${REGION_NAME[S.region]}</b>, floor ${S.floor} of ${CONVOY.floors + 1}.${keep.alive ? ` The keep: <b>${Math.max(0, Math.round(keep.hp))}</b> / ${keep.max}` : ''}<br>`;
   const n = (S.preEntries || S.entries || []).length;
   el.innerHTML = head + ({
-    dusk: `<b class="ph">Position phase</b> · step 1 of 3<br>Raiders are coming from <b>${n} directions</b> (red markers). Ride to good ground and <b>hold Space to circle the wagons</b>. Cliffs and the river close sides of the ring.`,
+    dusk: `<b class="ph">Position phase</b> · step 1 of 3<br>Raiders are coming from <b>${n} directions</b> (red markers). Ride to good ground and <b>hold Space to circle the wagons</b>. Cliffs, the river and walls close sides of the ring.${featureLines()}`,
     circling: '<b class="ph">Position phase</b><br>Circling the wagons…',
     prep: `<b class="ph">Position phase</b> · step 2 of 3<br>Your crews are out working and carry loads back to the ring.<br>Hold Space…<br>${has.moveCarts() ? '• by a war cart: <b>move it</b><br>' : ''}${has.roads() ? '• on a road: <b>barricade</b> it (wood)<br>' : ''}• anywhere you stop: <b>place soldiers</b> (◀ ▶ how many). Men posted out on the roads fight 50% harder, and only they can reach siege engines<br>Guard the <b>supply wagons</b>.<br>Step 3: ${drum.visible ? 'beat the <b>war drum</b> in the ring' : 'ring the <b>bell</b>'} to start the night.`,
   }[S.phase] || (S.state === 'night' ? `<b class="ph">Night</b><br>Hold until dawn. Red arrows point to raiders off screen. <b>Fire archers</b> (orange rings) burn your loads from beyond the carts' reach: <b>ride them down</b>, or post men out towards them. Thieves run for the passes with a load.${S.waves > 1 ? `<br>Assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}.` : ''}` : ''));
@@ -5657,6 +5888,7 @@ function update(dt) {
     camFocus.lerp(tmp.set(hero.pos.x, 0, hero.pos.z), Math.min(1, dt * 3));
     const dist = WAGON ? (narrow ? 3.4 : 2.25) : (narrow ? 4.3 : 2.9);
     camera.position.set(camFocus.x, 21 * dist, camFocus.z + 16 * dist); camera.lookAt(camFocus.x, 0.5, camFocus.z - 1);
+    if (window.__camOverride) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); }   // test harness overview shots
     if (shake > 0.001) {
       shake = Math.max(0, shake - dt * 2.6);
       const k = shake * shake * 1.5;
@@ -5684,7 +5916,7 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
