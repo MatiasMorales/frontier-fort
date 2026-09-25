@@ -71,7 +71,7 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 #banner b{ display:block; font-size:clamp(26px,4.4vw,40px); font-weight:600; color:var(--paper); text-shadow:0 2px 14px rgba(0,0,0,.6); }
 #banner span{ max-width:520px; margin-left:auto; margin-right:auto; display:block; font-size:clamp(15px,2vw,18px); color:var(--gold); font-style:italic; text-shadow:0 1px 8px rgba(0,0,0,.7); margin-top:2px; }
 
-#prompt{ position:fixed; z-index:7; transform:translate(-50%,-100%); padding:10px 12px 10px; min-width:210px; max-width:280px; pointer-events:auto; }
+#prompt{ position:fixed; z-index:7; transform:translate(-50%,-100%); padding:10px 12px 10px; min-width:240px; max-width:340px; pointer-events:auto; }
 #prompt[hidden]{ display:none; }
 #prompt.holding{ filter:drop-shadow(0 0 10px rgba(224,184,90,.55)); }
 #prompt.holding .opt.sel{ border-color:var(--gold) !important; }
@@ -147,7 +147,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #callout{ position:fixed; left:50%; top:calc(62px + env(safe-area-inset-top,0px)); translate:-50% 0; z-index:6; pointer-events:none; text-align:center; padding:6px 16px 7px; border-radius:18px; background:rgba(30,16,13,.86); border:1px solid var(--lacquer-edge); max-width:min(560px,90vw); }
 #callout.low{ top:calc(176px + env(safe-area-inset-top,0px)); }
 #callout b{ display:block; font-size:18px; font-weight:600; color:var(--paper); } #callout span{ display:block; font-size:14px; font-style:italic; color:var(--gold); } #callout span:empty{ display:none; }
-#status, #keepBox, #goal, #help, .overlay .sheet{ zoom:var(--ui,1); }
+#status, #keepBox, #goal, #help{ zoom:var(--ui,1); }
 #opts .keys{ font-size:14px; line-height:1.9; color:#d8c7a6; margin:10px 0 0; } #opts .keys kbd, #help kbd{ font-family:var(--serif); font-weight:600; color:var(--paper); background:rgba(42,20,17,.8); border:1px solid var(--lacquer-edge); border-radius:3px; padding:0 5px; margin:0 1px; }
 #opts select{ font:inherit; background:#2a1411; color:var(--paper); border:1px solid var(--lacquer-edge); border-radius:4px; padding:2px 6px; }
 #goal b{ color:var(--gold); font-weight:600; }
@@ -313,6 +313,54 @@ body:has(:is(#smap, #shop, #dawn, #end):not([hidden])) :is(#status, #keepBox, #b
 button, .opt, .tablet, .card{ transition:transform var(--tap), border-color var(--tap), background-color var(--tap), filter var(--tap); }
 button:active, .tablet:active, .card:active{ transform:scale(.97); }
 @media (prefers-reduced-motion: reduce){ #banner{ transition:none; } .tablet{ transition:none; } *{ scale:none !important; } }
+
+/* ================= menus, reworked (Build 23) =================
+   Every full-screen menu is a column that fits the window: a header (title, one lead line, the numbers), a body that
+   scrolls on its own if it must, and the main button always in view. Menus never zoom: they are laid out to the window. */
+#title .sheet, #opts .sheet, #dawn .sheet, #end .sheet{ zoom:var(--ui,1); }
+#opts{ padding-top:64px; }
+.sheet .lead{ font-size:17px; line-height:1.45; max-width:none; margin:0 auto 10px; color:#dccaa6; }
+.resbar{ position:static; background:none; padding:0; margin:0 0 12px; }
+.mapSheet{ max-width:1320px; width:100%; height:calc(100vh - 82px); display:flex; flex-direction:column; min-height:0; }
+.mapSheet .smapWrap{ flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,340px); gap:18px; align-items:stretch; }
+#smapSvg{ width:100%; height:100%; max-height:none; min-height:0; }
+.smapSide{ overflow:auto; text-align:left; }
+.legend{ display:grid; grid-template-columns:1fr; gap:8px; justify-items:start; margin:4px 0 0; font-size:14px; }
+.legend > span{ display:flex; align-items:center; gap:10px; } .legend > span > span{ display:block; line-height:1.25; } .legend span b{ color:var(--gold); font-weight:600; display:block; font-family:var(--serif); font-size:15px; margin:0; } .legend small{ display:block; font-size:13px; color:#cbb894; }
+@media (max-width:760px){ .mapSheet{ height:auto; } .mapSheet .smapWrap{ grid-template-columns:1fr; } #smapSvg{ height:56vh; } }
+.shopSheet{ max-width:1180px; height:calc(100vh - 82px); max-height:none; overflow:hidden; display:flex; flex-direction:column; }
+.shopBody{ flex:1; min-height:0; overflow:auto; padding:2px 4px 8px; }
+#shopOpts.cards{ display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:18px 26px; }
+.shopGroup{ display:flex; flex-direction:column; gap:8px; } .shopGroup .row{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
+.shopGroup h3.sec{ margin:0; font-size:14px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-dim); font-weight:600; border-bottom:1px solid var(--lacquer-edge); padding-bottom:4px; }
+.shopGroup .card{ width:176px; }
+.card .cost span{ display:inline-flex; align-items:center; gap:4px; }
+.shopFoot{ flex:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--lacquer-edge); }
+.column{ justify-content:center; }
+#title .sheet{ max-width:760px; }
+#title .tagline{ font-size:19px; max-width:32em; margin:16px auto 22px; }
+#title .keys{ gap:10px 20px; margin:0 0 26px; } #title .keys span{ display:inline-flex; align-items:center; white-space:nowrap; } #title .keys kbd{ margin-right:3px; } #title .keys kbd:last-of-type{ margin-right:8px; }
+#buildTag{ position:fixed; right:calc(14px + env(safe-area-inset-right,0px)); bottom:calc(10px + env(safe-area-inset-bottom,0px)); z-index:61; font-size:12px; color:rgba(234,219,192,.5); letter-spacing:.04em; pointer-events:none; opacity:0; transition:opacity var(--in); }
+body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTag{ opacity:1; }
+.keylist{ display:grid; grid-template-columns:auto 1fr auto 1fr; gap:8px 12px; align-items:center; text-align:left; font-size:14px; color:#d8c7a6; margin:12px 0 4px; }
+.keylist kbd{ font-family:var(--serif); font-weight:600; color:var(--paper); background:rgba(42,20,17,.8); border:1px solid var(--lacquer-edge); border-radius:3px; padding:0 6px; margin-right:2px; }
+@media (max-width:620px){ .keylist{ grid-template-columns:auto 1fr; } }
+#end{ background:radial-gradient(ellipse at center, rgba(26,18,16,.9), rgba(20,13,11,.97)); }
+#end .sheet h1{ font-size:clamp(34px,5.4vw,56px); line-height:1.08; margin-top:14px; text-wrap:balance; }
+.endMeta{ font-size:14px !important; color:#a8977a; margin:14px auto 0 !important; }
+.link{ font:inherit; font-size:14px; background:none; border:0; padding:0; color:var(--gold); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
+#heroLine:empty{ display:none; }
+/* reward tablets are buttons, and a button centres its content: anchor it to the top so pictures and titles line up */
+.tablet{ display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; position:relative; }
+.tablet .k{ z-index:1; top:6px; right:9px; font-size:13px; color:var(--paper); background:rgba(42,20,17,.85); border-radius:3px; padding:0 5px; }
+/* pause: the options on the left, every key on the right; one column on a narrow window */
+#opts .sheet{ max-width:880px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,.9fr); column-gap:26px; row-gap:8px; align-items:start; }
+#opts .sheet > h2, #opts .sheet > .go, #opts .sheet > .hintv{ grid-column:1 / -1; }
+#opts .optrow{ grid-column:1; margin:0; }
+#opts .keylist{ grid-column:2; grid-row:2 / span 6; grid-template-columns:auto 1fr; margin:0; padding:12px 14px; border:1px solid var(--lacquer-edge); border-radius:6px; background:rgba(20,12,10,.45); }
+#opts .sheet > .go{ justify-self:center; margin-top:10px; }
+@media (max-width:820px){ #opts .sheet{ grid-template-columns:1fr; } #opts .keylist{ grid-column:1; grid-row:auto; } }
+
 </style>
 </head>
 <body>
@@ -353,7 +401,7 @@ button:active, .tablet:active, .card:active{ transform:scale(.97); }
 <div id="help" hidden></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
-  <div class="sheet" style="max-width:440px">
+  <div class="sheet">
     <h2>Pause</h2>
     <div class="optrow"><label for="oMusic">Music</label><input type="checkbox" id="oMusic" checked><input type="range" id="oMusicV" min="0" max="100" value="38"></div>
     <div class="optrow"><label for="oSfx">Sound effects</label><input type="checkbox" id="oSfx" checked><input type="range" id="oSfxV" min="0" max="100" value="70"></div>
@@ -361,9 +409,13 @@ button:active, .tablet:active, .card:active{ transform:scale(.97); }
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <div class="optrow"><label for="oUi">Text and panel size</label><select id="oUi"><option value="auto">Fit the screen</option><option value="1">Normal</option><option value="1.15">Larger</option><option value="1.3">Largest</option></select></div>
     <div class="optrow"><label for="oTap">Tap instead of hold</label><input type="checkbox" id="oTap"><span class="hintv">by day, one press of Space acts at once</span></div>
-    <p class="keys"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ride · <kbd>Shift</kbd> gallop · <kbd>Space</kbd> act (hold), at night tap for a volley · <kbd>↑</kbd><kbd>↓</kbd> choose · <kbd>◀</kbd><kbd>▶</kbd> how many · <kbd>Tab</kbd> see the whole field · <kbd>Esc</kbd> pause</p>
+    <div class="keylist">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>ride</span><span><kbd>Shift</kbd></span><span>gallop (hold)</span>
+      <span><kbd>Space</kbd></span><span>act (hold) · at night, tap: volley</span><span><kbd>Tab</kbd></span><span>see the whole field (hold)</span>
+      <span><kbd>↑</kbd><kbd>↓</kbd></span><span>choose an action</span><span><kbd>◀</kbd><kbd>▶</kbd></span><span>how many soldiers</span>
+    </div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 22 · 25 Sep 2026</p>
+    <p class="hintv" style="margin:6px 0 0;justify-self:center">Esc closes this too</p>
   </div>
 </div>
 
@@ -376,23 +428,25 @@ button:active, .tablet:active, .card:active{ transform:scale(.97); }
   <div class="sheet">
     <div class="bigseal">边<br>堡</div>
     <h1>The Wagon Road</h1>
-    <p>Autumn, 1550. Your convoy must cross three regions of raided frontier to the Great Wall. Choose your road on each region's map, and reach and hold the border fort at its end. Longer roads mean more days, and every day your soldiers eat. Every fight is on new ground: <b>circle the wagons</b>, then set the field. Move your war carts, barricade the roads the raiders will use, post your soldiers, and guard the <b>food</b>, <b>wood</b> and <b>stone</b> wagons. Beat the drum, and hold until dawn.</p>
+    <p class="tagline">Autumn, 1550. Lead a wagon column across three raided regions to the Great Wall. Every fight is on new ground: circle the wagons, set the field, and hold until dawn.</p>
     <div class="keys">
-      <span><kbd>WASD</kbd>Ride</span>
-      <span><kbd>Space</kbd>Hold at dusk to circle the wagons</span>
-      <span><kbd>Shift</kbd>Hold to gallop</span>
-      <span><kbd>Space</kbd>At night: loose a volley</span>
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>ride</span>
+      <span><kbd>Shift</kbd>gallop</span>
+      <span><kbd>Space</kbd>act (hold)</span>
+      <span><kbd>Tab</kbd>see the field</span>
+      <span><kbd>Esc</kbd>pause</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 22 · 25 Sep 2026</p>
   </div>
 </div>
+<!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
+<div id="buildTag" class="buildTag">Build 23 · 26 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
-  <div class="sheet" style="max-width:1320px;width:100%;max-height:96vh;overflow:auto">
+  <div class="sheet mapSheet">
     <h2 id="smapT">Choose the road</h2>
+    <p id="smapP" class="lead"></p>
     <div class="resbar" id="smapRes"></div>
-    <p id="smapP" style="margin:0 0 10px"></p>
     <div class="smapWrap">
       <svg id="smapSvg" viewBox="0 0 600 600" aria-label="Region map"></svg>
       <div class="smapSide">
@@ -407,12 +461,14 @@ button:active, .tablet:active, .card:active{ transform:scale(.97); }
 <div id="shop" class="overlay" hidden>
   <div class="sheet shopSheet">
     <h2 id="shopT"></h2>
-    <p id="shopSub" style="margin:0 0 10px"></p>
-    <div id="shopNews"></div>
+    <p id="shopSub" class="lead"></p>
     <div class="resbar" id="shopRes"></div>
-    <div class="column" id="shopColumn"></div>
-    <div class="cards" id="shopOpts"></div>
-    <div class="shopFoot"><span class="hintv">Click a card to buy it, or use the arrow keys and Space. R opens the map.</span><button class="go" id="shopGo" type="button">To the map →</button></div>
+    <div class="shopBody">
+      <div id="shopNews"></div>
+      <div class="column" id="shopColumn"></div>
+      <div class="cards" id="shopOpts"></div>
+    </div>
+    <div class="shopFoot"><span class="hintv">Click a card to buy it, or arrow keys and Space</span><button class="go" id="shopGo" type="button">To the map →</button></div>
   </div>
 </div>
 <div id="dawn" class="overlay" hidden>
@@ -432,7 +488,7 @@ button:active, .tablet:active, .card:active{ transform:scale(.97); }
     <p id="endP"></p>
     <p id="endHonour" style="font-size:15px;color:#dccaa6;line-height:1.6"></p>
     <button class="go" id="againBtn" type="button">Take the road again</button>
-    <p style="margin:10px 0 0;font-size:14px"><button type="button" id="copyRun" style="font:inherit;font-size:14px;padding:4px 12px;border-radius:14px;border:1px solid #9c8250;background:transparent;color:#eadbc0;cursor:pointer">Copy run report</button> <span id="copyNote" style="color:#a8977a">Optional: what you chose and how each night went, to help balance the game. Nothing is sent by itself.</span></p>
+    <p class="endMeta"><button type="button" id="copyRun" class="link">Copy run report</button> <span id="copyNote">to help balance the game. Nothing is sent by itself.</span></p>
   </div>
 </div>
 
@@ -5609,7 +5665,8 @@ let shopSel = 0, shopOpts = [], shopKind = '';
 const roomFor = n => () => S.roster.length + n <= LEVELS[S.level].soldiers;
 const priced = (c, k) => { const o = {}; for (const r in c) o[r] = Math.max(1, Math.round(c[r] * k)); return o; };
 function crewOpts() {
-  return Object.keys(CREW).filter(k => k === 'farmer' || (k === 'woodcutter' && has.wood()) || (k === 'miner' && has.stone())).map(k => ({ n: `Hire a ${CREW[k].name.toLowerCase()}`, img: k, c: CREW[k].cost, sec: 'Crews',
+  // a crew is offered only once what it costs exists: a farmer costs wood, so before the first fight it was a card nobody could buy
+  return Object.keys(CREW).filter(k => ((k === 'farmer' || k === 'woodcutter') && has.wood()) || (k === 'miner' && has.stone())).map(k => ({ n: `Hire a ${CREW[k].name.toLowerCase()}`, img: k, c: CREW[k].cost, sec: 'Crews',
     d: `Works at every stop: <b>+${CREW[k].per * TRIPS} ${CREW[k].word}</b> each time. Eats like a soldier (3 people eat 1 food a day). Crews ${crewCount()}/${LEVELS[S.level].crew}`, run: () => { S.crew[k]++; }, ok: () => crewCount() < LEVELS[S.level].crew, key: k }));
 }
 function soldierOpts(k) {
@@ -5696,19 +5753,20 @@ function columnHTML() {
 function renderShop() {
   const news = (S.news || []).map(t => `<div class="news"><b>New \u00b7 ${TIERS[t].name}</b> ${TIERS[t].text}</div>`).join('');
   $('#shopNews').innerHTML = news; $('#shopColumn').innerHTML = columnHTML();
-  $('#shopSub').innerHTML = `${S.shopSub}<br><span class="rules">Here you can only buy: <b>soldiers</b> and <b>crews</b> cost food, <b>wagons</b> cost wood and stone. Everyone eats: <b>${foodPerDay()} food a day</b> on the road now (every 3 people eat 1, plus 2 for the carters). Only markets buy and sell.</span>`;
+  $('#shopSub').innerHTML = S.shopSub;   // what each thing costs is on its card; what the column eats is in the bar below
   resBar($('#shopRes'));
   const box = $('#shopOpts'); box.innerHTML = '';
-  let sec = '';
+  let sec = '', group = null;
   shopOpts.forEach((o, i) => {
-    if (o.sec !== sec) { sec = o.sec; const h = document.createElement('h3'); h.className = 'sec'; h.textContent = sec; box.appendChild(h); }
+    // each kind of purchase is a group of its own, and the groups sit side by side instead of one thin row each
+    if (o.sec !== sec) { sec = o.sec; group = document.createElement('section'); group.className = 'shopGroup'; group.innerHTML = `<h3 class="sec">${sec}</h3><div class="row"></div>`; box.appendChild(group); }
     const why = shopBlocked(o), b = document.createElement('button');
     b.type = 'button'; b.className = 'card' + (i === shopSel ? ' sel' : '');
     b.innerHTML = `${o.img ? `<img class="art" alt="" src="${thumb(o.img)}">` : ''}<span class="t">${o.n}</span><span class="cost">${o.c ? costHTML(o.c) : o.gift || o.work ? '<span class="free">free</span>' : ''}</span><span class="e">${why ? `<b class="why">${why}</b>` : o.d}</span>`;
     if (why) b.classList.add('off');
     b.addEventListener('click', () => { shopSel = i; pickShop(); });
     b.addEventListener('mouseenter', () => { shopSel = i; markShop(); });
-    box.appendChild(b);
+    group.lastChild.appendChild(b);
   });
   markShop();
 }
@@ -5767,13 +5825,16 @@ function openMap() {
       + `<circle class="base" cx="${x}" cy="${y}" r="${R}"/><use class="ico" href="#ic-${n.type}" x="${x - R * 0.86}" y="${y - R * 0.86}" width="${R * 1.72}" height="${R * 1.72}"/></g>`;
   }
   $('#smapSvg').innerHTML = h;
+  // frame the tree itself, so it fills its parchment instead of floating in an empty corner of it
+  { const xs = Object.values(m).map(n => MX(n.c)), ys = Object.values(m).map(n => MY(n.f)), x0 = Math.min(...xs) - 50, y0 = Math.min(...ys) - 50;
+    $('#smapSvg').setAttribute('viewBox', `${x0} ${y0} ${Math.max(...xs) + 50 - x0} ${Math.max(...ys) + 50 - y0}`); }
   $('#smapSvg').querySelectorAll('.node.opt').forEach(g => {
     g.addEventListener('click', () => { mapSel = mapOpts.indexOf(g.dataset.k); confirmMap(); });
     g.addEventListener('mouseenter', () => { mapSel = mapOpts.indexOf(g.dataset.k); highlightMap(); });
   });
   $('#smapT').textContent = REGION_NAME[S.region] + ` \u00b7 region ${S.region + 1} of ${CONVOY.regions}`;
   $('#smapP').innerHTML = `Click a <b>glowing</b> stop. Each dot is a day on the road, and the column eats <b>${foodPerDay()} food a day</b>. Reach the border fort at the top and hold it.`;
-  $('#smapLegend').innerHTML = Object.keys(LEGEND).map(t => `<span>${icon(t)}<span><b style="color:var(--gold);font-family:var(--serif);font-size:14px">${NODE_INFO[t].n}</b>: ${LEGEND[t]}</span></span>`).join('');
+  $('#smapLegend').innerHTML = Object.keys(LEGEND).map(t => `<span>${icon(t)}<span><b>${NODE_INFO[t].n}</b><small>${LEGEND[t]}</small></span></span>`).join('');
   $('#smapBack').hidden = true;   // the phases only go forward
   resBar($('#smapRes'));
   highlightMap(); $('#smap').hidden = false;
@@ -6022,9 +6083,9 @@ function updateHint(dt) {
   if (playing) {
     if (!HINTS.ride && S.phase === 'dusk') h = '<kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ride';
     else if (!HINTS.esc && S.phase === 'dusk') { h = '<kbd>Esc</kbd> pause, options and every key'; if ((el._escT = (el._escT || 0) + dt) > 8) usedHint('esc'); }
-    else if ((HINTS.gallop || 0) < 3 && rideT > 6 && S.state === 'day') h = 'Hold <kbd>Shift</kbd>: gallop';
-    else if (!HINTS.tab && S.phase === 'prep') h = 'Hold <kbd>Tab</kbd>: the whole field';
-    else if ((HINTS.volley || 0) < 2 && S.state === 'night') h = 'Tap <kbd>Space</kbd>: a volley';
+    else if ((HINTS.gallop || 0) < 3 && rideT > 6 && S.state === 'day') h = '<kbd>Shift</kbd> hold to gallop';
+    else if (!HINTS.tab && S.phase === 'prep') h = '<kbd>Tab</kbd> hold to see the whole field';
+    else if ((HINTS.volley || 0) < 2 && S.state === 'night') h = '<kbd>Space</kbd> tap for a volley';
   }
   if (h) setHTML(el, h);
   setHidden(el, !h);
@@ -6036,14 +6097,16 @@ const wTags = {}, rTags = {};
 let clearTopMemo = null, promptMemo = null;   // the panels' boxes, read once a frame rather than once per label
 // the docked action box: a label pinned to the bottom edge steps above it rather than hide under it
 function belowPrompt(x, w, y) {
-  if (!ui.prompt || ui.prompt.hidden) return y;
-  const r = promptMemo || (promptMemo = ui.prompt.getBoundingClientRect());
-  return Math.abs(x - (r.left + r.right) / 2) < r.width / 2 + w / 2 + 8 && y > r.top - 6 ? r.top - 10 : y;
+  if (!promptMemo) promptMemo = [ui.prompt, $('#help')].filter(e => e && !e.hidden).map(e => e.getBoundingClientRect());
+  for (const r of promptMemo) if (Math.abs(x - (r.left + r.right) / 2) < r.width / 2 + w / 2 + 8 && y > r.top - 6) y = r.top - 10;
+  return y;
 }
-function clearTop(x) {
-  if (!clearTopMemo) clearTopMemo = ['#goal', '#status', '#keepBox', '#phases'].map(id => $(id)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect());
+function clearTop(x, w) {   // w: the width of what is being placed, when known
+  // the banner and the callout count too: a marker pinned at the top edge must never sit under them
+  if (!clearTopMemo) clearTopMemo = ['#goal', '#status', '#keepBox', '#phases', '#callout', '#banner.show'].map(id => $(id)).filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.height > 0);
   let top = 60;
-  for (const r of clearTopMemo) if (x > r.left - 90 && x < r.right + 90) top = Math.max(top, r.bottom);
+  const mg = w ? w / 2 + 8 : 90;
+  for (const r of clearTopMemo) if (x > r.left - mg && x < r.right + mg) top = Math.max(top, r.bottom);
   return top;
 }
 function screenTag(el, p, y, pin) {
@@ -6053,8 +6116,11 @@ function screenTag(el, p, y, pin) {
   if (off && !pin) { steady(el, false, 0.25); if (el.hidden) return; }
   else setHidden(el, false);
   if (behind) { x = innerWidth - x; yy = innerHeight - m; }
-  setClass(el, 'edge', off && pin);
-  el._px = clamp(x, m + 50, innerWidth - m - 50); el._py = belowPrompt(el._px, sizeOf(el).w, clamp(yy, off && pin ? clearTop(el._px) + 50 : m + 70, innerHeight - m));
+  // anchored at its foot, so it clears the panels by its own height; pushed off its spot it loses its pointer
+  el._px = clamp(x, m + 50, innerWidth - m - 50);
+  const floor = clearTop(el._px, sizeOf(el).w) + sizeOf(el).h + 12;
+  setClass(el, 'edge', (off && pin) || yy < floor);
+  el._py = belowPrompt(el._px, sizeOf(el).w, clamp(yy, floor, innerHeight - m));
   el._offAt = off && !pin ? el._offAt : null;
 }
 let grouped = false;
@@ -6230,7 +6296,7 @@ $('#copyRun').addEventListener('click', () => {
 });
 function start() {
   if (S.state !== 'title') return;
-  $('#title').hidden = true; $('#status').hidden = false; $('#keepBox').hidden = false; $('#help').hidden = false;
+  $('#title').hidden = true; $('#status').hidden = false; $('#keepBox').hidden = false;
   startDay();
 }
 $('#startBtn').addEventListener('click', () => { Sound.init(); start(); });
