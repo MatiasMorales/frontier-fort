@@ -440,7 +440,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
-<div id="buildTag" class="buildTag">Build 23 · 26 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 24 · 26 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3158,6 +3158,7 @@ function updateHero(dt) {
   let iz = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0) + stick.y;
   const il = Math.hypot(ix, iz); if (il > 1) { ix /= il; iz /= il; }
   const moving = il > 0.08;
+  hero.steering = moving;   // the player's hand on the keys, whether or not the horse can go that way
   // the dash: a tap of Shift throws the horse forward for a moment, nothing can touch it
   hero.dashCd = Math.max(0, (hero.dashCd || 0) - dt); hero.dashT = Math.max(0, (hero.dashT || 0) - dt);
   if (hero.dashT > 0) {
@@ -3180,9 +3181,10 @@ function updateHero(dt) {
     if (d < keep.radius + 0.5) { const k = (keep.radius + 0.5) / d; hero.pos.x *= k; hero.pos.z *= k; }
     hero.face += angDiff(Math.atan2(ix, iz), hero.face) * Math.min(1, dt * 12);
     hero.bob += dt * (sprinting ? 17 : 14);
-    // one knock per fall of a hoof, taken straight off the gait cycle
-    const stride = Math.floor(hero.bob / Math.PI);
-    if (stride !== hero.lastStride) { hero.lastStride = stride; Sound.play('hoof'); }
+    // one stride of hoofbeats per gait cycle, timed to it: four beats and a silence at the gallop, two at the trot,
+    // on a bridge's planks the hollow clop
+    const stride = Math.floor(hero.bob / TAU);
+    if (stride !== hero.lastStride) { hero.lastStride = stride; Sound.gait(hero.galloping ? 'gallop' : 'trot', TAU / (sprinting ? 17 : 14), 0.75, onBridge(hero.pos)); }   // 0.75: twice the footfalls of the old sound, so each is softer
   }
   hero.pos.y = groundY(hero.pos);
   // the charge: ride flat out and you trample foot raiders, knocking them aside (or into the river)
@@ -4047,6 +4049,58 @@ const Sound = (() => {
     a.gain.setValueAtTime(g, ctx.currentTime); a.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     src.connect(bp); bp.connect(a); a.connect(sfxG); src.start(); src.stop(ctx.currentTime + dur + 0.02);
   }
+  // ---- the same blocks at a time of our choosing, because a stride is several hooves a few milliseconds apart ----
+  function noiseAt(t, dur, g, f0, f1, q, type) {
+    if (g < 0.0002) return;
+    const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), a = ctx.createGain();
+    src.buffer = noiseBuf(); f.type = type || 'bandpass'; f.Q.value = q || 1;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    a.gain.setValueAtTime(0, ctx.currentTime); a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);   // silent until it is due
+    src.connect(f); f.connect(a); a.connect(sfxG); src.start(t, Math.random() * 0.4); src.stop(t + dur + 0.02);   // a fresh stretch of noise each time
+  }
+  function thumpAt(t, f0, f1, dur, g) {   // a weight arriving: a low sine that sags in pitch, no ring
+    const o = ctx.createOscillator(), a = ctx.createGain(); o.type = 'sine';
+    o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    a.gain.setValueAtTime(0, ctx.currentTime); a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(g, t + 0.004); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(a); a.connect(sfxG); o.start(t); o.stop(t + dur + 0.02);
+  }
+  // grains: tiny bright ticks scattered in time. Earth kicked up, dust, lamellar plates knocking, splinters, embers
+  function grit(t, span, n, g, lo, hi) { for (let i = 0; i < n; i++) { const f = lo * Math.pow(hi / lo, Math.random()); noiseAt(t + Math.random() * span, 0.007 + Math.random() * 0.012, g * (0.35 + Math.random() * 0.65), f, f * 0.85, 2.5); } }
+  function pluck(f, t, g, dur) {   // a plucked string on the effects bus: the Karplus-Strong string the zheng uses
+    const src = ctx.createBufferSource(), a = ctx.createGain(); src.buffer = ksTable(); src.playbackRate.setValueAtTime(f / KS_REF, t);
+    a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(a); a.connect(sfxG); src.start(t); src.stop(t + dur + 0.02);
+  }
+  // One hoof on earth. The old sound was a bright click and a hollow ring: a clip-clop, which is iron on stone (or the
+  // coconut shells of radio plays). On a dirt road a hoof lands as a dull low thump that does not ring, a soft pat as
+  // it bites the ground, and a scatter of grit thrown up behind. far (0..1) takes the detail away with distance.
+  function hoofFall(t, g, far) {
+    const j = 0.9 + Math.random() * 0.2;
+    // most of it sits where a laptop speaker can play it (150-600 Hz): a hoof that lives only in the sub-bass is silent there
+    noiseAt(t, 0.1, 2.6 * g, 340 * j, 160, 0.9);                 // the body of the blow
+    thumpAt(t, 92 * j, 50, 0.07, 0.1 * g);                       // a little weight underneath, for good speakers
+    noiseAt(t + 0.002, 0.05, 1.2 * g * (1 - far * 0.6), 620 * j, 380, 1.2);   // the pat of the hoof biting earth
+    if (far < 0.75) grit(t + 0.012, 0.07, 6, 0.3 * g * (1 - far), 1300, 4800);   // grit thrown up behind
+  }
+  function hoofWood(t, g) {   // on the planks of a bridge the clop is right: a hard knock and a hollow deck
+    const j = 0.9 + Math.random() * 0.2;
+    noiseAt(t, 0.035, 1.5 * g, 1900 * j, 1500, 1.8); noiseAt(t + 0.004, 0.14, 2.2 * g, 360 * j, 300, 6); thumpAt(t, 120 * j, 80, 0.1, 0.3 * g);
+  }
+  // A stride as a horse moves. The gallop is four beats and a silence: hind, hind, fore, fore, then all four feet in
+  // the air ("ta-ta-ta-TUM ... ta-ta-ta-TUM"), the leading forefoot the heaviest. A galloping horse breathes once per
+  // stride, locked to its legs, so each stride carries a short blow. The trot is two beats, each a diagonal pair of
+  // feet landing a hair apart. period: seconds for one whole stride.
+  let breathFlip = false;
+  function gait(kind, period, g, wood, strides) {
+    const t0 = ctx.currentTime + 0.01;
+    const falls = kind === 'gallop' ? [[0, 0.75], [0.14, 0.65], [0.36, 0.85], [0.5, 1.05]] : [[0, 0.8], [0.03, 0.5], [0.5, 0.8], [0.53, 0.5]];
+    for (let s = 0; s < (strides || 1); s++) {
+      const ts = t0 + s * period;
+      for (const [o, k] of falls) { const t = ts + o * period + (Math.random() - 0.5) * 0.006, kk = g * k * (0.9 + Math.random() * 0.2); wood ? hoofWood(t, kk) : hoofFall(t, kk, 0); }
+      if (kind === 'gallop') { breathFlip = !breathFlip; noiseAt(ts + period * 0.52, 0.16, (breathFlip ? 0.16 : 0.12) * g, 620, 360, 1.6); }   // the blow as the forefeet land
+      if (kind === 'gallop' && Math.random() < 0.35) grit(ts + period * 0.55, 0.05, 2, 0.05 * g, 3200, 5200);   // bit rings and stirrup irons
+    }
+  }
   function play(kind, vol) {
     if (!ctx || !st.sfx) return;
     const v = vol === undefined ? 1 : vol;
@@ -4056,43 +4110,27 @@ const Sound = (() => {
     switch (kind) {
       // a bowstring is a pitched thrum, not a hiss
       // release, then the shaft going away from you: a short bright snap into a falling hiss
-      case 'bow':    noise(0.035, 0.45, 3600, 2000, 1.2); noise(0.26, 0.22, 2600, 380, 0.5); break;
-      case 'foeBow': noise(0.035, 0.11, 3100, 1700, 1.2); noise(0.26, 0.055, 2200, 320, 0.5); break;
+      // the string thrums (a real plucked string, low and short), the release snaps, the shaft hisses away
+      case 'bow':    pluck(112 + Math.random() * 14, now, 0.34, 0.2); noise(0.03, 0.34, 3600, 2000, 1.2); noise(0.24, 0.18, 2600, 380, 0.5); break;
+      case 'foeBow': pluck(104 + Math.random() * 14, now, 0.09, 0.18); noise(0.03, 0.09, 3100, 1700, 1.2); noise(0.24, 0.045, 2200, 320, 0.5); break;
       case 'volley': noise(0.05, 0.9, 3800, 2200, 1.0); noise(0.55, 0.6, 3000, 300, 0.45); break;   // a flight of them
-      case 'hit':    noise(0.07, 0.9, 900, 260, 1.4); blip(150, 80, 0.07, 0.6, 'sine'); break;   // a dull thud
-      case 'death':  blip(130, 52, 0.28, 0.5, 'sine'); noise(0.17, 0.35, 480, 160, 1.2); break;
-      case 'hurt':   blip(200, 78, 0.26, 0.6, 'triangle'); noise(0.12, 0.3, 700, 240, 1.2); break;
+      case 'hit':    noiseAt(now, 0.05, 1.1, 1300, 600, 1.3); noiseAt(now, 0.09, 1.8, 340, 170, 1); break;   // an arrow striking home: a sharp thock with weight behind it
+      // no falling synth tone: a body going down is a heavy thud on earth, gear and dust, and the breath knocked out
+      case 'death':  noiseAt(now, 0.2, 0.3, 700, 380, 2.4); noiseAt(now + 0.06, 0.18, 2.2, 260, 130, 0.9); thumpAt(now + 0.06, 78, 42, 0.16, 0.18); grit(now + 0.07, 0.14, 8, 0.24, 1200, 5200); break;
+      case 'hurt':   noiseAt(now, 0.1, 2.0, 420, 200, 1); thumpAt(now, 110, 60, 0.1, 0.14); grit(now, 0.1, 10, 0.34, 2800, 6800); break;   // the blow, and his lamellar plates knocking
       case 'build':  noise(0.06, 1.6, 1700, 1300, 3); setTimeout(() => { if (ctx && st.sfx) noise(0.07, 1.3, 1250, 950, 3); }, 105); break;  // two knocks of a mallet
-      case 'fire':   noise(0.6, 0.9, 420, 1500, 0.6); break;
+      case 'fire':   noise(0.6, 0.9, 420, 1500, 0.6); grit(now + 0.05, 0.6, 12, 0.22, 1500, 5500); break;   // the whoosh, then it crackles
       case 'bell':   gong(ctx.currentTime, 0.45, sfxG); break;
       case 'ability':gong(ctx.currentTime, 0.1, sfxG); break;
-      case 'crash':  noise(0.55, 0.8, 330, 80, 0.7); blip(110, 44, 0.4, 0.45, 'sine'); break;
-      case 'foeHoof':
-      case 'hoof': {
-        const hv = kind === 'foeHoof' ? 0.5 * v : v;
-        // A hoof is a hard click on the ground plus a short hollow ring, and the beats of a
-        // canter alternate, so the pitch is jittered and the two-beat is offset a little.
-        hoofBeat = !hoofBeat;
-        const t0 = ctx.currentTime, base = (hoofBeat ? 1 : 0.86) * (0.95 + Math.random() * 0.1);
-        const clack = ctx.createBufferSource(), cf = ctx.createBiquadFilter(), ca = ctx.createGain();
-        clack.buffer = noiseBuf();
-        cf.type = 'bandpass'; cf.frequency.value = 2100 * base; cf.Q.value = 1.8;
-        ca.gain.setValueAtTime(2.0 * hv, t0); ca.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.035);
-        clack.connect(cf); cf.connect(ca); ca.connect(sfxG); clack.start(t0); clack.stop(t0 + 0.04);
-        const body = ctx.createBufferSource(), bf = ctx.createBiquadFilter(), ba = ctx.createGain();
-        body.buffer = noiseBuf();
-        bf.type = 'bandpass'; bf.frequency.value = 380 * base; bf.Q.value = 6;
-        ba.gain.setValueAtTime(0, t0); ba.gain.setValueAtTime(4.2 * hv, t0 + 0.004); ba.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.13);
-        body.connect(bf); bf.connect(ba); ba.connect(sfxG); body.start(t0); body.stop(t0 + 0.14);
-        const dust = ctx.createBufferSource(), df = ctx.createBiquadFilter(), da = ctx.createGain();
-        dust.buffer = noiseBuf(); df.type = 'lowpass'; df.frequency.value = 520;
-        da.gain.setValueAtTime(1.3 * hv, t0); da.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
-        dust.connect(df); df.connect(da); da.connect(sfxG); dust.start(t0); dust.stop(t0 + 0.08);
-        break;
-      }
+      case 'crash':  noise(0.55, 0.8, 330, 80, 0.7); thumpAt(now, 72, 40, 0.34, 0.42); grit(now, 0.4, 16, 0.26, 700, 2800); break;   // a cart breaking up: a heavy thud and splintering
+      // raiders' horses: one hoof on earth each, fainter and plainer with distance (vol is 1 near, 0 at 20 units)
+      case 'foeHoof': hoofFall(now, 0.5 * v, 1 - v); break;
+      case 'hoof':    hoofFall(now, v, 0); break;
+      case 'gallop':  gait('gallop', 0.37, v, false, 4); break;   // for the audio test: four strides
+      case 'trot':    gait('trot', 0.45, v, false, 4); break;
       // blows, by who is struck: a raider cut or stabbed, one of ours struck, a cart hacked at
-      case 'meleeHit': noise(0.05, 0.9 * v, 1700, 700, 1.3); blip(210, 95, 0.09, 0.5 * v, 'triangle'); break;
-      case 'foeHit': noise(0.06, 0.8 * v, 900, 320, 1.2); blip(150, 70, 0.14, 0.55 * v, 'sine'); noise(0.04, 0.25 * v, 3800, 2600, 3); break;
+      case 'meleeHit': noiseAt(now, 0.035, 1.0 * v, 2600, 1300, 1.5); noiseAt(now + 0.004, 0.09, 1.9 * v, 380, 170, 1); break;   // the edge, then the weight of the blow
+      case 'foeHit': noiseAt(now, 0.08, 1.8 * v, 420, 180, 1); grit(now, 0.07, 8, 0.3 * v, 2800, 6500); break;   // struck through lamellar: a thud and the plates knocking
       case 'woodHit': noise(0.09, 1.1 * v, 620, 260, 2.2); noise(0.03, 0.5 * v, 2400, 1500, 2); break;
       case 'slash':  noise(0.05, 0.7, 5200, 2600, 1.6); noise(0.16, 0.28, 2600, 700, 0.8); break;   // a cut through the air
       case 'draw':   noise(0.22, 0.4, 1400, 4200, 3); break;                                        // steel leaving a scabbard
@@ -4178,6 +4216,7 @@ const Sound = (() => {
     }
     const buf = await oc.startRendering();
     const d = buf.getChannelData(0);
+    window.__audioOut = d;   // tools/audiowav.mjs saves it as a WAV, to be listened to
     Object.assign({}, save);
     ctx = save.ctx; master = save.master; musicG = save.musicG; sfxG = save.sfxG; nb = save.nb; ksBuf = save.ksBuf;
     mood = save.mood; phrase = save.phrase; pi = save.pi; beat = save.beat; prevF = save.prevF;
@@ -4223,7 +4262,7 @@ const Sound = (() => {
       env: envelope(d, sr, 12),
     };
   }
-  return { init, play, setMood, tick, st, volumes, renderOffline, get ready() { return !!ctx; } };
+  return { init, play, setMood, tick, st, volumes, renderOffline, gait: (k, p, g, wood) => { if (ctx && st.sfx) gait(k, p, g, wood); }, get ready() { return !!ctx; } };
 })();
 
 /* ================= input ================= */
@@ -6228,7 +6267,9 @@ function updateConvoy(dt) {
   if (S.state !== 'day' && S.state !== 'night') updateThreats();
   if (circling) updateCircling(dt);
   updatePreview(); updateSacks(dt); updateTags(); updateCrew(dt); updateFloaters(dt);
-  stillT = hero.pos.distanceTo(lastHero) < 0.01 ? stillT + dt : 0; lastHero.copy(hero.pos);
+  // stopped means the player let go, not that the horse is pressed against a cliff: the action box used to pop up
+  // while riding into a wall and vanish as he slid along it
+  stillT = hero.pos.distanceTo(lastHero) < 0.01 && !hero.steering ? stillT + dt : 0; lastHero.copy(hero.pos);
   if (S.towing) {
     if (!S.towing.building) S.towing = null;
     else { const r = hero.face; wagonAt(S.towing, hero.pos.x - Math.sin(r) * 3.3, hero.pos.z - Math.cos(r) * 3.3, r); }
@@ -6294,6 +6335,19 @@ $('#copyRun').addEventListener('click', () => {
   const done = () => { note.textContent = 'Copied. Paste it into a message to Matias: it helps balance the game.'; };
   (navigator.clipboard ? navigator.clipboard.writeText(txt).then(done) : Promise.reject()).catch(() => { const ta = Object.assign(document.createElement('textarea'), { value: txt }); document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { note.textContent = 'Copy failed: select the text above.'; } ta.remove(); });
 });
+// A newer build replaces an old cached page on its own. GitHub Pages lets a browser keep the page ten minutes
+// (cache-control: max-age=600), and an old page has twice been mistaken for missing changes. While the title screen is
+// up, the page asks the server for itself past the cache; if the build number there is higher, it reloads, once.
+// Never during a run, and never from a file (the tests).
+;(function freshBuild() {   // the semicolon: the line before ends without one
+  if (!/^https?:/.test(location.protocol)) return;
+  const mine = +((document.querySelector('.buildTag') || {}).textContent || '').replace(/\D*(\d+).*/, '$1') || 0;
+  fetch(location.href.split('#')[0], { cache: 'no-store' }).then(r => r.text()).then(t => {
+    const m = t.match(/buildTag">Build (\d+)/), live = m ? +m[1] : 0;
+    let tried = null; try { tried = sessionStorage.getItem('wagon-road-reload'); } catch (e) {}
+    if (live > mine && S.state === 'title' && tried !== String(live)) { try { sessionStorage.setItem('wagon-road-reload', String(live)); } catch (e) {} location.reload(); }
+  }).catch(() => {});
+})();
 function start() {
   if (S.state !== 'title') return;
   $('#title').hidden = true; $('#status').hidden = false; $('#keepBox').hidden = false;
