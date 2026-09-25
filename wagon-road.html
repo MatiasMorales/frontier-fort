@@ -73,6 +73,8 @@ canvas#game{ position:fixed; inset:0; width:100%; height:100%; display:block; to
 
 #prompt{ position:fixed; z-index:7; transform:translate(-50%,-100%); padding:10px 12px 10px; min-width:210px; max-width:280px; pointer-events:auto; }
 #prompt[hidden]{ display:none; }
+#prompt.holding{ filter:drop-shadow(0 0 10px rgba(224,184,90,.55)); }
+#prompt.holding .opt.sel{ border-color:var(--gold) !important; }
 .opt{ display:grid; grid-template-columns:1fr auto; gap:1px 10px; padding:6px 8px; border-radius:4px; cursor:pointer; border:1px solid transparent; }
 .opt.sel{ background:rgba(216,180,106,.12); border-color:var(--gold-dim); }
 .opt .n{ font-weight:600; font-size:16px; }
@@ -181,7 +183,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #smap, #shop{ background:radial-gradient(ellipse at center, rgba(26,18,16,.72), rgba(20,13,11,.93)); }
 .smapWrap{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:760px){ .smapWrap{ grid-template-columns:1fr; } }
-#smapSvg{ width:100%; height:auto; max-height:calc(100vh - 290px); margin:0 auto; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
+#smapSvg{ width:100%; height:auto; max-height:calc(100vh - 335px); margin:0 auto; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
 #smapSvg line{ stroke:#8a7353; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 7; opacity:.7; }
 #smapSvg line.live{ stroke:#a3352c; stroke-dasharray:none; opacity:.8; }
 #smapSvg line.walked{ stroke:#6b2a22; stroke-dasharray:none; stroke-width:5; opacity:.9; }
@@ -244,6 +246,9 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .column .cc img{ width:30px; height:22px; object-fit:cover; border-radius:10px; background:#e7d8b7; }
 .column .cc.new{ border-color:#e0b85a; animation:ccPop 1s ease-out; }
 @keyframes ccPop{ 0%{ transform:scale(1.25); box-shadow:0 0 0 3px rgba(224,184,90,.6); } 100%{ transform:scale(1); box-shadow:none; } }
+.report .kr, .report .cost{ transition:opacity .25s, transform .25s; }
+.report .kr.pending, .report .cost.pending{ opacity:0; transform:translateX(-8px); }
+.report .kr i{ transition:width .45s cubic-bezier(.2,.8,.3,1); }
 .report{ margin:10px auto 4px; max-width:520px; text-align:left; padding:10px 14px; border:1px solid var(--lacquer-edge); border-radius:6px; background:rgba(20,12,10,.45); }
 .report > b{ display:block; color:var(--gold); margin-bottom:6px; }
 .report .kr{ display:grid; grid-template-columns:150px 1fr 34px; align-items:center; gap:8px; font-size:14px; margin:2px 0; }
@@ -266,6 +271,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #smapOpts .cn{ font-family:var(--brush); font-size:20px; }
 .tablet .cost{ display:flex; gap:10px; justify-content:center; font-size:14px; margin:2px 0; }
 .tablet.done{ border-color:var(--gold); }
+.tablet.rare{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(224,184,90,.35), 0 0 22px rgba(224,184,90,.35), 0 10px 26px rgba(0,0,0,.4); }
 .tablet:disabled{ opacity:.45; cursor:not-allowed; transform:none; }
 #help{ position:fixed; left:calc(14px + env(safe-area-inset-left,0px)); bottom:calc(12px + env(safe-area-inset-bottom,0px)); z-index:5; font-size:13.5px; color:#e6d6b6; background:rgba(42,20,17,.82); border:1px solid var(--lacquer-edge); border-radius:5px; padding:6px 10px; }
 #help kbd{ font-family:var(--serif); font-weight:600; color:var(--paper); background:rgba(42,20,17,.8); border:1px solid var(--lacquer-edge); border-radius:3px; padding:0 5px; }
@@ -320,7 +326,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 <div id="hurt" style="position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(170,20,10,.55) 100%);transition:opacity .15s"></div>
 <div id="banner"><b id="bannerT"></b><span id="bannerS"></span></div>
 <div id="prompt" class="panel" hidden></div>
-<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> gallop &nbsp; <kbd>Space</kbd> hold: act &nbsp; before the drum: stop to place soldiers, <kbd>◀</kbd><kbd>▶</kbd> how many &nbsp; night (positions locked): stop to shoot, gallop through foot raiders, ride out of the red, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
+<div id="help" hidden><kbd>WASD</kbd> move &nbsp; <kbd>Shift</kbd> gallop &nbsp; <kbd>Tab</kbd> see the field &nbsp; <kbd>Space</kbd> hold: act &nbsp; before the drum: stop to place soldiers, <kbd>◀</kbd><kbd>▶</kbd> how many &nbsp; night (positions locked): stop to shoot, gallop through foot raiders, ride out of the red, tap <kbd>Space</kbd> volley<span id="abHelp"></span></div>
 
 <div id="opts" class="overlay" hidden style="z-index:60">
   <div class="sheet" style="max-width:440px">
@@ -330,7 +336,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="optrow"><label for="oShake">Screen shake</label><input type="checkbox" id="oShake" checked><span class="hintv">turn off if the shaking bothers you</span></div>
     <div class="optrow"><label for="oBloom">Glow and bloom</label><input type="checkbox" id="oBloom" checked><span class="hintv">turn off if it runs slowly</span></div>
     <button class="go" id="oClose" type="button">Back to the valley</button>
-    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 20 · 25 Sep 2026</p>
+    <p class="hintv" style="margin:12px 0 0">Esc closes this too · Build 21 · 25 Sep 2026</p>
   </div>
 </div>
 
@@ -351,7 +357,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
       <span><kbd>Space</kbd>At night: loose a volley</span>
     </div>
     <button class="go" id="startBtn" type="button">Take the road</button>
-    <p class="hintv buildTag" style="margin:12px 0 0">Build 20 · 25 Sep 2026</p>
+    <p class="hintv buildTag" style="margin:12px 0 0">Build 21 · 25 Sep 2026</p>
   </div>
 </div>
 
@@ -397,7 +403,8 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
     <div class="bigseal" id="endSeal">守</div>
     <h1 id="endT">The fort held</h1>
     <p id="endP"></p>
-    <button class="go" id="againBtn" type="button">Play again</button>
+    <p id="endHonour" style="font-size:15px;color:#dccaa6;line-height:1.6"></p>
+    <button class="go" id="againBtn" type="button">Take the road again</button>
     <p style="margin:10px 0 0;font-size:14px"><button type="button" id="copyRun" style="font:inherit;font-size:14px;padding:4px 12px;border-radius:14px;border:1px solid #9c8250;background:transparent;color:#eadbc0;cursor:pointer">Copy run report</button> <span id="copyNote" style="color:#a8977a">Optional: what you chose and how each night went, to help balance the game. Nothing is sent by itself.</span></p>
   </div>
 </div>
@@ -2102,7 +2109,7 @@ function refreshHUD() {
     ? (S.waves > 1 ? `Night \u2014 assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}` : 'Night, hold the valley')
     : WAGON ? ({ map: 'Choose the road', shop: 'Making ready', dusk: 'Dusk: make camp', circling: 'Circling the wagons', prep: 'Set the field' }[S.phase] || 'Daylight') : 'Daylight, build';
 }
-let bannerTimer = 0, shake = 0, freeze = 0, slowMo = 0;
+let bannerTimer = 0, shake = 0, freeze = 0, slowMo = 0, overviewK = 0, killer = null, shooter = null;
 function hitStop(ms) { freeze = Math.max(freeze, ms / 1000); }
 function kick(a) { if (QUALITY.shake) shake = Math.min(1.2, shake + a); }
 function banner(t, s, dur) { ui.bannerT.textContent = t; ui.bannerS.textContent = s || ''; ui.banner.classList.add('show'); bannerTimer = dur || 3.2; }
@@ -2216,6 +2223,8 @@ function damage(ent, dmg, from, src) {
     if (src === 'blade') { if (ent.t.bladeMul) { dmg *= ent.t.bladeMul; Sound.play('clang'); } }
     else if (ARROW_SRC[src] && ent.t.bowMul) { dmg *= ent.t.bowMul; if (src === 'hero') Sound.play('clang'); }
   }
+  if (WAGON && ent.isSoldier && S.rares.drill && ent.posted) dmg *= 0.75;
+  if (WAGON && ent.etype && S.rares.lance && S.fire && ent.fireT > 0) dmg *= 1.5;   // fire lances with fire arrows: burning raiders take more
   if (src && ent.etype && src in S.dmgBy) S.dmgBy[src] += Math.min(dmg, ent.hp);
   if (ent.isKeep) {                       // only so many can get at the gates at once
     if (keep.recent > KEEP_DPS_CAP) return;
@@ -2232,13 +2241,15 @@ function damage(ent, dmg, from, src) {
     if (ent.shieldHp <= 0) { if (ent.shieldMesh) ent.shieldMesh.visible = false; puff(ent.pos, '#9aa0aa', 6, 1.4); }
     else if (Math.random() < 0.25) puff(ent.pos, '#b9bec7', 1, 1.2);
   }
+  if (ent.etype && ent.hp > 0 && ent.hp - dmg <= 0 && killer && killer.roster) killer.roster.kills = (killer.roster.kills || 0) + 1;
   if (ent.etype && ent.hp > 0 && ent.hp - dmg <= 0 && S.nightKills) {
     S.nightKills[src || 'other'] = (S.nightKills[src || 'other'] || 0) + 1;
     // the war drum: every raider the commander drops beats it harder; full, the column surges
     if (WAGON && src === 'hero' && !(S.drumT > 0)) { S.drum = (S.drum || 0) + 1;
       if (S.drum >= 8) { S.drum = 0; S.drumT = 8; banner('The war drums quicken', 'Every soldier and cart fights a third harder for a few breaths.', 2); Sound.play('ability'); kick(0.25); } }
   }
-  if (window.__dmgLog && ent.plot && isSupply(ent.kind)) window.__dmgLog.push([src || (from ? 'shot' : 'melee'), dmg]);   // test harness: what hurts the loads
+  if (window.__dmgLog && ent.plot && isSupply(ent.kind)) window.__dmgLog.push([src || (from ? 'shot' : 'melee'), dmg]);
+  if (WAGON && ent.plot && ent.kind === 'food' && S.foodDmg) { const k = src || (from ? 'shot' : 'melee'); S.foodDmg[k] = (S.foodDmg[k] || 0) + Math.min(dmg, ent.hp); }   // what burned it, for the end screen   // test harness: what hurts the loads
   ent.hp -= dmg;
   hitSound(ent, src);
   // a fire arrow in a supply wagon burns part of the load, for as long as nobody stops the archers
@@ -2429,8 +2440,11 @@ function navGoal(s, goal) {
 }
 function updateSoldiers(dt) {
   for (const s of soldiers) {
-    const g = s.m.g;
-    if (!s.alive) { s.dying -= dt; g.scale.setScalar(Math.max(0.01, s.dying / 0.35) * 0.95); if (s.dying <= 0) g.visible = false; continue; }
+    const g = s.m.g; if (s.ph === undefined) s.ph = Math.random() * 10;
+    if (!s.alive) { s.dying -= dt; const k = Math.max(0, s.dying / 0.35);
+      if (WAGON) { g.rotation.z = (1 - k) * 1.45; if (s.dying <= 0 && g.visible) { g.visible = false; addFallen({ pos: s.pos, m: { g }, etype: 'ours' }); } }
+      else { g.scale.setScalar(Math.max(0.01, k) * 0.95); if (s.dying <= 0) g.visible = false; }
+      continue; }
     s.cd -= dt; s.bob += dt * 10; s.atkT = Math.max(0, s.atkT - dt);
     s.sprintT = Math.max(0, (s.sprintT || 0) - dt); s.hornT = Math.max(0, (s.hornT || 0) - dt);
     const prev = s.pos.clone();
@@ -2449,15 +2463,16 @@ function updateSoldiers(dt) {
       if (t && s.tgt !== t) t.engaged = (t.engaged || 0) + 1;
       s.tgt = t;
       // badly wounded men fall back to the wagons rather than die at their post
-      if (WAGON && s.hp < s.max * 0.25 && S.camp && !s.fallback) { s.fallback = true; s.home = new V3(S.camp.cx + (Math.random() - 0.5) * 3, 0, S.camp.cz + (Math.random() - 0.5) * 3); s.posted = false; }
+      if (WAGON && s.hp < s.max * 0.25 && S.camp && !s.fallback && !(S.rares.drill && s.posted)) { s.fallback = true; s.home = new V3(S.camp.cx + (Math.random() - 0.5) * 3, 0, S.camp.cz + (Math.random() - 0.5) * 3); s.posted = false; }
     }
     // somehow in the water (a bridge burned under him, a shove): wade to the nearest dry ground first
     const wet = WAGON && blocked(s.pos.x, s.pos.z) && (navGrid(), navSnap(s.pos, 8));
     if (wet) moveDirect(s.pos, new V3(wet[0] - NAV.half, 0, wet[1] - NAV.half), 3 * dt);
     else if (t) {
-      const dmg = st.dmg * (WAGON ? rankMul(s.type || 'spear') : 1) * (WAGON && s.type === 'spear' && rankOf('spear') >= 3 && t.m && t.m.rider ? 2 : 1) * (s.ambush ? 1.5 : 1) * (S.vetMul > 1 ? 1.3 : 1) * S.morale * (S.drumT > 0 ? 1.33 : 1) * (s.hornT > 0 ? 1.5 : 1) * (WAGON ? S.soldierStr * (s.hungry ? 0.7 : 1) : 1), d = t.pos.distanceTo(s.pos);
-      if (st.range && d < rng) { if (s.cd <= 0) { const fire = S.fire; shoot(s.pos.clone().setY(s.pos.y + 1.3), t, dmg, fire ? 'fire' : 'friend', false, null, 'archers'); s.cd = st.cd; s.atkT = 0.3; } }
-      else if (!st.range && d < st.reach + t.t.rad) { if (s.cd <= 0) { damage(t, dmg, s.pos, s.type === 'horse' ? 'horse' : 'spears');
+      const duck = WAGON && S.rares.duck && s.type === 'spear' && soldiers.filter(o => o !== s && o.alive && o.type === 'spear' && o.pos.distanceTo(s.pos) < 3).length >= 2 ? 1.4 : 1;
+      const dmg = duck * st.dmg * (WAGON ? rankMul(s.type || 'spear') : 1) * (WAGON && s.type === 'spear' && rankOf('spear') >= 3 && t.m && t.m.rider ? 2 : 1) * (s.ambush ? 1.5 : 1) * (S.vetMul > 1 ? 1.3 : 1) * S.morale * (S.drumT > 0 ? 1.33 : 1) * (s.hornT > 0 ? 1.5 : 1) * (WAGON ? S.soldierStr * (s.hungry ? 0.7 : 1) : 1), d = t.pos.distanceTo(s.pos);
+      if (st.range && d < rng) { if (s.cd <= 0) { const fire = S.fire; shooter = s; shoot(s.pos.clone().setY(s.pos.y + 1.3), t, dmg, fire ? 'fire' : 'friend', false, null, 'archers'); shooter = null; s.cd = st.cd; s.atkT = 0.3; } }
+      else if (!st.range && d < st.reach + t.t.rad) { if (s.cd <= 0) { killer = s; damage(t, dmg, s.pos, s.type === 'horse' ? 'horse' : 'spears'); killer = null;
         // a blow lands with weight: the raider is shoved back (hard, from a horseman of rank 3)
         if (WAGON && t.alive && t.etype !== 'captain') { const kx = t.pos.x - s.pos.x, kz = t.pos.z - s.pos.z, kl = Math.hypot(kx, kz) || 1, kk = s.type === 'horse' ? (rankOf('horse') >= 3 ? 1.4 : 0.6) : 0.25;
           const ox = t.pos.x, oz = t.pos.z; t.pos.x += kx / kl * kk; t.pos.z += kz / kl * kk; if (blocked(t.pos.x, t.pos.z)) { t.pos.x = ox; t.pos.z = oz; } t.punch = 0.16; } s.cd = st.cd; s.atkT = 0.3; } }
@@ -2466,19 +2481,26 @@ function updateSoldiers(dt) {
     const mv = tmp.subVectors(s.pos, prev), moving = mv.lengthSq() > 1e-6;
     if (moving) g.rotation.y = Math.atan2(mv.x, mv.z);
     else if (t) g.rotation.y = Math.atan2(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
-    else g.rotation.y += angDiff(s.house.plot.rotY, g.rotation.y) * Math.min(1, dt * 4);
-    if (s.m.rider) animArcher(s.m, s.bob, moving, 0, 0); else animFoot(s.m, s.bob, moving, s.atkT / 0.3);
+    // at rest a man looks about him now and then, each on his own slow rhythm, so a posted squad is not a row of statues
+    else g.rotation.y += angDiff(s.house.plot.rotY + (WAGON ? Math.sin(clock * 0.45 + s.ph * 1.7) * 0.7 * Math.max(0, Math.sin(clock * 0.21 + s.ph)) : 0), g.rotation.y) * Math.min(1, dt * 4);
+    // the night is won: weapons up and a jump, each man a beat apart
+    const cheer = WAGON && S.state === 'night' && S.clearT > 0 ? Math.max(0, Math.sin((S.clearT * 2.6 - s.ph * 0.12) * Math.PI)) : 0;
+    if (s.m.rider) animArcher(s.m, s.bob, moving, 0, 0); else animFoot(s.m, s.bob, moving, cheer ? 1 - cheer : s.atkT / 0.3);
     s.pos.y = groundY(s.pos);
-    g.position.set(s.pos.x, s.pos.y + (moving ? Math.abs(Math.sin(s.bob)) * 0.08 : 0), s.pos.z);
+    g.position.set(s.pos.x, s.pos.y + (moving ? Math.abs(Math.sin(s.bob)) * 0.08 : 0) + cheer * 0.35, s.pos.z);
   }
 }
 
 /* ================= effects & projectiles ================= */
 const puffGeo = new THREE.IcosahedronGeometry(0.35, 0);
+// Pools: the effects of a busy night (puffs, arrows, danger circles) are reused rather than made and thrown away,
+// so the garbage collector has nothing to sweep mid-fight (forum wisdom on JS game stutter; hundreds a night before).
+const puffPool = [], arrowPool = { friend: [], fire: [], foe: [] }, dangerPool = [];
 function puff(pos, color, n, up) {
   const hot = color === '#ff9a45' || color === '#ff6a1a';
   for (let i = 0; i < n; i++) {
-    const m = new THREE.Mesh(puffGeo, new THREE.MeshStandardMaterial({ color, flatShading: true, transparent: true, opacity: 0.9, emissive: hot ? color : '#000000', emissiveIntensity: 0.9 }));
+    const m = puffPool.pop() || new THREE.Mesh(puffGeo, new THREE.MeshStandardMaterial({ flatShading: true, transparent: true, emissiveIntensity: 0.9 }));
+    m.material.color.set(color); m.material.emissive.set(hot ? color : '#000000'); m.material.opacity = 0.9; m.scale.setScalar(1);
     m.position.set(pos.x + (Math.random() - 0.5) * 1.6, (pos.y || 0) + 0.3 + Math.random() * 0.6, pos.z + (Math.random() - 0.5) * 1.6);
     scene.add(m); puffs.push({ m, v: new V3((Math.random() - 0.5) * 1.5, (up || 1.5) + Math.random() * 1.5, (Math.random() - 0.5) * 1.5), t: 0, life: 0.7 + Math.random() * 0.4 });
   }
@@ -2486,9 +2508,9 @@ function puff(pos, color, n, up) {
 const arrowGeo = B(0.05, 0.05, 0.75), rocketGeo = B(0.08, 0.08, 0.5), ballGeo = new THREE.SphereGeometry(0.22, 8, 6);
 const arrowMats = { friend: M('#efe3c4'), fire: M('#ff8a2a', { emissive: '#ff6a00', emissiveIntensity: 1.2 }), foe: M('#3a3f5a') };
 function shoot(fromPos, target, dmg, kind, splash, opt, src) {
-  const m = new THREE.Mesh(arrowGeo, arrowMats[kind]); m.castShadow = true;
+  const m = arrowPool[kind].pop() || new THREE.Mesh(arrowGeo, arrowMats[kind]); m.castShadow = false;
   const dist = fromPos.distanceTo(target.pos);
-  scene.add(m); shots.push({ m, from: fromPos.clone(), target, dmg, splash, src, fire: kind === 'fire' && !!target.etype, dur: opt && opt.dur ? opt.dur : 0.12 + dist * 0.035, k: 0, arc: opt && opt.arc ? opt.arc : 0.4 + dist * 0.12 });
+  scene.add(m); shots.push({ m, by: shooter, pool: kind, from: fromPos.clone(), target, dmg, splash, src, fire: kind === 'fire' && !!target.etype, dur: opt && opt.dur ? opt.dur : 0.12 + dist * 0.035, k: 0, arc: opt && opt.arc ? opt.arc : 0.4 + dist * 0.12 });
 }
 function updateShots(dt) {
   for (let i = shots.length - 1; i >= 0; i--) {
@@ -2498,9 +2520,9 @@ function updateShots(dt) {
     const k2 = Math.min(k + 0.05, 1), ahead = a.from.clone().lerp(to, k2); ahead.y += Math.sin(k2 * Math.PI) * a.arc;
     a.m.position.copy(p); if (ahead.distanceToSquared(p) > 1e-6) a.m.lookAt(ahead);
     if (a.k >= 1) {
-      scene.remove(a.m); shots.splice(i, 1);
+      scene.remove(a.m); if (a.pool && a.m.geometry === arrowGeo) arrowPool[a.pool].push(a.m); shots.splice(i, 1);
       if (!a.target.alive && WAGON && !a.ball && !a.splash) addStuck(to, a.from);   // a miss, or a storm arrow: it stays in the ground
-      if (a.target.alive) { damage(a.target, a.dmg, a.from, a.src); Sound.play('hit'); if (a.fire && a.target.alive) ignite(a.target, 2.5); }
+      if (a.target.alive) { killer = a.by; damage(a.target, a.dmg, a.from, a.src); killer = null; Sound.play('hit'); if (a.fire && a.target.alive) ignite(a.target, 2.5); }
       if (a.splash) { if (a.target.alive !== undefined && a.target.etype) ignite(a.target, 3); for (const e of enemies) if (e !== a.target && e.alive && e.pos.distanceTo(to) < 2) { damage(e, a.dmg * 0.5); ignite(e, 2); } puff(to, '#ff9a45', 2); }
       if (a.ball) { for (const e of enemies) if (e !== a.target && e.alive && e.pos.distanceTo(to) < (a.grape ? 3.4 : 1.9)) damage(e, a.dmg * (a.grape ? 0.7 : 0.5), null, a.src); puff(to, '#6d665e', 5, 1.2); puff(to, '#ff9a45', 2, 2); }
     }
@@ -2546,33 +2568,39 @@ function animArcher(u, bob, moving, shootT, aimYaw, gallop) {
 const dangers = [];
 const dangerFill = new THREE.MeshBasicMaterial({ color: '#e0412b', transparent: true, opacity: 0.28, depthWrite: false });
 const dangerEdge = new THREE.MeshBasicMaterial({ color: '#ff5a3c', transparent: true, opacity: 0.85, depthWrite: false });
+const dangerRingGeo = new THREE.RingGeometry(0.94, 1, 36), dangerDiscGeo = new THREE.CircleGeometry(1, 36);
 function circleDanger(x, z, r, dur, dmg) {
-  const g = new THREE.Group(); g.position.set(x, groundY({ x, z }) + 0.09, z); g.rotation.x = -Math.PI / 2;
-  const edge = new THREE.Mesh(new THREE.RingGeometry(r - 0.14, r, 36), dangerEdge); const fill = new THREE.Mesh(new THREE.CircleGeometry(r, 36), dangerFill);
-  edge.renderOrder = fill.renderOrder = 4; g.add(edge, fill); fill.scale.setScalar(0.01); scene.add(g);
-  const d = { kind: 'circle', x, z, r, t: 0, dur, dmg, g, fill }; dangers.push(d); return d;
+  let g = dangerPool.pop();
+  if (!g) { g = new THREE.Group(); g.rotation.x = -Math.PI / 2; const edge = new THREE.Mesh(dangerRingGeo, dangerEdge), fill = new THREE.Mesh(dangerDiscGeo, dangerFill);
+    edge.renderOrder = fill.renderOrder = 4; g.add(edge, fill); g.userData.edge = edge; g.userData.fill = fill; }
+  g.position.set(x, groundY({ x, z }) + 0.09, z); g.scale.setScalar(1); g.userData.edge.scale.setScalar(r); g.userData.fill.scale.setScalar(0.01); scene.add(g);
+  const d = { kind: 'circle', x, z, r, t: 0, dur, dmg, g, fill: g.userData.fill }; dangers.push(d); return d;
 }
+// a landed danger shrinks away for a moment instead of blinking out
+function dropDanger(d) { if (d.kind === 'circle') { scene.remove(d.g); dangerPool.push(d.g); } else { scene.remove(d.g); d.g.traverse(o => { if (o.geometry) o.geometry.dispose(); }); d.fill.material.dispose(); } }
 function laneDanger(x, z, dir, len, w, dur) {
   const g = new THREE.Group(); g.position.set(x, groundY({ x, z }) + 0.09, z); g.rotation.y = dir;
   const geo = new THREE.PlaneGeometry(w, len); geo.rotateX(-Math.PI / 2); geo.translate(0, 0, len / 2);
-  const fill = new THREE.Mesh(geo, dangerFill), edge = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.18).rotateX(-Math.PI / 2).translate(0, 0, len), dangerEdge);
+  const fill = new THREE.Mesh(geo, dangerFill.clone()), edge = new THREE.Mesh(new THREE.PlaneGeometry(w, 0.18).rotateX(-Math.PI / 2).translate(0, 0, len), dangerEdge);
   fill.renderOrder = edge.renderOrder = 4; g.add(fill, edge); scene.add(g);
   const d = { kind: 'lane', t: 0, dur, g, fill, len }; dangers.push(d); return d;
 }
 function updateDangers(dt) {
   for (let i = dangers.length - 1; i >= 0; i--) {
-    const d = dangers[i]; d.t += dt; const k = Math.min(1, d.t / d.dur);
-    if (d.kind === 'circle') d.fill.scale.setScalar(Math.max(0.01, k)); else d.fill.material.opacity = 0.18 + 0.2 * k;
+    const d = dangers[i];
+    if (d.fading !== undefined) { d.fading -= dt; d.g.scale.setScalar(Math.max(0.01, d.fading / 0.18)); if (d.fading <= 0) { dropDanger(d); dangers.splice(i, 1); } continue; }
+    d.t += dt; const k = Math.min(1, d.t / d.dur);
+    if (d.kind === 'circle') d.fill.scale.setScalar(Math.max(0.01, k) * d.r); else d.fill.material.opacity = 0.18 + 0.2 * k;
     if (d.t < d.dur) continue;
     if (d.kind === 'circle') {
       for (const f of [hero, ...soldiers]) if (f.alive && Math.hypot(f.pos.x - d.x, f.pos.z - d.z) < d.r) damage(f, f === hero ? d.dmg : d.dmg * 0.3);   // soldiers cannot dodge, so the storms are aimed at the rider
       puff({ x: d.x, y: groundY(d), z: d.z }, '#8a7a5c', 4, 1);
     }
     if (d.onLand) d.onLand();
-    scene.remove(d.g); dangers.splice(i, 1);
+    d.fading = 0.18;
   }
 }
-function clearDangers() { for (const d of dangers) scene.remove(d.g); dangers.length = 0; }
+function clearDangers() { for (const d of dangers) dropDanger(d); dangers.length = 0; }
 
 /* ================= raiders ================= */
 function spawnEnemy(type, entry) {
@@ -2635,18 +2663,25 @@ const DROP = { chance: 0.15, n: 2 };
 // Permanence (Vlambeer): the fallen lie where they fell and spent arrows stay in the ground until the column moves
 // on, so a night leaves its mark. Two instanced meshes, two draw calls however many there are.
 const FALLEN_MAX = 260, STUCK_MAX = 420, permZero = new THREE.Matrix4().makeScale(0, 0, 0);
-const fallenMesh = (() => {
+function fallenBank(coat, hat, hatGeo) {
   const geo = mergeParts([
-    { geo: new THREE.CapsuleGeometry(0.2, 0.62, 3, 6), color: '#2f3a63', m: TM(0, 0.2, 0, 0, 0, Math.PI / 2) },          // the body, on its side
-    { geo: new THREE.SphereGeometry(0.15, 6, 4), color: '#b98f6a', m: TM(0.56, 0.2, 0) },                                   // the head
-    { geo: new THREE.ConeGeometry(0.2, 0.3, 6), color: '#3a2c22', m: TM(0.78, 0.22, 0.05, 0, 0, -1.3) },                    // the hat, knocked askew
+    { geo: new THREE.CapsuleGeometry(0.2, 0.62, 3, 6), color: coat, m: TM(0, 0.2, 0, 0, 0, Math.PI / 2) },           // the body, on its side
+    { geo: new THREE.SphereGeometry(0.15, 6, 4), color: '#b98f6a', m: TM(0.56, 0.2, 0) },                               // the head
+    { geo: hatGeo, color: hat, m: TM(0.78, 0.22, 0.05, 0, 0, -1.3) },                                                  // the hat, knocked askew
     { geo: new THREE.CylinderGeometry(0.02, 0.02, 1.5, 4), color: '#4a3322', m: TM(-0.05, 0.1, 0.35, Math.PI / 2, 0.4, 0) }, // the dropped spear
   ]);
   const im = new THREE.InstancedMesh(geo, toonMat({ vertexColors: true }), FALLEN_MAX); im.count = 0; im.castShadow = true; im.receiveShadow = true; scene.add(im); return im;
-})();
+}
+const fallenMesh = fallenBank('#2f3a63', '#3a2c22', new THREE.ConeGeometry(0.2, 0.3, 6)), fallenOurs = fallenBank('#9e3226', '#c9a95a', new THREE.ConeGeometry(0.3, 0.16, 8));
 const stuckMesh = (() => { const im = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.025, 0.025, 0.8, 4).translate(0, 0.4, 0), M('#8a6a44'), STUCK_MAX); im.count = 0; scene.add(im); return im; })();
 let fallenN = 0, stuckN = 0; const permM = new THREE.Matrix4(), permQ = new THREE.Quaternion(), permE = new THREE.Euler();
+let oursN = 0;
 function addFallen(e) {
+  if (e.etype === 'ours') {        // one of our own: a red coat and a straw hat where he fell
+    const j = oursN++ % FALLEN_MAX; permE.set(0, e.m.g.rotation.y + Math.PI / 2, 0);
+    permM.compose(new V3(e.pos.x, Math.max(groundY(e.pos), 0), e.pos.z), permQ.setFromEuler(permE), new V3(1, 1, 1));
+    fallenOurs.setMatrixAt(j, permM); fallenOurs.count = Math.min(FALLEN_MAX, oursN); fallenOurs.instanceMatrix.needsUpdate = true; return;
+  }
   const i = fallenN++ % FALLEN_MAX; permE.set(0, e.m.g.rotation.y + Math.PI / 2 + (Math.random() - 0.5) * 0.6, 0);
   permM.compose(new V3(e.pos.x, Math.max(groundY(e.pos), 0), e.pos.z), permQ.setFromEuler(permE), new V3(1, 1, 1).multiplyScalar(e.etype === 'captain' ? 1.4 : 1));
   fallenMesh.setMatrixAt(i, permM); fallenMesh.count = Math.min(FALLEN_MAX, fallenN); fallenMesh.instanceMatrix.needsUpdate = true;
@@ -2658,7 +2693,7 @@ function addStuck(to, from) {
   permM.compose(new V3(to.x, Math.max(groundY(to), 0) - 0.15, to.z), permQ.setFromEuler(permE), new V3(1, 1, 1));
   stuckMesh.setMatrixAt(i, permM); stuckMesh.count = Math.min(STUCK_MAX, stuckN); stuckMesh.instanceMatrix.needsUpdate = true;
 }
-function clearPermanence() { fallenN = stuckN = 0; fallenMesh.count = stuckMesh.count = 0; }
+function clearPermanence() { fallenN = stuckN = oursN = 0; fallenMesh.count = stuckMesh.count = fallenOurs.count = 0; }
 // ---- a frame-time readout for the developer (the backquote key): frame time, worst frame, draw calls
 const perfEl = Object.assign(document.createElement('div'), { id: 'perf' }); perfEl.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:200;font:12px/1.4 ui-monospace,monospace;color:#eadbc0;background:rgba(20,12,10,.8);padding:4px 8px;border-radius:4px;display:none;pointer-events:none';
 document.body.appendChild(perfEl);
@@ -2734,7 +2769,8 @@ function updateEnemyStep(e, dt) {
   const g = e.m.g;
   if (!e.alive) {
     e.dying -= dt; const k = Math.max(e.dying / 0.4, 0.01);
-    g.scale.setScalar(k * (e.etype === 'captain' ? 1.5 : 1)); g.rotation.z = (1 - k) * 1.2;
+    if (WAGON && !e.gone && !e.sinking) { g.rotation.z = (1 - k) * 1.45; g.position.y -= dt * 0.35; }   // he falls; the body stays (addFallen)
+    else { g.scale.setScalar(k * (e.etype === 'captain' ? 1.5 : 1)); g.rotation.z = (1 - k) * 1.2; }
     if (e.sinking) g.position.y -= dt * 2;
     if (e.dying <= 0) { scene.remove(g); if (WAGON && !e.sinking && !e.gone) addFallen(e); return false; }   // those who withdrew or escaped leave no body
     return true;
@@ -2766,7 +2802,7 @@ function updateEnemyStep(e, dt) {
     const near = nearest([hero, ...soldiers], e.pos, f => f.pos.distanceTo(e.pos) < 3.2);
     if (near && e.slamCd <= 0) { circleDanger(e.pos.x, e.pos.z, 3.3, 0.9, 40); e.slam = { t: 0.9 }; kick(0.45); hitStop(70); return true; }
   }
-  const cv = convoyEnemy(e, dt);
+  const cv = e.guard ? guardStep(e, dt) : convoyEnemy(e, dt);
   if (cv) { attacking = cv.attacking; look = cv.look; }
   else if (e.etype === 'horse') {
     const inRange = o => o.alive && o.pos.distanceTo(e.pos) - (o.radius || 0.4) < e.t.range;
@@ -3031,6 +3067,7 @@ function updateHero(dt) {
       if (e.t.braced) {        // riding into set spears: the charge breaks and the horse is hurt
         damage(hero, 14); hero.charge = 0; e.hitCd = 1; banner('Spears set against the charge', 'A spear hedge stops any rider. Shoot them instead.', 2); Sound.play('clang'); break;
       }
+      if (WAGON && S.rares.lance) ignite(e, 3);
       damage(e, CHARGE.dmg * (light ? 1 : e.t.trample || 0.5) * hero.charge * S.heroDmgMul, null, 'hero'); e.hitCd = 0.6;
       if (!e.alive) hitStop(55);               // a kill under hoof should land
       if (!e.alive && S.steppe) volleyCd = 0;   // riders of the steppe: a trampled raider readies the volley
@@ -3196,7 +3233,9 @@ function updatePrompt(dt) {
     const o = p.opts[sel];
     const can = o && o.run && (!o.c || afford(o.c));
     if (!holdInput) needRelease = false;
+    const pr = $('#prompt'); if (pr) pr.classList.toggle('holding', !!(holdInput && can && !needRelease));   // it answers the instant the key goes down
     if (holdInput && can && !needRelease) {
+      if (hold === 0) { Sound.play('step', 0.6); kick(0.05); }
       hold += dt / (p.hold || 0.6);
       if (hold >= 1) { hold = 0; needRelease = true; o.run(); promptKey = ''; return; }
     } else hold = Math.max(0, hold - dt * 3);
@@ -3227,7 +3266,7 @@ function startDay() {
 }
 function startNight() {
   S.state = 'night'; S.clearT = 0; S.nightT = 0; bellSwing = 1.2; S.announced = new Set();
-  S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0; S.volleyT = 12; S.drum = 0; S.drumT = 0;
+  S.foodDmg = {}; S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0; S.volleyT = 12; S.drum = 0; S.drumT = 0;
   S.armourUsed = false; S.longWallUsed = false; for (const c of CROSSINGS) c.burnedTonight = false; Sound.play('bell');
   active = null; renderPrompt();
   const W = WAGON ? veterans(waveFor(S.day)) : waveFor(S.day), f = W.foot, h = W.horse, cap = W.captain, ne = W.entries;
@@ -3262,6 +3301,7 @@ function startNight() {
   add('ironcoat', W.ironcoat); add('spearhedge', W.spearhedge); add('firearcher', W.firearcher || 0); add('bowman', W.bowman || 0); add('potter', W.potter || 0); add('lasso', W.lasso || 0); add('engine', W.engine || 0);
   for (let i = 0; i < cap; i++) list.push({ type: 'captain', entry: S.entries[i % neUsed], wave: waves - 1, at: (WAGON ? Math.max(0, reach - travel[i % neUsed] / 3.4) : 0) + (waves - 1) * GAP + 1 });
   S.spawnQ = list.sort((a, b) => a.at - b.at);
+  guardBaggage();
   S.waves = waves; S.wave = 0;
   refreshHUD();
   banner(WAGON ? (S.nightType === 'boss' ? 'The border fort sallies' : S.nightType === 'elite' ? 'The chief\u2019s warband' : 'Night') : `Night ${S.day}`, `${waves} assault${waves > 1 ? 's' : ''} before dawn. They want the food.`, 3);
@@ -3292,7 +3332,7 @@ function updateNight(dt) {
       }
     }
   }
-  if (!S.spawnQ.length && !enemies.some(e => e.alive)) { S.clearT += dt; if (S.clearT > 1.6) toDawn(); }
+  if (!S.spawnQ.length && !enemies.some(e => e.alive)) { S.clearT += dt; if (S.clearT > (WAGON ? 2.4 : 1.6)) toDawn(); }
 }
 let dawnSel = 0;
 function toDawn() {
@@ -3322,7 +3362,7 @@ function toDawn() {
     : '';
   const tabs = $('#tablets'); tabs.innerHTML = '';
   picks.forEach((u, i) => {
-    const b = document.createElement('button'); b.className = 'tablet'; b.type = 'button';
+    const b = document.createElement('button'); b.className = 'tablet' + (picks[i].rare ? ' rare' : ''); b.type = 'button';
     b.innerHTML = `<span class="k">${i + 1}</span><span class="t">${u.name}</span>${tagHTML(u)}<span class="e">${u.desc}</span>`;
     b.addEventListener('click', () => choose(u)); b.addEventListener('mouseenter', () => focusTablet(i)); tabs.appendChild(b);
   });
@@ -3486,7 +3526,7 @@ function updateFire(dt) {
     if (Math.random() < dt * 8) puff(new V3(f.x + (Math.random() - 0.5) * f.r, 0.3, f.z + (Math.random() - 0.5) * f.r), '#ff9a45', 1, 1.6);
     for (const e of enemies) if (e.alive && Math.hypot(e.pos.x - f.x, e.pos.z - f.z) < f.r) ignite(e, 2);
     if (f.hostile) for (const u of [hero, ...soldiers]) if (u.alive && Math.hypot(u.pos.x - f.x, u.pos.z - f.z) < f.r) damage(u, (u === hero ? 10 : 6) * dt);
-    if (f.t >= f.dur) { scene.remove(f.g); f.g.material.dispose(); firePools.splice(i, 1); }
+    if (f.t >= f.dur) { scene.remove(f.g); f.g.material.dispose(); f.g.geometry.dispose(); firePools.splice(i, 1); }
   }
   for (const e of enemies) {
     if (!e.alive || !(e.fireT > 0)) continue;
@@ -3949,6 +3989,11 @@ const Sound = (() => {
         }
         break;
       }
+      case 'tally': {   // a pentatonic step up for each line of the dawn tally
+        const deg = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21][Math.min(9, v | 0)], f = 392 * Math.pow(2, deg / 12);
+        blip(f, f * 1.01, 0.22, 0.22, 'triangle'); blip(f * 2, f * 2.02, 0.12, 0.06, 'sine');
+        break;
+      }
       case 'horn': {   // a long, nasal blast: the raiders announcing themselves
         const t0 = ctx.currentTime, a = ctx.createGain(), bp = ctx.createBiquadFilter();
         bp.type = 'bandpass'; bp.frequency.value = 520; bp.Q.value = 1.1;
@@ -4063,12 +4108,14 @@ addEventListener('keydown', e => {
   }
   if (e.code === 'Space' || e.code === 'Enter') {
     if (S.state === 'title') { start(); e.preventDefault(); return; }
+    if ((S.state === 'won' || S.state === 'lost') && !$('#end').hidden) { $('#againBtn').click(); e.preventDefault(); return; }
     // a button left focused by a closed screen must not take the key (it used to eat the hold)
     if (document.activeElement && document.activeElement !== document.body && !document.activeElement.closest('#pause')) document.activeElement.blur();
     holdInput = true; e.preventDefault();
     if (S.state === 'night' && !active && !e.repeat) volley();
   }
   if (e.code.startsWith('Arrow')) e.preventDefault();
+  if (WAGON && e.code === 'Tab') e.preventDefault();   // held: see the whole field (the camera rises)
   if (!WAGON && (e.code === 'KeyF' || e.code === 'Tab')) { setWeapon(hero.weapon === 'bow' ? 'blade' : 'bow'); e.preventDefault(); }
   if (e.code === 'KeyQ') useAbility(0);
   if (e.code === 'KeyE') useAbility(1);
@@ -4145,7 +4192,7 @@ bb.addEventListener('pointerup', bbUp); bb.addEventListener('pointerleave', bbUp
    The border fort is the old castle valley, and its keep must stand.
    Each cart is a *moving plot*, so the building lifecycle - damage, wrecks, repair, ground
    bonuses, the command aura - works on carts unchanged. */
-const CONVOY = { regions: 3, floors: 6, cols: 7, sack: 8, ring: 8, ringR: 5.6, spacing: 3.6, campReach: 30 };
+const CONVOY = { regions: 3, floors: 4, cols: 7, sack: 8, ring: 8, ringR: 5.6, spacing: 3.6, campReach: 30 };
 const REGION_NAME = ['The Xuanfu marches', 'The Datong corridor', 'The Great Wall breach'];
 const NODE_INFO = {
   camp:   { g: '营', n: 'Region camp',   d: 'Gather, build, trade, level up' },
@@ -4249,15 +4296,16 @@ function makeXbowCart(level) {
   part(B(0.7, 0.05, 0.08), C.woodDark, 0, 0.46, 0.3, archer);
   g.userData.archer = archer; g.userData.fireY = 1.45; return g;
 }
-function supplyBed(kind) {
+function supplyBed(kind, raider) {   // raider: the enemy's baggage, in indigo felt under a black standard
   const g = new THREE.Group(); wagonBed(g, '#76532f');
   const sp = SUPPLY[kind], load = [];
   // a pennant in the wagon's colour, so each one reads from across the field
   part(CYL(0.035, 0.035, 2.2, 4), C.woodDark, 0.62, 1.6, -1.05, g);
-  part(B(0.04, 0.5, 0.75), sp.col, 0.62, 2.45, -0.7, g).userData.flag = true;
+  part(B(0.04, 0.5, 0.75), raider ? '#1f1d24' : sp.col, 0.62, 2.45, -0.7, g).userData.flag = true;
   if (kind === 'food') {
-    const hood = part(new THREE.CylinderGeometry(0.78, 0.78, 2.2, 8, 1, true, 0, Math.PI), '#cdb98e', 0, 0.8, 0, g);
-    hood.rotation.set(Math.PI / 2, 0, Math.PI / 2); hood.material = M('#cdb98e', { side: THREE.DoubleSide });
+    const hc = raider ? '#46507a' : '#cdb98e';
+    const hood = part(new THREE.CylinderGeometry(0.78, 0.78, 2.2, 8, 1, true, 0, Math.PI), hc, 0, 0.8, 0, g);
+    hood.rotation.set(Math.PI / 2, 0, Math.PI / 2); hood.material = M(hc, { side: THREE.DoubleSide });
     for (let i = 0; i < 4; i++) load.push(part(new THREE.DodecahedronGeometry(0.3, 0), '#b8955a', (i % 2 - 0.5) * 0.6, 0.98, -0.75 + Math.floor(i / 2) * 0.7, g));
   } else if (kind === 'wood') {
     for (let i = 0; i < 4; i++) { const m = part(CYL(0.2, 0.2, 2.3, 7), i % 2 ? '#8b6039' : '#7a5230', (i % 2 - 0.5) * 0.46, 0.98 + Math.floor(i / 2) * 0.36, 0, g); m.rotation.x = Math.PI / 2; load.push(m); }
@@ -4325,7 +4373,7 @@ function addWagon(kind, level, x, z, rot) {
 }
 function rebuildCart(p) { const b = build(p, p.ruin.kind, true, p.ruin.level); b.barY = 2.5; b.radius = 1.45; return b; }
 function wagonAt(p, x, z, rot) {
-  p.x = x; p.z = z; p.rotY = rot; p.pos.set(x, Math.max(groundY({ x, z }), 0), z);
+  p.x = x; p.z = z; p.rotY = rot; p.pos.set(x, Math.max(hgt(x, z), 0), z);
   const b = p.building;
   if (b) { b.pos.copy(p.pos); b.g.position.copy(p.pos); b.g.rotation.y = rot; }
   if (p.ruin) p.ruin.g.position.copy(p.pos);
@@ -4344,12 +4392,18 @@ function layoutColumn(x, z, rot) {
 }
 
 /* ---------------- the men ---------------- */
-Object.assign(S, { roster: [], soldierStr: 1, soldierHpMul: 1, level: 0, crew: { farmer: 1, woodcutter: 0, miner: 0 }, region: 0, floor: 0,
+Object.assign(S, { rares: {}, roster: [], soldierStr: 1, soldierHpMul: 1, level: 0, crew: { farmer: 1, woodcutter: 0, miner: 0 }, region: 0, floor: 0,
   map: null, at: null, phase: 'map', camp: null, stolen: 0, site: null, fought: 0, starved: 0, path: [], towing: null, roadPlots: [] });
+// Stories come from a few named people (pillar 4): every man who joins the column has a name, and the run keeps
+// count of what he did. Common Ming surnames, and the plain given names and number-names soldiers were known by
+// (for the Chinese-speaking review before launch, pillar 5).
+const SURNAMES = ['Wang', 'Li', 'Zhang', 'Liu', 'Chen', 'Yang', 'Zhao', 'Huang', 'Zhou', 'Wu', 'Xu', 'Sun', 'Ma', 'Zhu', 'Hu', 'Guo', 'He', 'Gao', 'Lin', 'Luo', 'Zheng', 'Liang', 'Song', 'Tang', 'Han', 'Feng', 'Deng', 'Cao', 'Peng', 'Qi', 'Yu', 'Du'];
+const GIVEN = ['Tie', 'Shi', 'Bao', 'Heng', 'Shun', 'Fu', 'Gui', 'Jin', 'Cheng', 'Wen', 'Da', 'Er', 'San', 'Si', 'Wu', 'Liu', 'Qi', 'Shan', 'Hai', 'Ping', 'An', 'Kang', 'Rong', 'Qiang', 'Zhong', 'Yong', 'Hu', 'Lin', 'Chun', 'Dong'];
+function soldierName() { for (let t = 0; t < 30; t++) { const n = SURNAMES[Math.floor(Math.random() * SURNAMES.length)] + ' ' + GIVEN[Math.floor(Math.random() * GIVEN.length)]; if (!S.roster.some(r => r.name === n) && !(S.fallen || []).some(f => f.name === n)) return n; } return 'Zhang San'; }
 function addSoldiers(n, type) {
   type = type || 'spear';
   const cap = LEVELS[S.level].soldiers; let added = 0;
-  while (n-- > 0 && S.roster.length < cap) { const max = Math.round(SOLDIER_TYPE[type].hp * S.soldierHpMul * Math.pow(1.2, (S.rank && S.rank[type]) || 0)); S.roster.push({ hp: max, max, type }); added++; }
+  while (n-- > 0 && S.roster.length < cap) { const max = Math.round(SOLDIER_TYPE[type].hp * S.soldierHpMul * Math.pow(1.2, (S.rank && S.rank[type]) || 0)); S.roster.push({ hp: max, max, type, name: soldierName(), kills: 0, nights: 0 }); added++; }
   return added;
 }
 // on a battlefield the men are on the ground and follow the commander until he posts them;
@@ -4370,15 +4424,15 @@ function musterSoldiers() {
 }
 // half the men who go down in the night are found at dawn, wounded but alive
 function dismissSoldiers() {
-  let lost = 0, wounded = 0;
+  let lost = 0, wounded = 0; const fellNames = [];
   for (const s of soldiers) {
-    if (s.alive) s.roster.hp = s.hp;
-    else if (Math.random() < 0.5) { s.roster.hp = Math.ceil(s.roster.max * 0.25); s.alive = true; wounded++; }
-    else lost++;
+    if (s.alive) { s.roster.hp = s.hp; s.roster.nights = (s.roster.nights || 0) + 1; }
+    else if (Math.random() < 0.5) { s.roster.hp = Math.ceil(s.roster.max * 0.25); s.alive = true; wounded++; s.roster.nights = (s.roster.nights || 0) + 1; }
+    else { lost++; if (s.roster.name) { (S.fallen = S.fallen || []).push({ ...s.roster, where: FIELD_KIND[FIELD.kind] ? FIELD_KIND[FIELD.kind].name.toLowerCase() : 'the border fort', day: S.day }); fellNames.push(s.roster.name); } }
     scene.remove(s.m.g); if (s.bar) scene.remove(s.bar);
   }
   S.roster = soldiers.filter(s => s.alive).map(s => s.roster);
-  soldiers.length = 0;
+  soldiers.length = 0; S.lastFell = fellNames;
   return { lost, wounded };
 }
 // ---- fewer draw calls: every model's static pieces merged into one mesh per moving part ----
@@ -4476,6 +4530,9 @@ function recallSoldiers(list) { for (const s of list) { s.following = true; s.fo
    Paths start on distinct columns and step up one floor at a time, left, straight or right, and
    may not cross an existing path. Elites and forts stay off the early floors, a fort always sits
    on the last floor before the border, and every last-floor node leads to the border fort. */
+// How far into the run we are, in the six-floor units the difficulty curve was tuned in: runs were cut from six floors
+// a region to four (a run of about 30-40 minutes, the length players stay with), and the curve is kept as it was.
+function runStep() { return S.region * 6 + S.floor * 6 / CONVOY.floors; }
 function genRegion() {
   const F = CONVOY.floors, W = CONVOY.cols, nodes = {}, key = (f, c) => f + ':' + c;
   // two diagonal steps cross when one goes c -> nc and another already went nc -> c
@@ -4699,7 +4756,7 @@ function enterField(type) {
   } else S.homeBank = 0;
   const total = ['foot', 'horse', 'lancer', 'shield', 'torch', 'ironcoat', 'spearhedge', 'captain'].reduce((a, k) => a + (W[k] || 0), 0);
   S.passCount = Math.round(total / S.preEntries.length);
-  drawPassZones();
+  drawPassZones(); placeBaggage(type);
   let x, z, rot;
   if (type === 'boss') { x = 0; z = -22; rot = 0; }
   else {
@@ -4753,7 +4810,7 @@ function toPrep(at, drumOn) {
   distDirty = true; routeDirty = true; refreshHUD();
 }
 function waveFor() {
-  const g = S.region * CONVOY.floors + S.floor, d = Math.min(7, 1 + g * 0.36);
+  const g = runStep(), d = Math.min(7, 1 + g * 0.36);
   const W = WAVES[Math.min(Math.round(d) - 1, WAVES.length - 1)], T = tier(), kind = FIELD.kind || 'valley';
   // a smoother curve than before: harder from the first night, gentler later on
   const t = S.nightType, k = (t === 'boss' ? 1.1 : t === 'elite' ? 1.6 : 1.3) * (1.0 + S.region * 0.16);
@@ -4782,7 +4839,7 @@ function pickEntries(n) { return ENTRIES.map(x => x.id).sort(() => Math.random()
 // not only grow; what it is made of changes, so the same army that won early loses late.
 const WAVE_TUNE = { all: 0.9, fire: 1.5 };   // see the end of veterans()
 function veterans(W) {
-  const g = S.region * CONVOY.floors + S.floor, T = tier(), share = Math.min(0.5, 0.055 * Math.max(0, g - 5));   // none in the first region, half the foot by the end of region 3
+  const g = runStep(), T = tier(), share = Math.min(0.5, 0.055 * Math.max(0, g - 5));   // none in the first region, half the foot by the end of region 3
   const pool = ['bowman', ...(T >= 1 ? ['horse', 'horse'] : []), ...(T >= 2 ? ['potter', 'firearcher'] : []), ...(T >= 3 ? ['shield', 'ironcoat', 'spearhedge', 'lancer', 'lasso'] : [])];
   let n = Math.round(W.foot * share);
   W.foot -= n;
@@ -4870,7 +4927,7 @@ function clearField() {
   for (const a of shots) scene.remove(a.m); shots.length = 0;
   for (const r of rockets) r.ms.forEach(m => scene.remove(m)); rockets.length = 0;
   for (const sk of sacks) scene.remove(sk.m); sacks.length = 0;
-  clearDangers(); clearPermanence();
+  clearDangers(); clearPermanence(); clearBaggage();
   for (const p of S.roadPlots) { if (p.building) { const b = p.building; b.alive = false; scene.remove(b.g); if (b.bar) scene.remove(b.bar); buildings.splice(buildings.indexOf(b), 1); } if (p.ruin) scene.remove(p.ruin.g); }
   S.roadPlots = [];
   for (const g of gapMarks) scene.remove(g); gapMarks.length = 0;
@@ -5135,7 +5192,7 @@ function siegeEngine(e, dt) {
     if (tgt) {
       const x = tgt.pos.x + (Math.random() - 0.5) * 1.5, z = tgt.pos.z + (Math.random() - 0.5) * 1.5;
       const dz = circleDanger(x, z, 3, 2.2, 18);
-      dz.onLand = () => { for (const b of [...buildings]) if (b.alive && b.hp < Infinity && Math.hypot(b.pos.x - x, b.pos.z - z) < 3 + (b.radius || 1)) damage(b, b.plot && isSupply(b.plot.cartKind) ? e.t.stone / 3 : e.t.stone);   // it aims at the war carts; the loads only take the splash
+      dz.onLand = () => { for (const b of [...buildings]) if (b.alive && b.hp < Infinity && Math.hypot(b.pos.x - x, b.pos.z - z) < 3 + (b.radius || 1)) damage(b, b.plot && isSupply(b.plot.cartKind) ? e.t.stone / 3 : e.t.stone, null, 'stone');   // it aims at the war carts; the loads only take the splash
         if (keep.alive && Math.hypot(keep.pos.x - x, keep.pos.z - z) < 4) { damage(keep, e.t.stone / 2); S.engineKeep = (S.engineKeep || 0) + e.t.stone / 2; } puff(new V3(x, 0.4, z), '#8a7a5c', 10, 2); kick(0.3); Sound.play('crash'); };
       shoot(e.pos.clone().setY(e.pos.y + 3), { pos: new V3(x, 0, z), alive: false }, 0, 'foe', false, { dur: 2.1, arc: 12 });
     }
@@ -5230,6 +5287,7 @@ function updateSacks(dt) {
     const s = sacks[i]; s.m.rotation.y += dt;
     if (hero.alive && Math.hypot(hero.pos.x - s.x, hero.pos.z - s.z) < 1.9) {
       S.res[s.res] += s.n; scene.remove(s.m); sacks.splice(i, 1); refreshHUD(); refreshSacks();
+      puff(s.m.position, '#f2d27a', 5, 2.2); floatText(hero.pos, `+${s.n} ${resWord(s.res)}`);
       Sound.play('build'); puff(hero.pos, '#d9c7a0', 3);
     }
   }
@@ -5273,14 +5331,14 @@ function convoyDawn() {
     yieldText(owed) ? `<div>At first light the crews finished their work: <b>${yieldText(owed)}</b>.</div>` : '',
     foundTxt ? `<div>You cut back <b>${foundTxt}</b> from the thieves.</div>` : '',
     far ? `<div>${far} more lay too far out on the steppe to recover.</div>` : '',
-    fell ? `<div>${fell} soldier${fell > 1 ? 's' : ''} fell in the night.</div>` : '',
+    fell ? `<div>${fell} soldier${fell > 1 ? 's' : ''} fell in the night${(S.lastFell || []).length ? ': <b>' + S.lastFell.slice(0, 6).join(', ') + (S.lastFell.length > 6 ? ' and others' : '') + '</b>' : ''}.</div>` : '',
     wounded ? `<div>${wounded} who went down ${wounded > 1 ? 'were' : 'was'} found alive, badly wounded.</div>` : '',
     repaired ? `<div>${repaired} wrecked cart${repaired > 1 ? 's were' : ' was'} mended with wood.</div>` : '',
     abandoned.length ? `<div>Abandoned for want of wood: ${abandoned.join(', ')}.</div>` : '',
     `<div>${S.roster.length} soldiers · food for <b>${daysOfFood()} day${daysOfFood() === 1 ? '' : 's'}</b>.</div>`,
   ].join('');
   S.picksLeft = elite || boss ? 2 : 1;
-  offerRewards();
+  offerRewards(); playReport();
 }
 // who did the killing tonight, and what it cost: the plainest way to see what each purchase does
 const KILLER = { tower: 'Crossbow carts', rockets: 'Rocket carts', bombard: 'Bombard carts', spears: 'Spearmen', archers: 'Archers', horse: 'Horsemen', hero: 'Commander\u2019s bow and charge', blade: 'Commander\u2019s sabre', caltrops: 'Caltrops', fire: 'Fire', keep: 'The keep', other: 'Other' };
@@ -5288,9 +5346,23 @@ function battleReport(fell, wounded) {
   const k = S.nightKills || {}, rows = Object.keys(k).filter(x => k[x] > 0).sort((a, b) => k[b] - k[a]);
   if (!rows.length) return '';
   const total = rows.reduce((a, x) => a + k[x], 0);
-  const bars = rows.map(x => `<div class="kr"><span>${KILLER[x] || x}</span><i style="width:${Math.max(4, k[x] / total * 100)}%"></i><b>${k[x]}</b></div>`).join('');
+  const bars = rows.map(x => `<div class="kr pending"><span>${KILLER[x] || x}</span><i style="width:0" data-w="${Math.max(4, k[x] / total * 100)}"></i><b data-n="${k[x]}">0</b></div>`).join('');
   const cost = [fell ? `${fell} soldier${fell > 1 ? 's' : ''} lost` : '', wounded ? `${wounded} wounded` : '', S.nightWrecked ? `${S.nightWrecked} cart${S.nightWrecked > 1 ? 's' : ''} wrecked` : '', S.nightStolen ? `${S.nightStolen} stolen` : '', S.nightBurned ? `${S.nightBurned} burned` : ''].filter(Boolean).join(' \u00b7 ');
-  return `<div class="report"><b>The night\u2019s work: ${total} raiders fell</b>${bars}${cost ? `<div class="cost">It cost you: ${cost}</div>` : '<div class="cost">It cost you nothing.</div>'}</div>`;
+  return `<div class="report"><b>The night\u2019s work: <span data-n="${total}">0</span> raiders fell</b>${bars}${cost ? `<div class="cost pending">It cost you: ${cost}</div>` : '<div class="cost pending">It cost you nothing.</div>'}</div>`;
+}
+// After Balatro: the night's tally is played, not printed. Each source of kills steps in with its bar filling and
+// its number counting up to a rising note, then the total, then what it cost. A great night should feel great.
+function playReport() {
+  const box = document.querySelector('#ledger .report'); if (!box) return;
+  const rows = [...box.querySelectorAll('.kr')], total = box.querySelector('b > span[data-n]'), cost = box.querySelector('.cost');
+  const count = (el, to, ms) => { const t0 = performance.now(); const tick = now => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * k * (2 - k)); if (k < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
+  rows.forEach((row, i) => setTimeout(() => {
+    row.classList.remove('pending'); const bar = row.querySelector('i'), n = row.querySelector('b');
+    bar.style.width = bar.dataset.w + '%'; count(n, +n.dataset.n, 420); Sound.play('tally', i);
+  }, 250 + i * 330));
+  const after = 250 + rows.length * 330;
+  if (total) setTimeout(() => { count(total, +total.dataset.n, 500); Sound.play('tally', rows.length + 2); if (+total.dataset.n >= 40) kick(0.25); }, after);
+  if (cost) setTimeout(() => cost.classList.remove('pending'), after + 450);
 }
 // Rewards are ranks. Each fight you raise one arm of the column: spearmen, archers, horsemen, one
 // kind of cart, the walls, or the commander. Ranks are big (+35% damage a rank), visible on the
@@ -5317,6 +5389,18 @@ function raiseRank(k) {
   if (k === 'walls') { S.cartHpMul *= 1.3; for (const b of buildings) if (b.plot && b.plot.cart) { b.max *= 1.3; b.hp = b.max; } }
   if (k === 'hero') S.heroDmgMul *= 1.3;
 }
+// Rare rewards: each bends a rule of the night. From Qi Jiguang's own reforms of the northern garrisons.
+const RARES = [
+  { id: 'duck', name: 'Mandarin duck formation', img: 'recruit', ok: () => true,
+    desc: 'Qi Jiguang\u2019s twelve-man squad (\u9e33\u9e2f\u9635). A spearman with two comrades within three paces fights <b>40% harder</b>.', with: 'posts of three or more spearmen, and the Spearmen rank',
+    after: 'Spearmen who stand together fight 40% harder.' },
+  { id: 'drill', name: 'Qi Jiguang\u2019s drill manual', img: 'recruit', ok: () => true,
+    desc: 'The <i>Jixiao Xinshu</i>. Men you post never fall back when wounded, and take <b>25% less damage</b> while they hold their post.', with: 'gate posts and forward posts',
+    after: 'Posted men hold, and take a quarter less damage.' },
+  { id: 'lance', name: 'Fire lances', img: 'firearrows', ok: () => true,
+    desc: 'A tube of gunpowder bound to the lance. Your gallop <b>sets every raider it tramples alight</b>. With fire arrows, burning raiders take <b>50% more damage</b> from everything.', with: 'Fire arrows',
+    after: 'Your charge now sets raiders burning.' },
+];
 function rankOffers() {
   const arms = Object.keys(RANK_ARMS).filter(k => RANK_ARMS[k].owned() && rankOf(k) < 5);
   arms.sort(() => Math.random() - 0.5);
@@ -5326,6 +5410,10 @@ function rankOffers() {
   const shooters = S.roster.some(r => r.type === 'archer') || convoy.some(p => p.building && p.cartKind === 'tower');
   if (!S.fire && shooters && Math.random() < 0.6) out[Math.min(out.length, 2)] = { name: 'Fire arrows', img: 'firearrows', power: true,
     desc: 'Pitch-soaked arrows for the archers, the crossbow carts and your own bow: every hit sets the raider burning, and crossbow bolts burst and burn those beside him.', apply: () => { S.fire = true; banner('Fire arrows', 'Every arrow now carries flame.', 2.2); } };
+  // now and then, a rare one that changes a rule rather than a number (after Balatro's run-breaking jokers)
+  const rares = RARES.filter(x => !S.rares[x.id] && x.ok());
+  if (S.fought >= 2 && rares.length && Math.random() < 0.18) { const x = rares[Math.floor(Math.random() * rares.length)];
+    out[Math.min(out.length, 2)] = { name: x.name, img: x.img, rare: true, desc: x.desc + (x.with ? `<br><span style="color:#f0c96a">Works with: ${x.with}</span>` : ''), apply: () => { S.rares[x.id] = true; banner(x.name, x.after, 2.6); } }; }
   // when food is short, the third choice is food instead
   if (daysOfFood() < 3 && out.length === 3) out[2] = BOONS.find(b => b.name.startsWith('Millet'));
   return out;
@@ -5336,7 +5424,7 @@ function offerRewards() {
   const tabs = $('#tablets'); tabs.innerHTML = '';
   picks.forEach((u, i) => {
     const b = document.createElement('button'); b.className = 'tablet'; b.type = 'button';
-    b.innerHTML = `<span class="k">${i + 1}</span>${u.img ? `<img class="art" alt="" src="${thumb(u.img)}">` : ''}<span class="t">${u.name}</span>${u.tags ? tagHTML(u) : `<span class="tags"><i class="tg tg-ab">${u.rank ? 'rank up' : u.power ? 'power-up' : 'supplies'}</i></span>`}<span class="e">${u.desc}</span>`;
+    b.innerHTML = `<span class="k">${i + 1}</span>${u.img ? `<img class="art" alt="" src="${thumb(u.img)}">` : ''}<span class="t">${u.name}</span>${u.tags ? tagHTML(u) : `<span class="tags"><i class="tg tg-ab">${u.rare ? 'rare' : u.rank ? 'rank up' : u.power ? 'power-up' : 'supplies'}</i></span>`}<span class="e">${u.desc}</span>`;
     b.addEventListener('click', () => choose(u)); b.addEventListener('mouseenter', () => focusTablet(i)); tabs.appendChild(b);
   });
   S.dawnPicks = picks; $('#dawn').hidden = false; Sound.play('dawn');
@@ -5630,17 +5718,84 @@ function confirmMap() { const k = mapOpts[mapSel]; if (k === undefined) return; 
 
 /* ---------------- endings ---------------- */
 function convoyWin() {
-  S.state = 'won'; ['#smap', '#shop'].forEach(s => $(s).hidden = true); runLog({ t: 'end', result: 'won' }); keepReport();
+  S.state = 'won'; ['#smap', '#shop'].forEach(s => $(s).hidden = true); runLog({ t: 'end', result: 'won' }); keepReport(); $('#endHonour').innerHTML = honours();
   $('#endSeal').textContent = '达'; $('#endT').textContent = 'Through the Wall';
   $('#endP').textContent = `The convoy broke through all ${CONVOY.regions} regions in ${S.day} days. ${S.kills} raiders fell, ${S.fought} nights held, ${S.roster.length} soldiers still standing, ${S.starved} lost to hunger.`;
   $('#end').hidden = false;
 }
+// Every loss should feel like your own fault (Into the Breach): say what did it, and what would have stopped it
+function lossCause() {
+  const d = S.foodDmg || {}, tot = Object.values(d).reduce((a, b) => a + b, 0); if (!tot) return '';
+  const [k, v] = Object.entries(d).sort((a, b) => b[1] - a[1])[0], pct = Math.round(100 * v / tot);
+  return ({ firearrow: `Fire archers did ${pct}% of the damage to it, from beyond the carts' reach. Ride them down, or post men out towards them.`,
+    stone: `Siege stones did ${pct}% of the damage to it. Only men out on the field can reach the engines.`,
+    shot: `Arrows did ${pct}% of the damage to it. Keep men and carts between the archers and the loads.`,
+    melee: `Raiders got in among the wagons and did ${pct}% of the damage with their blades. Close the gaps in the ring, or hold them further out.` })[k] || '';
+}
+// the three men the run will be remembered by: the most raiders brought down, living or fallen
+function honours() {
+  const all = [...(S.fallen || []).map(f => ({ ...f, dead: true })), ...S.roster.map(r => ({ ...r, dead: false }))].filter(m => m.name && (m.kills || 0) > 0);
+  all.sort((a, b) => (b.kills || 0) - (a.kills || 0) || (b.nights || 0) - (a.nights || 0));
+  if (!all.length) return '';
+  return '<b style="color:var(--gold)">Remembered</b><br>' + all.slice(0, 3).map(m => `<b>${m.name}</b>, ${m.type === 'archer' ? 'archer' : m.type === 'horse' ? 'horseman' : 'spearman'}: ${m.kills} raider${m.kills > 1 ? 's' : ''} in ${Math.max(1, m.nights || 0)} night${(m.nights || 0) > 1 ? 's' : ''}${m.dead ? `, fell at the ${m.where}` : ', still marching'}.`).join('<br>');
+}
+// ---------------- the raiders' baggage: a prize out on the field ----------------
+// Risk and reward (Spelunky): some fields have a raider baggage cart standing out by a pass tonight's warbands will
+// not use. Three men guard it after dark. Ride out, cut them down and hold Space by it: food and wood for the road.
+// It pays to leave the ring, which is the whole game in one decision.
+const BAG = { cart: null, guards: [], taken: false, near: '', loot: null, entry: null, leaveT: 0 };
+function clearBaggage() { if (BAG.cart) scene.remove(BAG.cart); BAG.cart = null; BAG.guards = []; BAG.taken = false; BAG.leaveT = 0; }
+function placeBaggage(type) {
+  clearBaggage(); if (!WAGON || type === 'boss' || Math.random() > 0.5) return;
+  const quiet = ENTRIES.filter(e => !(S.preEntries || []).includes(e.id)); if (!quiet.length) return;
+  const en = quiet[Math.floor(Math.random() * quiet.length)], P = NODE_DEF[en.id], adj = EDGE_DEF.find(e => e[0] === en.id || e[1] === en.id); if (!adj) return;
+  const J = NODE_DEF[adj[0] === en.id ? adj[1] : adj[0]], L = Math.hypot(J[0] - P[0], J[1] - P[1]);
+  const t = Math.min(0.6, 14 / L), x = P[0] + (J[0] - P[0]) * t, z = P[1] + (J[1] - P[1]) * t; if (blocked(x, z)) return;
+  const g = supplyBed('food', true);
+  g.position.set(x, Math.max(groundY({ x, z }), 0), z); g.rotation.y = Math.atan2(J[0] - P[0], J[1] - P[1]); scene.add(g);
+  BAG.cart = g; BAG.near = en.name; BAG.entry = en.id; BAG.loot = { grain: 10 + Math.floor(Math.random() * 6), wood: has.wood() ? 5 + Math.floor(Math.random() * 4) : 0 };
+}
+function guardBaggage() {
+  if (!BAG.cart || BAG.taken) return; BAG.guards = [];
+  const p = BAG.cart.position, en = BAG.entry; if (!NODES[en]) return;
+  S.announced.add(en);   // its guards are no warband: no horn, no banner
+  for (let i = 0; i < 3; i++) { spawnEnemy(i === 2 && tier() >= 2 ? 'shield' : 'foot', en); const e = enemies[enemies.length - 1];
+    const a = i / 3 * TAU; e.pos.set(p.x + Math.sin(a) * 2.2, 0, p.z + Math.cos(a) * 2.2); e.guard = { x: e.pos.x, z: e.pos.z }; BAG.guards.push(e); }
+}
+// a guard stands by the cart and fights whoever comes within reach of it; he never goes to the camp
+function guardStep(e, dt) {
+  // once the warbands are spent, the guards give it a few seconds and then drive the cart off, so an ignored prize never holds the night open
+  if (BAG.cart && !BAG.taken && !S.spawnQ.length && !enemies.some(o => o.alive && !o.guard)) {
+    BAG.leaveT += dt;
+    if (BAG.leaveT > 8) { for (const o of BAG.guards) if (o.alive) { o.alive = false; o.dying = 0.01; o.gone = true; scene.remove(o.bar); }
+      puff(BAG.cart.position, '#b9a98a', 8, 2); scene.remove(BAG.cart); BAG.taken = true; banner('The baggage rolls away', 'Its guards drove it off into the hills.', 2); return { attacking: null, look: null }; }
+  }
+  const c = BAG.cart ? BAG.cart.position : e.guard;
+  const foe = nearest([hero, ...soldiers], e.pos, f => f.alive && Math.hypot(f.pos.x - c.x, f.pos.z - c.z) < 8);
+  if (foe) { if (foe.pos.distanceTo(e.pos) < 1.4 + e.t.rad) return { attacking: foe, look: foe.pos }; moveDirect(e.pos, foe.pos, e.speed * dt); return { attacking: null, look: foe.pos }; }
+  if (Math.hypot(e.pos.x - e.guard.x, e.pos.z - e.guard.z) > 0.4) moveDirect(e.pos, new V3(e.guard.x, 0, e.guard.z), e.speed * 0.6 * dt);
+  return { attacking: null, look: null };
+}
+function baggagePrompt() {
+  if (!BAG.cart || BAG.taken || !hero.alive) return null;
+  if (hero.pos.distanceTo(tmp2.set(BAG.cart.position.x, hero.pos.y, BAG.cart.position.z)) > 2.8 + (lastKey === 'bag' ? 0.8 : 0)) return null;
+  const guarded = BAG.guards.some(e => e.alive);
+  if (S.state !== 'night') return { key: 'bag', anchor: hero.pos.clone(), opts: [{ n: 'The raiders\u2019 baggage', c: null, d: 'Guarded after dark. Come back at night, cut down its guards, and take it', run: null }] };
+  return { key: 'bag', anchor: hero.pos.clone(), hold: 0.9, opts: [{ n: guarded ? 'Its guards still stand' : 'Take the raiders\u2019 baggage', c: guarded ? null : {}, d: guarded ? 'Cut them down first' : `+${BAG.loot.grain} food${BAG.loot.wood ? `, +${BAG.loot.wood} wood` : ''}`, run: guarded ? null : takeBaggage }] };
+}
+function takeBaggage() {
+  BAG.taken = true; S.res.grain += BAG.loot.grain; S.res.wood += BAG.loot.wood;
+  puff(BAG.cart.position, '#f2d27a', 10, 2.4); puff(BAG.cart.position, '#ff9a45', 6, 2); floatText(BAG.cart.position, `+${BAG.loot.grain} food${BAG.loot.wood ? ` +${BAG.loot.wood} wood` : ''}`);
+  scene.remove(BAG.cart); Sound.play('build'); kick(0.2); refreshHUD(); refreshSacks();
+  banner('The baggage is yours', 'Their food and wood go into your wagons.', 2.2); runLog({ t: 'baggage', grain: BAG.loot.grain, wood: BAG.loot.wood });
+}
 function convoyLose(t, p) {
   if (S.state === 'lost') return;
   S.state = 'lost'; ['#smap', '#shop'].forEach(s => $(s).hidden = true);
-  runLog({ t: 'end', result: 'lost', why: t, night: S.nightType || null, kind: FIELD.kind || null }); keepReport();
+  runLog({ t: 'end', result: 'lost', why: t, night: S.nightType || null, kind: FIELD.kind || null }); keepReport(); $('#endHonour').innerHTML = honours();
   $('#endSeal').textContent = '陷'; $('#endT').textContent = t;
-  $('#endP').textContent = `${p} You reached region ${S.region + 1}, floor ${S.floor}. ${S.kills} raiders fell.`;
+  const why = t === 'The food wagon is burned' ? lossCause() : '';
+  $('#endP').textContent = `${p} ${why ? why + ' ' : ''}You reached region ${S.region + 1}, floor ${S.floor}. ${S.kills} raiders fell.`;
   $('#end').hidden = false;
 }
 win = convoyWin; lose = () => convoyLose('The keep has fallen', 'The border fort is lost, and the convoy with it.');
@@ -5676,6 +5831,7 @@ let stillT = 0; const lastHero = new V3();
 function convoyPrompt() {
   const anchor = hero.pos.clone();
   // a bridge under the rider comes before anything else, in every phase of the field
+  const bg = baggagePrompt(); if (bg) return bg;
   const brNear = ['dusk', 'prep', 'night'].includes(S.phase) && !S.towing && CROSSINGS.find(c => c.bridge && c.intact && hero.pos.distanceTo(tmp2.set(c.x, hero.pos.y, c.z)) < (c.span || RIVER_HALF) + 1.6 + (lastKey === 'br' + c.key ? 0.9 : 0));
   if (brNear) return { key: 'br' + brNear.key, anchor, hold: 0.8, opts: [{ n: 'Burn the bridge', c: {}, d: S.state === 'night' ? 'Anyone on it goes into the river' : 'Raiders take another road, or stop to lash it together', run: () => burnBridge(brNear) }] };
   if (S.state === 'day' && S.phase === 'dusk') {
@@ -5736,6 +5892,7 @@ function featureLines() {
   if (f.includes('fort')) out.push('A <b>ruined fort</b>: camp inside and its walls turn the raiders to its gates. <b>Men posted in a gateway fight 50% harder</b>');
   if (f.includes('wall')) out.push('A <b>border wall</b> crosses the field: raiders must come through its gates, and men posted in one fight 50% harder');
   if (f.includes('beacon')) out.push('A <b>beacon mound</b> on a road: a war cart set down on top reaches 25% farther');
+  if (BAG.cart && !BAG.taken) out.push(`A <b>raider baggage cart</b> stands out by ${BAG.near}. Guarded at night: <b>ride out and take it</b> for food and wood`);
   if (f.some(k => k === 'woods' || k === 'rocks' || k === 'hamlet')) out.push('<b>Woods, rocks and houses</b> are solid: everyone goes round them');
   return out.length ? '<br>' + out.map(s => '• ' + s).join('<br>') : '';
 }
@@ -5942,7 +6099,8 @@ function start() {
 }
 $('#startBtn').addEventListener('click', () => { Sound.init(); start(); });
 wireOptions();
-$('#againBtn').addEventListener('click', () => location.reload());
+$('#againBtn').addEventListener('click', () => { try { sessionStorage.setItem('wagon-road-again', '1'); } catch (e) {} location.reload(); });   // straight back onto the road, no title screen
+try { if (WAGON && sessionStorage.getItem('wagon-road-again')) { sessionStorage.removeItem('wagon-road-again'); setTimeout(() => { Sound.init(); start(); }, 50); } } catch (e) {}
 
 /* ================= main loop ================= */
 let dayNight = 0, last = performance.now(), camFocus = new V3(0, 0, -15), titleT = 0, clock = 0;
@@ -6011,10 +6169,13 @@ function update(dt) {
   for (const b of buildings) if (b.pop < 1) { b.pop = Math.min(1, b.pop + dt * 3.2); const k = b.pop; b.g.scale.setScalar(Math.max(0.05, 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2))); }
   const wave = o => { if (o.userData.flag) o.rotation.y = Math.sin(clock * 4 + o.id) * 0.25; };
   keepModel.traverse(wave); flareGroup.traverse(wave);
+  // every cart's pennant too: the flag list is gathered once per model, not traversed each frame
+  if (BAG.cart) BAG.cart.traverse(wave);
+  if (WAGON) for (const b of buildings) { if (!b.g) continue; if (!b.g.userData.flags) { const l = []; b.g.traverse(o => { if (o.userData.flag) l.push(o); }); b.g.userData.flags = l; } for (const o of b.g.userData.flags) wave(o); }
   for (let i = puffs.length - 1; i >= 0; i--) {
     const p = puffs[i]; p.t += dt; p.m.position.addScaledVector(p.v, dt); p.v.y -= dt * 1.5;
     p.m.material.opacity = 0.9 * (1 - p.t / p.life); p.m.scale.setScalar(1 + p.t);
-    if (p.t >= p.life) { scene.remove(p.m); p.m.material.dispose(); puffs.splice(i, 1); }
+    if (p.t >= p.life) { scene.remove(p.m); puffPool.push(p.m); puffs.splice(i, 1); }
   }
   if (S.state === 'title') {
     titleT += dt * 0.06;
@@ -6022,8 +6183,11 @@ function update(dt) {
   } else {
     const narrow = camera.aspect < 1;
     camFocus.lerp(tmp.set(hero.pos.x, 0, hero.pos.z), Math.min(1, dt * 3));
-    const dist = WAGON ? (narrow ? 3.4 : 2.25) : (narrow ? 4.3 : 2.9);
-    camera.position.set(camFocus.x, 21 * dist, camFocus.z + 16 * dist); camera.lookAt(camFocus.x, 0.5, camFocus.z - 1);
+    // hold Tab to rise and see the whole field (Thronefall players' first wish: to see both flanks at once)
+    overviewK += ((keys.Tab && WAGON ? 1 : 0) - overviewK) * Math.min(1, dt * 6);
+    const dist = (WAGON ? (narrow ? 3.4 : 2.25) : (narrow ? 4.3 : 2.9)) * (1 + overviewK * 1.5);
+    const fx = camFocus.x + (VALLEY.cx - camFocus.x) * overviewK * 0.7, fz = camFocus.z + (VALLEY.cz - camFocus.z) * overviewK * 0.7;
+    camera.position.set(fx, 21 * dist, fz + 16 * dist); camera.lookAt(fx, 0.5, fz - 1);
     if (window.__camOverride) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); }   // test harness overview shots
     if (shake > 0.001) {
       shake = Math.max(0, shake - dt * 2.6);
@@ -6052,7 +6216,26 @@ function update(dt) {
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
 }
 requestAnimationFrame(frame);
-window.__ff = { fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+// Shader warm-up: three.js compiles a material's shader the first time something using it is drawn, which can hitch
+// a frame (the first bombard ball, the first fire pool, the first ironcoat). Once the page is up, one of every raider,
+// soldier, cart and effect is shown to the renderer for a single compile, then put away.
+setTimeout(() => {
+  const seed0 = seed;   // the builders draw from the seeded generator: put it back, so warm-up changes nothing
+  try {
+    const g = new THREE.Group();
+    const add = o => { const obj = o && (o.g || o); if (obj && obj.isObject3D) { obj.position.set(Math.random() * 4, -50, Math.random() * 4); g.add(obj); } };
+    for (const k of Object.keys(ETYPES)) add(k === 'lancer' ? makeLancerModel() : makeEnemyModel(k));
+    for (const k of ['spear', 'archer', 'horse']) add(makeUnitModel(k));
+    add(makeXbowCart(0)); add(makeXbowCart(1)); add(makeRocketCart(0)); add(makeCannonCart(0)); add(makeBarricadeWagon()); add(makePalisadeWagon());
+    for (const k of ['food', 'wood', 'stone']) add(supplyBed(k));
+    for (const k of ['friend', 'fire', 'foe']) add(new THREE.Mesh(arrowGeo, arrowMats[k]));
+    add(new THREE.Mesh(ballGeo, M('#2b2b2b', { metalness: 0.4 }))); add(new THREE.Mesh(puffGeo, new THREE.MeshStandardMaterial({ flatShading: true, transparent: true })));
+    add(new THREE.Mesh(dangerDiscGeo, dangerFill)); add(new THREE.Mesh(dangerRingGeo, dangerEdge)); add(new THREE.Mesh(dangerDiscGeo, fireMat));
+    scene.add(g); renderer.compile(scene, camera); scene.remove(g);
+  } catch (e) { console.info('shader warm-up skipped', e); }
+  seed = seed0;
+}, 600);
+window.__ff = { convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
