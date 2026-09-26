@@ -440,7 +440,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
-<div id="buildTag" class="buildTag">Build 24 · 26 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 25 · 26 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2243,6 +2243,18 @@ function countTo(el, v) { if (!el) return; const t = tweens.get(el), shown = t ?
   if (!isFinite(shown)) { setText(el, String(v)); return; } if ((t ? t.to : shown) === v) return;
   tweens.set(el, { from: shown, to: v, cur: shown, k: 0 }); }
 function stepTweens(dt) { for (const [el, t] of tweens) { t.k = Math.min(1, t.k + dt / 0.45); t.cur = t.from + (t.to - t.from) * (1 - Math.pow(1 - t.k, 3)); setText(el, String(Math.round(t.cur))); if (t.k >= 1) tweens.delete(el); } }
+// A sound where it happens. Heard from the commander (how far) and placed by the camera (which side of the screen):
+// the hybrid listener recommended for top-down games. It falls as the inverse of distance past a wide reference,
+// fades out at its reach, and far sounds are duller as well as quieter. floor: a threat that must stay audible.
+const sfxTmp = new THREE.Vector3();
+function sfxAt(kind, pos, vol, reach, floor) {
+  if (!pos) return Sound.play(kind, vol);
+  const R = reach || 30, L = hero.alive ? hero.pos : camFocus, d = Math.hypot(pos.x - L.x, pos.z - L.z), ref = R * 0.25;
+  let g = (vol === undefined ? 1 : vol) * Math.min(1, ref / Math.max(ref, d)) * clamp((R - d) / (R * 0.3), 0, 1);
+  g = Math.max(g, floor || 0); if (g < 0.04) return;
+  const sc = toScreen(sfxTmp.set(pos.x, pos.y || 0, pos.z)), behind = proj.z > 1;
+  Sound.play(kind, g, { pan: behind ? 0 : clamp(sc.x / innerWidth * 2 - 1, -1, 1) * 0.8, far: clamp(d / R, 0, 1) });
+}
 const proj = new V3();
 function toScreen(p) { proj.copy(p).project(camera); return { x: (proj.x + 1) / 2 * innerWidth, y: (1 - proj.y) / 2 * innerHeight }; }
 const costHTML = c => RES.filter(r => c[r]).map(r => `<span><i class="ic ${r}"></i>${c[r]}</span>`).join('');
@@ -2326,7 +2338,7 @@ function removeBuilding(b) {
   const i = buildings.indexOf(b); if (i >= 0) buildings.splice(i, 1);
   for (const w of b.workers) { scene.remove(w.m.g); workers.splice(workers.indexOf(w), 1); }
   b.workers = [];
-  S.lost++; if (b.plot && b.plot.cart) S.nightWrecked = (S.nightWrecked || 0) + 1; puff(b.pos, '#6d6660', 10); Sound.play('crash'); kick(0.4); recomputeMods(); distDirty = true;
+  S.lost++; if (b.plot && b.plot.cart) S.nightWrecked = (S.nightWrecked || 0) + 1; puff(b.pos, '#6d6660', 10); sfxAt('crash', b.pos, 1, 50); kick(0.4); recomputeMods(); distDirty = true;
   const g = new THREE.Group(); g.position.copy(p.pos);
   for (let k = 0; k < 6; k++) part(ruinGeo, '#4d4640', (Math.random() - 0.5) * 1.8, 0.15, (Math.random() - 0.5) * 1.8, g);
   scene.add(g); p.ruin = { kind: b.kind, level: b.level, g };
@@ -2337,11 +2349,10 @@ function removeBuilding(b) {
 // own sound where they land; this covers hand-to-hand and wagons being hacked at.
 function hitSound(ent, src) {
   if (ent === hero || !ent.pos) return;
-  const v = Math.max(0, 1 - ent.pos.distanceTo(hero.pos) / 26); if (v < 0.06) return;
-  if (ent.etype) { if (src === 'spears' || src === 'blade' || src === undefined) Sound.play('meleeHit', v); }
-  else if (ent.isSoldier) Sound.play('foeHit', v);
-  else if (ent.plot && !src) Sound.play('woodHit', v);
-  else if (ent.plot && src === 'firearrow') Sound.play('fire', v * 0.6);
+  if (ent.etype) { if (src === 'spears' || src === 'blade' || src === undefined) sfxAt('meleeHit', ent.pos, 1, 26); }
+  else if (ent.isSoldier) sfxAt('foeHit', ent.pos, 1, 26);
+  else if (ent.plot && !src) sfxAt('woodHit', ent.pos, 1, 30);
+  else if (ent.plot && src === 'firearrow') sfxAt('fire', ent.pos, 0.6, 34);
 }
 function damage(ent, dmg, from, src) {
   if (!ent.alive || !(ent.hp < Infinity)) return;
@@ -2601,7 +2612,7 @@ function updateSoldiers(dt) {
     else if (t) {
       const duck = WAGON && S.rares.duck && s.type === 'spear' && soldiers.filter(o => o !== s && o.alive && o.type === 'spear' && o.pos.distanceTo(s.pos) < 3).length >= 2 ? 1.4 : 1;
       const dmg = duck * st.dmg * (WAGON ? rankMul(s.type || 'spear') : 1) * (WAGON && s.type === 'spear' && rankOf('spear') >= 3 && t.m && t.m.rider ? 2 : 1) * (s.ambush ? 1.5 : 1) * (S.vetMul > 1 ? 1.3 : 1) * S.morale * (S.drumT > 0 ? 1.33 : 1) * (s.hornT > 0 ? 1.5 : 1) * (WAGON ? S.soldierStr * (s.hungry ? 0.7 : 1) : 1), d = t.pos.distanceTo(s.pos);
-      if (st.range && d < rng) { if (s.cd <= 0) { const fire = S.fire; shooter = s; shoot(s.pos.clone().setY(s.pos.y + 1.3), t, dmg, fire ? 'fire' : 'friend', false, null, 'archers'); shooter = null; s.cd = st.cd; s.atkT = 0.3; } }
+      if (st.range && d < rng) { if (s.cd <= 0) { const fire = S.fire; shooter = s; shoot(s.pos.clone().setY(s.pos.y + 1.3), t, dmg, fire ? 'fire' : 'friend', false, null, 'archers'); shooter = null; sfxAt('ourBow', s.pos, 0.8, 26); s.cd = st.cd; s.atkT = 0.3; } }
       else if (!st.range && d < st.reach + t.t.rad) { if (s.cd <= 0) { killer = s; damage(t, dmg, s.pos, s.type === 'horse' ? 'horse' : 'spears'); killer = null;
         // a blow lands with weight: the raider is shoved back (hard, from a horseman of rank 3)
         if (WAGON && t.alive && t.etype !== 'captain') { const kx = t.pos.x - s.pos.x, kz = t.pos.z - s.pos.z, kl = Math.hypot(kx, kz) || 1, kk = s.type === 'horse' ? (rankOf('horse') >= 3 ? 1.4 : 0.6) : 0.25;
@@ -2652,9 +2663,9 @@ function updateShots(dt) {
     if (a.k >= 1) {
       scene.remove(a.m); if (a.pool && a.m.geometry === arrowGeo) arrowPool[a.pool].push(a.m); shots.splice(i, 1);
       if (!a.target.alive && WAGON && !a.ball && !a.splash) addStuck(to, a.from);   // a miss, or a storm arrow: it stays in the ground
-      if (a.target.alive) { killer = a.by; damage(a.target, a.dmg, a.from, a.src); killer = null; Sound.play('hit'); if (a.fire && a.target.alive) ignite(a.target, 2.5); }
+      if (a.target.alive) { killer = a.by; damage(a.target, a.dmg, a.from, a.src); killer = null; sfxAt('hit', to, 1, 26); if (a.fire && a.target.alive) ignite(a.target, 2.5); }
       if (a.splash) { if (a.target.alive !== undefined && a.target.etype) ignite(a.target, 3); for (const e of enemies) if (e !== a.target && e.alive && e.pos.distanceTo(to) < 2) { damage(e, a.dmg * 0.5); ignite(e, 2); } puff(to, '#ff9a45', 2); }
-      if (a.ball) { for (const e of enemies) if (e !== a.target && e.alive && e.pos.distanceTo(to) < (a.grape ? 3.4 : 1.9)) damage(e, a.dmg * (a.grape ? 0.7 : 0.5), null, a.src); puff(to, '#6d665e', 5, 1.2); puff(to, '#ff9a45', 2, 2); }
+      if (a.ball) { sfxAt('impact', to, 1, 50); for (const e of enemies) if (e !== a.target && e.alive && e.pos.distanceTo(to) < (a.grape ? 3.4 : 1.9)) damage(e, a.dmg * (a.grape ? 0.7 : 0.5), null, a.src); puff(to, '#6d665e', 5, 1.2); puff(to, '#ff9a45', 2, 2); }
     }
   }
   for (let i = rockets.length - 1; i >= 0; i--) {
@@ -2665,6 +2676,7 @@ function updateShots(dt) {
       r.ms.forEach(m => scene.remove(m)); rockets.splice(i, 1);
       for (const e of enemies) if (e.alive && e.pos.distanceTo(r.center) < (WAGON && rankOf('rockets') >= 3 ? 4 : 2.8)) damage(e, r.dmg, null, 'rockets');
       for (let j = 0; j < 3; j++) puff(r.to[j], j % 2 ? '#ff6a1a' : '#ff9a45', 2, 2.5);
+      sfxAt('burst', r.center, 1, 44);
       puff(r.center, '#4a4440', 3);
     }
   }
@@ -2748,7 +2760,7 @@ function spawnEnemy(type, entry) {
     S.announced.add(entry); if (!WAGON) flare(entry);
     const name = ENTRIES.find(x => x.id === entry).name;
     banner(`Raiders at ${name}!`, S.announced.size > 1 ? 'Another warband is coming down from the mountains.' : 'Watch which roads they take.', 3);
-    Sound.play('horn'); kick(0.3);
+    sfxAt('horn', NODES[entry].pos, 1, 400, 0.7); kick(0.3);   // from the pass they come through: you hear which side
   }
 }
 function lancerTurn(e, dt) { // returns true while the lancer is winding up, charging or recovering
@@ -2840,7 +2852,7 @@ function killEnemy(e) {
   if (WAGON && S.state === 'night' && !S.spawnQ.length && !enemies.some(o => o.alive && o !== e)) { slowMo = 1.3; kick(0.3); }   // the last one: let it land
   if (e.carry) { dropSack(e.pos, e.carry, e.carryRes); e.carry = 0; }
   else if (WAGON && S.state === 'night' && Math.random() < DROP.chance) dropSack(e.pos, DROP.n, has.wood() && Math.random() < 0.4 ? 'wood' : 'grain');
-  e.alive = false; e.dying = 0.4; S.kills++; scene.remove(e.bar); Sound.play('death');
+  e.alive = false; e.dying = 0.4; S.kills++; scene.remove(e.bar); sfxAt('death', e.pos, 1, 34);
   if (S.ashes && e.fireT > 0) { firePool(e.pos.x, e.pos.z, 2.4, 3); puff(e.pos, '#ff6a1a', 4, 2); }
 }
 function drowned() { S.drowned++; if (S.ferryToll) { S.res.grain += 2; refreshHUD(); } }
@@ -2987,7 +2999,7 @@ function updateEnemyStep(e, dt) {
     }
   }
   if (attacking && e.cd <= 0) {
-    if (e.etype === 'horse') { e.cd = e.t.rate; e.shootT = 0.5; e.pending = { t: attacking, at: 0.25 }; Sound.play('foeBow'); }
+    if (e.etype === 'horse') { e.cd = e.t.rate; e.shootT = 0.5; e.pending = { t: attacking, at: 0.25 }; sfxAt('foeBow', e.pos, 1, 30); }
     else { damage(attacking, e.t.dmg); e.cd = 1; e.atkT = 0.3;
       if (WAGON && attacking.plot && attacking.plot.cart && rankOf('walls') >= 3) damage(e, 5);
       if (S.murderHoles && attacking.plot && DEFS[attacking.kind].block) { damage(e, 7); ignite(e, 2); } }
@@ -3018,8 +3030,8 @@ function updateEnemyStep(e, dt) {
     const stride = Math.floor(e.bob / Math.PI);
     if (stride !== e.lastStride) {
       e.lastStride = stride;
-      const d = Math.hypot(e.pos.x - camFocus.x, e.pos.z - camFocus.z);
-      if (d < 20) Sound.play(e.etype === 'horse' || e.etype === 'lancer' ? 'foeHoof' : 'step', 1 - d / 20);
+      const d = Math.hypot(e.pos.x - hero.pos.x, e.pos.z - hero.pos.z);
+      if (d < 22) sfxAt(e.etype === 'horse' || e.etype === 'lancer' ? 'foeHoof' : 'step', e.pos, 1, 22);
     }
   }
   return true;
@@ -3106,6 +3118,7 @@ function updateDefences(dt) {
       b.cd = 0.5; recoil(b, t.pos, 0.12);
       if (WAGON && rankOf('tower') >= 3) b.cd *= 0.5;
       shoot(b.pos.clone().setY(b.pos.y + (b.g.userData.fireY || 2.8)), t, (b.level ? d.up.dps : d.dps) * 0.5 * mor * md.dmgMul * cmd, S.fire ? 'fire' : 'friend', S.fire, null, 'tower');
+      sfxAt('xbow', b.pos, 1, 36);
     } else if (b.kind === 'rockets') {
       b.cd -= dt; if (b.cd > 0) continue;
       // aim at the thickest crowd in range
@@ -3115,6 +3128,7 @@ function updateDefences(dt) {
       b.cd = b.level ? d.up.every : d.every;
       const center = best.pos.clone(), from = b.pos.clone().setY(b.pos.y + 1.4), ms = [], to = [];
       for (let k = 0; k < 6; k++) { const m = new THREE.Mesh(rocketGeo, arrowMats.fire); scene.add(m); ms.push(m); to.push(center.clone().add(new V3((Math.random() - 0.5) * 3, 0.3, (Math.random() - 0.5) * 3))); }
+      sfxAt('rocket', b.pos, 1, 40);
       rockets.push({ ms, from, to, center, k: 0, dur: 0.8, dmg: (b.level ? d.up.dmg : d.dmg) * mor * md.dmgMul * cmd });
     } else if (b.kind === 'bombard') {
       b.cd -= dt;
@@ -3184,7 +3198,7 @@ function updateHero(dt) {
     // one stride of hoofbeats per gait cycle, timed to it: four beats and a silence at the gallop, two at the trot,
     // on a bridge's planks the hollow clop
     const stride = Math.floor(hero.bob / TAU);
-    if (stride !== hero.lastStride) { hero.lastStride = stride; Sound.gait(hero.galloping ? 'gallop' : 'trot', TAU / (sprinting ? 17 : 14), 0.75, onBridge(hero.pos)); }   // 0.75: twice the footfalls of the old sound, so each is softer
+    if (stride !== hero.lastStride) { hero.lastStride = stride; Sound.gait(hero.galloping ? 'gallop' : 'trot', TAU / (sprinting ? 17 : 14), hero.galloping ? 0.75 : 0.5, onBridge(hero.pos)); }   // 0.75: twice the footfalls of the old sound, so each is softer
   }
   hero.pos.y = groundY(hero.pos);
   // the charge: ride flat out and you trample foot raiders, knocking them aside (or into the river)
@@ -3500,7 +3514,7 @@ function toDawn() {
     b.innerHTML = `<span class="k">${i + 1}</span><span class="t">${u.name}</span>${tagHTML(u)}<span class="e">${u.desc}</span>`;
     b.addEventListener('click', () => choose(u)); b.addEventListener('mouseenter', () => focusTablet(i)); tabs.appendChild(b);
   });
-  S.dawnPicks = picks; $('#dawn').hidden = false; Sound.play('dawn');
+  S.dawnPicks = picks; $('#dawn').hidden = false; Sound.ui('dawn');
   setTimeout(() => focusTablet(0), 50);
 }
 function focusTablet(i) {
@@ -3650,7 +3664,7 @@ const fireMat = new THREE.MeshBasicMaterial({ color: '#ff7a2a', transparent: tru
 function firePool(x, z, r, dur, hostile) {
   const g = new THREE.Mesh(new THREE.CircleGeometry(r, 24), fireMat.clone());
   g.rotation.x = -Math.PI / 2; g.position.set(x, groundY({ x, z }) + 0.08, z); g.renderOrder = 4; scene.add(g);
-  firePools.push({ x, z, r, t: 0, dur: hostile ? dur : dur * S.burnMul, g, hostile }); Sound.play('fire');
+  firePools.push({ x, z, r, t: 0, dur: hostile ? dur : dur * S.burnMul, g, hostile }); sfxAt('fire', { x, z }, 1, 34);
 }
 function ignite(e, dur) { e.fireT = Math.max(e.fireT || 0, (dur || 3) * S.burnMul); }
 function updateFire(dt) {
@@ -3762,7 +3776,7 @@ function wireOptions() {
 /* ================= sound =================
    Everything here is synthesised in WebAudio: no files, no licensing, and the prototype
    stays a single page. Composed music belongs to the vertical slice, not to this. */
-const SFX_MIN = { meleeHit: 0.05, foeHit: 0.07, woodHit: 0.09, step: 0.055, foeHoof: 0.06, hit: 0.06, death: 0.09, bow: 0.06, foeBow: 0.1, build: 0.14, fire: 0.22, hurt: 0.3, hoof: 0.07, slash: 0.08, clang: 0.12 };
+const SFX_MIN = { loot: 0.3, xbow: 0.08, ourBow: 0.07, rocket: 0.15, burst: 0.12, bombard: 0.2, impact: 0.12, stone: 0.2, meleeHit: 0.05, foeHit: 0.07, woodHit: 0.09, step: 0.055, foeHoof: 0.06, hit: 0.06, death: 0.09, bow: 0.06, foeBow: 0.1, build: 0.14, fire: 0.22, hurt: 0.3, hoof: 0.07, slash: 0.08, clang: 0.12 };
 const Sound = (() => {
   let ctx = null, master, musicG, sfxG, started = false, nextNote = 0, timer = 0, mood = 'menu';
   let last = {};
@@ -3789,14 +3803,60 @@ const Sound = (() => {
            [[0, 1], [2, 1], [4, 1], [2, 1], [1, 1], [0, 1], [-1, 2]]],
   };
 
-  function volumes() { if (!ctx) return; musicG.gain.value = st.music ? st.musicVol * 1.4 : 0; sfxG.gain.value = st.sfx ? st.sfxVol : 0; }
+  function volumes() { if (!ctx) return; musicG.gain.value = st.music ? st.musicVol * 1.4 : 0; sfxG.gain.value = st.sfx ? st.sfxVol : 0; if (uiG) uiG.gain.value = st.sfx ? st.sfxVol : 0; }
+  // The mix, as a small desk (after the game-audio mixing literature: Overwatch's priorities, DICE's HDR audio,
+  // Total War's battle mixes, Sony's loudness guidance):
+  //   music -> duck (dips under the big moments) -> a gentle cut above 3.5 kHz -> master
+  //   effects: every sound placed in the world has its own pan and distance filter; the commander's own hooves and
+  //            bow are dry and centred. All of them -> a high shelf, -5 dB above 3.2 kHz (the ear is harshest at
+  //            2-5 kHz, and "too high" was the complaint) -> master, and a little into the valley's echo
+  //   ui (menus, the dawn tally) -> master, dry and centred, never placed or ducked
+  const MASTER = 1.25;   // tuned by tools/audiomix.mjs to about -17 LUFS at night (it was -29: far too quiet)
+  let musicDuck = null, uiG = null, moodG = null, musicBase = 1;
+  // the day's music sits under the night's: a battle must be the loudest thing in the game (measured: the day had
+  // been as loud as the night, so nights did not feel bigger)
+  const MOOD_LEVEL = { menu: 0.17, day: 0.14, night: 3 };   // set by tools/audiomix.mjs: night about -18 LUFS, the day 5 LU under it, the fight about 6 LU over its music   // night about 7 dB over the day, and level with the fight (tools/audiomix.mjs)
+  function buildBuses() {
+    musicG = ctx.createGain(); sfxG = ctx.createGain(); uiG = ctx.createGain(); musicDuck = ctx.createGain(); moodG = ctx.createGain(); musicBase = 1;
+    moodG.gain.value = MOOD_LEVEL[mood] || 1;
+    const mt = ctx.createBiquadFilter(); mt.type = 'highshelf'; mt.frequency.value = 3500; mt.gain.value = -3;
+    // the night music's drums stood 27 dB over its tune (measured), so they hit the limiter while the tune stayed faint:
+    // a compressor on the music evens them out and lets the whole piece sit at a proper level
+    const mcomp = ctx.createDynamicsCompressor(); mcomp.threshold.value = -26; mcomp.knee.value = 10; mcomp.ratio.value = 4; mcomp.attack.value = 0.004; mcomp.release.value = 0.2;
+    musicG.connect(moodG); moodG.connect(musicDuck); musicDuck.connect(mcomp); mcomp.connect(mt); mt.connect(master);
+    const stn = ctx.createBiquadFilter(); stn.type = 'highshelf'; stn.frequency.value = 3200; stn.gain.value = -5;
+    // a slow, gentle compressor on the effects (about 3:1 above -20 dB): a bombard or a crash no longer stands 20 dB
+    // over the fight, so the whole mix can be brought up to a normal loudness without clipping
+    const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 8; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.25;
+    sfxG.connect(comp); comp.connect(stn); stn.connect(master); uiG.connect(master);
+    // the valley: two short, dark reflections, so the effects sit in one place rather than in a vacuum
+    const vin = ctx.createGain(), vout = ctx.createGain(); vin.gain.value = 0.16; vout.connect(master); stn.connect(vin);
+    for (const [time, fb] of [[0.071, 0.25], [0.113, 0.2]]) { const d = ctx.createDelay(0.5), f = ctx.createGain(), lp = ctx.createBiquadFilter(); d.delayTime.value = time; f.gain.value = fb; lp.type = 'lowpass'; lp.frequency.value = 1800; vin.connect(d); d.connect(lp); lp.connect(f); f.connect(d); lp.connect(vout); }
+    OUT = sfxG;
+  }
+  // the music dips under a big moment and comes back (a sidechain, done by hand: Web Audio has none)
+  function duck(depth, hold) { if (!musicDuck) return; const t = NOW(), g = musicDuck.gain; g.cancelScheduledValues(t); g.setTargetAtTime(depth * musicBase, t, 0.03); g.setTargetAtTime(musicBase, t + (hold || 0.5), 0.3); }
+  // how important each sound is. When many play at once the least important are dropped first: the commander's own
+  // actions and threats to him are never dropped; far arrows and footsteps go first (Overwatch's buckets, simplified)
+  const PRI = { loot: 5, horn: 5, wardrum: 5, hurt: 5, volley: 5, bell: 5, ability: 5, tally: 5, dawn: 5, bow: 4, bombard: 4, stone: 4, crash: 4, clang: 3, build: 3, burst: 3, xbow: 3, rocket: 3, impact: 3,
+    fire: 2, death: 2, foeHit: 2, woodHit: 2, hit: 1, meleeHit: 1, foeBow: 1, ourBow: 0, step: 0, foeHoof: 0 };
+  const LEN = { horn: 1.5, wardrum: 0.9, bombard: 0.7, stone: 0.9, crash: 0.6, fire: 0.6, rocket: 0.8, burst: 0.4, impact: 0.4, bell: 2, volley: 0.6 };
+  const VOICE_CAP = 26; let voices = [];
+  function room(kind) {
+    const t = NOW(); voices = voices.filter(e => e > t);
+    const p = PRI[kind] === undefined ? 2 : PRI[kind], busy = voices.length / VOICE_CAP;
+    if ((busy > 0.5 && p <= 0) || (busy > 0.75 && p <= 1) || (busy >= 1 && p <= 3)) return false;
+    voices.push(t + (LEN[kind] || 0.3)); return true;
+  }
+  // a thick night thins the music a little by itself, so the fight has room (Total War's "decluttering")
+  function breathe() { if (!musicDuck) return; const want = voices.filter(e => e > NOW()).length > 10 ? 0.78 : 1; if (want !== musicBase) { musicBase = want; musicDuck.gain.setTargetAtTime(want, NOW(), 0.6); } }
   function init() {
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
     ctx = new AC();
-    master = ctx.createGain(); master.gain.value = 0.55;
+    master = ctx.createGain(); master.gain.value = MASTER;
     master.connect(makeLimiter()).connect(ctx.destination);
-    musicG = ctx.createGain(); sfxG = ctx.createGain();
+    buildBuses();
     // two taps of delay stand in for the long resonance of a hall; zheng needs the tail
     const wet = ctx.createGain(); wet.gain.value = 0.3; wet.connect(master);
     for (const [time, fb] of [[0.28, 0.3], [0.41, 0.22]]) {
@@ -3804,7 +3864,6 @@ const Sound = (() => {
       d.delayTime.value = time; f.gain.value = fb; lp.type = 'lowpass'; lp.frequency.value = 2600;
       d.connect(lp); lp.connect(f); f.connect(d); d.connect(wet); musicG.connect(d);
     }
-    musicG.connect(master); sfxG.connect(master);
     volumes(); started = true; nextNote = ctx.currentTime + 0.12;
   }
   // Safety net on the output. This was a DynamicsCompressor, which turned out to pull every
@@ -3899,7 +3958,7 @@ const Sound = (() => {
   // Dizi: a bamboo flute is mostly odd harmonics plus a good deal of breath.
   function dizi(f, t, dur, g) {
     const a = ctx.createGain(), lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = f * 5; lp.Q.value = 0.6;
+    lp.type = 'lowpass'; lp.frequency.value = Math.min(2600, f * 3); lp.Q.value = 0.6;   // was f*5: its upper harmonics sat in the ear's harshest band
     a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(g, t + 0.09);
     a.gain.setValueAtTime(g, t + dur - 0.14); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(f, t);
@@ -3909,8 +3968,8 @@ const Sound = (() => {
     v.connect(vg); vg.connect(o.frequency); v.start(t); v.stop(t + dur);
     o.start(t); o.stop(t + dur + 0.05);
     const br = ctx.createBufferSource(), bf = ctx.createBiquadFilter(), bg = ctx.createGain();
-    br.buffer = noiseBuf(); br.loop = true; bf.type = 'bandpass'; bf.frequency.value = f * 3.5; bf.Q.value = 1.6;
-    bg.gain.value = g * 0.09; br.connect(bf); bf.connect(bg); bg.connect(a);
+    br.buffer = noiseBuf(); br.loop = true; bf.type = 'bandpass'; bf.frequency.value = f * 2.2; bf.Q.value = 1.6;
+    bg.gain.value = g * 0.07; br.connect(bf); bf.connect(bg); bg.connect(a);
     br.start(t); br.stop(t + dur + 0.02);
     o.connect(lp); lp.connect(a); a.connect(musicG);
   }
@@ -3938,7 +3997,7 @@ const Sound = (() => {
   }
   function woodblock(t, g) {   // muyu
     const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), a = ctx.createGain();
-    src.buffer = noiseBuf(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 9;
+    src.buffer = noiseBuf(); bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 80; bp.Q.value = 9;   // a hollow wooden knock, lower
     a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
     src.connect(bp); bp.connect(a); a.connect(musicG); src.start(t); src.stop(t + 0.08);
   }
@@ -4018,7 +4077,7 @@ const Sound = (() => {
         zheng(deg(d, -1), t, 0.2, dur + 1.8, Math.random() < 0.45);
         if (beats > 1) zheng(deg(d - 2, -2), t + BEAT * 0.5, 0.07, 1.4, false);
       } else if (mood === 'day') {
-        dizi(deg(d, 1), t, dur * 0.92, 0.16);                        // flute carries the tune
+        dizi(deg(d, 0), t, dur * 0.92, 0.2);                         // the flute carries the tune, low: the qudi of Kunqu, warmer than a high dizi
         zheng(deg(d - 4, 0), t, 0.1, dur + 0.8, false);              // zheng answers underneath
         if (beat % 4 === 0) zheng(deg(0, -1), t, 0.07, 2.2, false);
         if (beat % 2 === 1) woodblock(t, 0.05);
@@ -4035,19 +4094,23 @@ const Sound = (() => {
     }
   }
 
+  // ---- the effects' clock and destination. NOW() is the audio clock plus an offset, so a test can lay a whole battle
+  // out in time; OUT is where the sound being made goes (the dry effects bus, or a voice's own pan-and-distance chain).
+  let tOff = 0, OUT = null;
+  const NOW = () => ctx.currentTime + tOff;
   function blip(f0, f1, dur, g, type, dest) {
     const o = ctx.createOscillator(), a = ctx.createGain();
-    o.type = type || 'sine'; o.frequency.setValueAtTime(f0, ctx.currentTime);
-    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), ctx.currentTime + dur);
-    a.gain.setValueAtTime(g, ctx.currentTime); a.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-    o.connect(a); a.connect(dest || sfxG); o.start(); o.stop(ctx.currentTime + dur + 0.02);
+    o.type = type || 'sine'; o.frequency.setValueAtTime(f0, NOW());
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), NOW() + dur);
+    a.gain.setValueAtTime(g, NOW()); a.gain.exponentialRampToValueAtTime(0.0001, NOW() + dur);
+    o.connect(a); a.connect(dest || OUT); o.start(); o.stop(NOW() + dur + 0.02);
   }
   function noise(dur, g, f0, f1, q, type) {
     const src = ctx.createBufferSource(), bp = ctx.createBiquadFilter(), a = ctx.createGain();
     src.buffer = noiseBuf(); bp.type = type || 'bandpass'; bp.Q.value = q || 1.1;
-    bp.frequency.setValueAtTime(f0, ctx.currentTime); bp.frequency.exponentialRampToValueAtTime(f1, ctx.currentTime + dur);
-    a.gain.setValueAtTime(g, ctx.currentTime); a.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-    src.connect(bp); bp.connect(a); a.connect(sfxG); src.start(); src.stop(ctx.currentTime + dur + 0.02);
+    bp.frequency.setValueAtTime(f0, NOW()); bp.frequency.exponentialRampToValueAtTime(f1, NOW() + dur);
+    a.gain.setValueAtTime(g, NOW()); a.gain.exponentialRampToValueAtTime(0.0001, NOW() + dur);
+    src.connect(bp); bp.connect(a); a.connect(OUT); src.start(); src.stop(NOW() + dur + 0.02);
   }
   // ---- the same blocks at a time of our choosing, because a stride is several hooves a few milliseconds apart ----
   function noiseAt(t, dur, g, f0, f1, q, type) {
@@ -4055,21 +4118,27 @@ const Sound = (() => {
     const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), a = ctx.createGain();
     src.buffer = noiseBuf(); f.type = type || 'bandpass'; f.Q.value = q || 1;
     f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
-    a.gain.setValueAtTime(0, ctx.currentTime); a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);   // silent until it is due
-    src.connect(f); f.connect(a); a.connect(sfxG); src.start(t, Math.random() * 0.4); src.stop(t + dur + 0.02);   // a fresh stretch of noise each time
+    a.gain.setValueAtTime(0, NOW()); a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);   // silent until it is due
+    src.connect(f); f.connect(a); a.connect(OUT); src.start(t, Math.random() * 0.4); src.stop(t + dur + 0.02);   // a fresh stretch of noise each time
   }
-  function thumpAt(t, f0, f1, dur, g) {   // a weight arriving: a low sine that sags in pitch, no ring
-    const o = ctx.createOscillator(), a = ctx.createGain(); o.type = 'sine';
+  // A weight arriving: a low sine that sags in pitch, no ring, driven a little into saturation. The overtones that adds
+  // (two and three times the pitch) are what a laptop speaker can play, and the ear rebuilds the low note from them
+  // (the missing fundamental), so the thump still reads as deep on small speakers.
+  let satCurve = null;
+  function thumpAt(t, f0, f1, dur, g) {
+    const o = ctx.createOscillator(), a = ctx.createGain(), sh = ctx.createWaveShaper(); o.type = 'sine';
+    if (!satCurve) { satCurve = new Float32Array(1024); for (let i = 0; i < 1024; i++) { const x = i / 1023 * 2 - 1; satCurve[i] = Math.tanh(x * 2.6) / Math.tanh(2.6); } }
+    sh.curve = satCurve;
     o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
-    a.gain.setValueAtTime(0, ctx.currentTime); a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(g, t + 0.004); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(a); a.connect(sfxG); o.start(t); o.stop(t + dur + 0.02);
+    a.gain.setValueAtTime(0, NOW()); a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(g, t + 0.004); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(sh); sh.connect(a); a.connect(OUT); o.start(t); o.stop(t + dur + 0.02);
   }
   // grains: tiny bright ticks scattered in time. Earth kicked up, dust, lamellar plates knocking, splinters, embers
   function grit(t, span, n, g, lo, hi) { for (let i = 0; i < n; i++) { const f = lo * Math.pow(hi / lo, Math.random()); noiseAt(t + Math.random() * span, 0.007 + Math.random() * 0.012, g * (0.35 + Math.random() * 0.65), f, f * 0.85, 2.5); } }
   function pluck(f, t, g, dur) {   // a plucked string on the effects bus: the Karplus-Strong string the zheng uses
     const src = ctx.createBufferSource(), a = ctx.createGain(); src.buffer = ksTable(); src.playbackRate.setValueAtTime(f / KS_REF, t);
     a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(a); a.connect(sfxG); src.start(t); src.stop(t + dur + 0.02);
+    src.connect(a); a.connect(OUT); src.start(t); src.stop(t + dur + 0.02);
   }
   // One hoof on earth. The old sound was a bright click and a hollow ring: a clip-clop, which is iron on stone (or the
   // coconut shells of radio plays). On a dirt road a hoof lands as a dull low thump that does not ring, a soft pat as
@@ -4077,10 +4146,10 @@ const Sound = (() => {
   function hoofFall(t, g, far) {
     const j = 0.9 + Math.random() * 0.2;
     // most of it sits where a laptop speaker can play it (150-600 Hz): a hoof that lives only in the sub-bass is silent there
-    noiseAt(t, 0.1, 2.6 * g, 340 * j, 160, 0.9);                 // the body of the blow
-    thumpAt(t, 92 * j, 50, 0.07, 0.1 * g);                       // a little weight underneath, for good speakers
-    noiseAt(t + 0.002, 0.05, 1.2 * g * (1 - far * 0.6), 620 * j, 380, 1.2);   // the pat of the hoof biting earth
-    if (far < 0.75) grit(t + 0.012, 0.07, 6, 0.3 * g * (1 - far), 1300, 4800);   // grit thrown up behind
+    noiseAt(t, 0.12, 2.8 * g, 250 * j, 125, 0.8);                // the body of the blow, low
+    thumpAt(t, 76 * j, 44, 0.09, 0.13 * g);                      // the weight underneath, saturated so it carries
+    noiseAt(t + 0.003, 0.06, 1.5 * g * (1 - far * 0.6), 400 * j, 240, 1.0);   // the pat of the hoof biting earth
+    if (far < 0.75) grit(t + 0.014, 0.08, 6, 0.24 * g * (1 - far), 700, 2200);   // clods thrown up behind: dull, not a hiss
   }
   function hoofWood(t, g) {   // on the planks of a bridge the clop is right: a hard knock and a hollow deck
     const j = 0.9 + Math.random() * 0.2;
@@ -4092,72 +4161,93 @@ const Sound = (() => {
   // feet landing a hair apart. period: seconds for one whole stride.
   let breathFlip = false;
   function gait(kind, period, g, wood, strides) {
-    const t0 = ctx.currentTime + 0.01;
+    const t0 = NOW() + 0.01;
     const falls = kind === 'gallop' ? [[0, 0.75], [0.14, 0.65], [0.36, 0.85], [0.5, 1.05]] : [[0, 0.8], [0.03, 0.5], [0.5, 0.8], [0.53, 0.5]];
     for (let s = 0; s < (strides || 1); s++) {
       const ts = t0 + s * period;
       for (const [o, k] of falls) { const t = ts + o * period + (Math.random() - 0.5) * 0.006, kk = g * k * (0.9 + Math.random() * 0.2); wood ? hoofWood(t, kk) : hoofFall(t, kk, 0); }
-      if (kind === 'gallop') { breathFlip = !breathFlip; noiseAt(ts + period * 0.52, 0.16, (breathFlip ? 0.16 : 0.12) * g, 620, 360, 1.6); }   // the blow as the forefeet land
-      if (kind === 'gallop' && Math.random() < 0.35) grit(ts + period * 0.55, 0.05, 2, 0.05 * g, 3200, 5200);   // bit rings and stirrup irons
+      if (kind === 'gallop') { breathFlip = !breathFlip; noiseAt(ts + period * 0.52, 0.17, (breathFlip ? 0.2 : 0.15) * g, 430, 260, 1.4); }   // the blow as the forefeet land
+      if (kind === 'gallop' && Math.random() < 0.3) grit(ts + period * 0.55, 0.05, 2, 0.035 * g, 2200, 3400);   // bit rings and stirrup irons, faint
     }
   }
-  function play(kind, vol) {
+  // at: where it happens, from the game: { pan: -1..1 by screen side, far: 0..1 by distance } (duller and quieter far
+  // off, as air absorbs the highs first), or { ui: true } for a menu sound. Nothing: the commander's own, dry and centred.
+  function play(kind, vol, at) {
     if (!ctx || !st.sfx) return;
     const v = vol === undefined ? 1 : vol;
-    const min = SFX_MIN[kind] || 0.04, now = ctx.currentTime;
+    const min = SFX_MIN[kind] || 0.04, now = NOW();
     if (now - (last[kind] || -9) < min) return;
+    if (!(at && at.ui) && !room(kind)) return;
     last[kind] = now;
+    if (at && at.ui) OUT = uiG;
+    else if (at) { const pn = ctx.createStereoPanner(), lp = ctx.createBiquadFilter(); pn.pan.value = Math.max(-1, Math.min(1, at.pan || 0));
+      lp.type = 'lowpass'; lp.frequency.value = 1300 + 15000 * Math.pow(1 - Math.min(1, at.far || 0), 2); lp.Q.value = 0.5; lp.connect(pn); pn.connect(sfxG); OUT = lp; }
+    if (DUCK[kind]) duck(DUCK[kind][0] + (1 - DUCK[kind][0]) * Math.min(1, (at && at.far) || 0), DUCK[kind][1]);   // a far bombard dips the music less
+    try { voice(kind, v, now); } finally { OUT = sfxG; }
+  }
+  const DUCK = { bombard: [0.55, 0.45], stone: [0.5, 0.6], horn: [0.6, 1.1], wardrum: [0.6, 0.8], crash: [0.7, 0.4], hurt: [0.75, 0.3] };
+  function voice(kind, v, now) {
     switch (kind) {
       // a bowstring is a pitched thrum, not a hiss
       // release, then the shaft going away from you: a short bright snap into a falling hiss
       // the string thrums (a real plucked string, low and short), the release snaps, the shaft hisses away
-      case 'bow':    pluck(112 + Math.random() * 14, now, 0.34, 0.2); noise(0.03, 0.34, 3600, 2000, 1.2); noise(0.24, 0.18, 2600, 380, 0.5); break;
-      case 'foeBow': pluck(104 + Math.random() * 14, now, 0.09, 0.18); noise(0.03, 0.09, 3100, 1700, 1.2); noise(0.24, 0.045, 2200, 320, 0.5); break;
-      case 'volley': noise(0.05, 0.9, 3800, 2200, 1.0); noise(0.55, 0.6, 3000, 300, 0.45); break;   // a flight of them
-      case 'hit':    noiseAt(now, 0.05, 1.1, 1300, 600, 1.3); noiseAt(now, 0.09, 1.8, 340, 170, 1); break;   // an arrow striking home: a sharp thock with weight behind it
+      case 'bow':    pluck(104 + Math.random() * 14, now, 0.36, 0.22); noiseAt(now, 0.03, 0.28, 2000, 1200, 1.2); noiseAt(now + 0.01, 0.24, 0.2, 1500, 300, 0.6); break;
+      case 'foeBow': pluck(96 + Math.random() * 14, now, 0.2, 0.18); noiseAt(now, 0.03, 0.12, 1800, 1100, 1.2); noiseAt(now + 0.01, 0.22, 0.1, 1300, 280, 0.6); break;
+      case 'ourBow': pluck(118 + Math.random() * 16, now, 0.16, 0.16); noiseAt(now + 0.01, 0.18, 0.08, 1400, 320, 0.6); break;   // our archers: the same bow, quieter than the commander's
+      case 'volley': for (let k = 0; k < 5; k++) pluck(96 + Math.random() * 30, now + k * 0.018, 0.2, 0.2); noiseAt(now, 0.06, 0.6, 2000, 1200, 1); noiseAt(now + 0.03, 0.6, 0.55, 1700, 260, 0.45); break;   // a flight of them
+      // the war carts. A crossbow cart's bolt: a thick string and the thunk of the stock. Rockets: fire-arrows off a
+      // rack, a hiss that climbs and falls. The bombard: a deep boom with a crack on top. Where they land: earth and debris
+      case 'loot':   noiseAt(now, 0.22, 1.6 * v, 320, 170, 0.9); thumpAt(now + 0.12, 90, 55, 0.1, 0.18 * v); gong(now + 0.05, 0.06 * v, OUT); break;   // a load heaved up, and a small alarm gong
+      case 'xbow':   pluck(66 + Math.random() * 8, now, 0.42, 0.24); noiseAt(now, 0.06, 1.1, 820, 360, 1.2); thumpAt(now, 105, 64, 0.07, 0.12); break;
+      case 'rocket': for (let k = 0; k < 3; k++) { const t = now + k * 0.07 + Math.random() * 0.02; noiseAt(t, 0.3, 0.32, 520, 1400, 0.8); noiseAt(t + 0.26, 0.45, 0.22, 1400, 420, 0.7); } break;
+      case 'burst':  noiseAt(now, 0.26, 1.9, 700, 150, 0.8); thumpAt(now, 88, 48, 0.16, 0.2); grit(now + 0.02, 0.28, 12, 0.3, 450, 2000); break;
+      case 'bombard': thumpAt(now, 58, 30, 0.6, 0.5); noiseAt(now, 0.55, 3.0, 420, 60, 0.7, 'lowpass'); noiseAt(now, 0.05, 0.9, 1200, 520, 1); noiseAt(now + 0.05, 0.9, 0.45, 260, 90, 0.7); break;
+      case 'impact': noiseAt(now, 0.28, 2.4, 240, 85, 0.8); thumpAt(now, 70, 40, 0.2, 0.26); grit(now + 0.02, 0.3, 14, 0.28, 400, 1800); break;
+      case 'stone':  noiseAt(now, 0.4, 3.2, 200, 60, 0.8); thumpAt(now, 55, 30, 0.42, 0.42); grit(now + 0.03, 0.45, 18, 0.3, 350, 1600); noiseAt(now + 0.1, 0.9, 0.5, 160, 60, 0.7, 'lowpass'); break;
+      case 'hit':    { const j = 0.88 + Math.random() * 0.24; noiseAt(now, 0.05, 0.9 * v, 1000 * j, 500, 1.3); noiseAt(now, 0.09, 1.8 * v, 300 * j, 150, 1); break; }   // an arrow striking home: a sharp thock with weight behind it
       // no falling synth tone: a body going down is a heavy thud on earth, gear and dust, and the breath knocked out
-      case 'death':  noiseAt(now, 0.2, 0.3, 700, 380, 2.4); noiseAt(now + 0.06, 0.18, 2.2, 260, 130, 0.9); thumpAt(now + 0.06, 78, 42, 0.16, 0.18); grit(now + 0.07, 0.14, 8, 0.24, 1200, 5200); break;
-      case 'hurt':   noiseAt(now, 0.1, 2.0, 420, 200, 1); thumpAt(now, 110, 60, 0.1, 0.14); grit(now, 0.1, 10, 0.34, 2800, 6800); break;   // the blow, and his lamellar plates knocking
-      case 'build':  noise(0.06, 1.6, 1700, 1300, 3); setTimeout(() => { if (ctx && st.sfx) noise(0.07, 1.3, 1250, 950, 3); }, 105); break;  // two knocks of a mallet
-      case 'fire':   noise(0.6, 0.9, 420, 1500, 0.6); grit(now + 0.05, 0.6, 12, 0.22, 1500, 5500); break;   // the whoosh, then it crackles
-      case 'bell':   gong(ctx.currentTime, 0.45, sfxG); break;
-      case 'ability':gong(ctx.currentTime, 0.1, sfxG); break;
-      case 'crash':  noise(0.55, 0.8, 330, 80, 0.7); thumpAt(now, 72, 40, 0.34, 0.42); grit(now, 0.4, 16, 0.26, 700, 2800); break;   // a cart breaking up: a heavy thud and splintering
+      case 'death':  noiseAt(now, 0.2, 0.3 * v, 620, 340, 2.4); noiseAt(now + 0.06, 0.18, 2.2 * v, 240, 120, 0.9); thumpAt(now + 0.06, 74, 42, 0.16, 0.18 * v); grit(now + 0.07, 0.14, 8, 0.24 * v, 700, 2600); break;
+      case 'hurt':   noiseAt(now, 0.1, 2.0, 420, 200, 1); thumpAt(now, 110, 60, 0.1, 0.14); grit(now, 0.1, 10, 0.3, 1700, 3800); break;   // the blow, and his lamellar plates knocking
+      case 'build':  noiseAt(now, 0.08, 1.5, 900, 700, 2.4); thumpAt(now, 140, 90, 0.06, 0.12); noiseAt(now + 0.105, 0.09, 1.2, 720, 560, 2.4); thumpAt(now + 0.105, 120, 80, 0.06, 0.1); break;   // two knocks of a wooden mallet
+      case 'fire':   noiseAt(now, 0.6, 0.9 * v, 380, 1100, 0.6); grit(now + 0.05, 0.6, 12, 0.22 * v, 900, 3200); break;   // the whoosh, then it crackles   // the whoosh, then it crackles
+      case 'bell':   gong(NOW(), 0.45, OUT); break;
+      case 'ability':gong(NOW(), 0.1, OUT); break;
+      case 'crash':  noiseAt(now, 0.55, 0.9 * v, 330, 80, 0.7); thumpAt(now, 72, 40, 0.34, 0.42 * v); grit(now, 0.4, 16, 0.26 * v, 600, 2200); break;   // a cart breaking up: a heavy thud and splintering
       // raiders' horses: one hoof on earth each, fainter and plainer with distance (vol is 1 near, 0 at 20 units)
       case 'foeHoof': hoofFall(now, 0.5 * v, 1 - v); break;
       case 'hoof':    hoofFall(now, v, 0); break;
       case 'gallop':  gait('gallop', 0.37, v, false, 4); break;   // for the audio test: four strides
       case 'trot':    gait('trot', 0.45, v, false, 4); break;
       // blows, by who is struck: a raider cut or stabbed, one of ours struck, a cart hacked at
-      case 'meleeHit': noiseAt(now, 0.035, 1.0 * v, 2600, 1300, 1.5); noiseAt(now + 0.004, 0.09, 1.9 * v, 380, 170, 1); break;   // the edge, then the weight of the blow
-      case 'foeHit': noiseAt(now, 0.08, 1.8 * v, 420, 180, 1); grit(now, 0.07, 8, 0.3 * v, 2800, 6500); break;   // struck through lamellar: a thud and the plates knocking
-      case 'woodHit': noise(0.09, 1.1 * v, 620, 260, 2.2); noise(0.03, 0.5 * v, 2400, 1500, 2); break;
-      case 'slash':  noise(0.05, 0.7, 5200, 2600, 1.6); noise(0.16, 0.28, 2600, 700, 0.8); break;   // a cut through the air
+      case 'meleeHit': { const j = 0.9 + Math.random() * 0.2; noiseAt(now, 0.03, 0.8 * v, 1800 * j, 1000, 1.5); noiseAt(now + 0.004, 0.09, 2.0 * v, 340 * j, 150, 1); break; }   // the edge, then the weight of the blow
+      case 'foeHit': { const j = 0.9 + Math.random() * 0.2; noiseAt(now, 0.08, 1.9 * v, 380 * j, 170, 1); grit(now, 0.07, 8, 0.26 * v, 1700, 3800); break; }   // struck through lamellar: a thud and the plates knocking
+      case 'woodHit': { const j = 0.9 + Math.random() * 0.2; noiseAt(now, 0.1, 1.3 * v, 560 * j, 240, 2.2); noiseAt(now, 0.03, 0.4 * v, 1500 * j, 1000, 2); thumpAt(now, 120 * j, 80, 0.06, 0.1 * v); break; }
+      case 'slash':  noise(0.05, 0.6, 3000, 1600, 1.6); noise(0.16, 0.28, 1800, 500, 0.8); break;   // a cut through the air
       case 'draw':   noise(0.22, 0.4, 1400, 4200, 3); break;                                        // steel leaving a scabbard
       case 'sheath': noise(0.18, 0.3, 3600, 1200, 3); break;
-      case 'clang':  [1, 2.4, 3.7].forEach((r, i) => blip(880 * r, 870 * r, 0.5 - i * 0.12, 0.12 / (i + 1), 'sine')); noise(0.08, 0.3, 4000, 2000, 2); break;
+      case 'clang':  [1, 2.76, 5.4].forEach((r, i) => blip(430 * r, 426 * r, 0.45 - i * 0.12, 0.1 / (i + 1), 'sine')); noiseAt(now, 0.06, 0.3, 2200, 1200, 2); break;   // steel on lamellar: a struck plate's uneven partials, lower
       case 'step': {   // a boot on packed earth: soft, low, a little gritty
-        const t0 = ctx.currentTime, src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), a = ctx.createGain();
+        const t0 = NOW(), src = ctx.createBufferSource(), lp = ctx.createBiquadFilter(), a = ctx.createGain();
         src.buffer = noiseBuf(); lp.type = 'bandpass'; lp.frequency.value = 260 + Math.random() * 140; lp.Q.value = 1.3;
         a.gain.setValueAtTime(1.6 * v, t0); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
-        src.connect(lp); lp.connect(a); a.connect(sfxG); src.start(t0); src.stop(t0 + 0.09);
+        src.connect(lp); lp.connect(a); a.connect(OUT); src.start(t0); src.stop(t0 + 0.09);
         const g2 = ctx.createBufferSource(), hp = ctx.createBiquadFilter(), a2 = ctx.createGain();
-        g2.buffer = noiseBuf(); hp.type = 'highpass'; hp.frequency.value = 2800;
+        g2.buffer = noiseBuf(); hp.type = 'highpass'; hp.frequency.value = 1800;
         a2.gain.setValueAtTime(0, t0); a2.gain.setValueAtTime(0.03 * v, t0 + 0.01);   // a GainNode defaults to 1: silence it until it is due
         a2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
-        g2.connect(hp); hp.connect(a2); a2.connect(sfxG); g2.start(t0); g2.stop(t0 + 0.06);
+        g2.connect(hp); hp.connect(a2); a2.connect(OUT); g2.start(t0); g2.stop(t0 + 0.06);
         break;
       }
       case 'wardrum': {   // three strokes on the big drum: a deep thud that drops in pitch, and the skin's slap
         for (const [d, g] of [[0, 1], [0.27, 0.8], [0.54, 1.1]]) {
-          const t0 = ctx.currentTime + d, o = ctx.createOscillator(), a = ctx.createGain();
+          const t0 = NOW() + d, o = ctx.createOscillator(), a = ctx.createGain();
           o.type = 'sine'; o.frequency.setValueAtTime(96, t0); o.frequency.exponentialRampToValueAtTime(46, t0 + 0.32);
-          a.gain.setValueAtTime(0, ctx.currentTime); a.gain.setValueAtTime(0.0001, t0); a.gain.exponentialRampToValueAtTime(0.55 * g, t0 + 0.008); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
-          o.connect(a); a.connect(sfxG); o.start(t0); o.stop(t0 + 0.4);
+          a.gain.setValueAtTime(0, NOW()); a.gain.setValueAtTime(0.0001, t0); a.gain.exponentialRampToValueAtTime(0.55 * g, t0 + 0.008); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+          o.connect(a); a.connect(OUT); o.start(t0); o.stop(t0 + 0.4);
           const n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), na = ctx.createGain();
           n.buffer = noiseBuf(); f.type = 'bandpass'; f.frequency.value = 380; f.Q.value = 1.2;
-          na.gain.setValueAtTime(0, ctx.currentTime); na.gain.setValueAtTime(0.0001, t0); na.gain.exponentialRampToValueAtTime(0.35 * g, t0 + 0.004); na.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
-          n.connect(f); f.connect(na); na.connect(sfxG); n.start(t0); n.stop(t0 + 0.08);
+          na.gain.setValueAtTime(0, NOW()); na.gain.setValueAtTime(0.0001, t0); na.gain.exponentialRampToValueAtTime(0.35 * g, t0 + 0.004); na.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+          n.connect(f); f.connect(na); na.connect(OUT); n.start(t0); n.stop(t0 + 0.08);
         }
         break;
       }
@@ -4167,45 +4257,47 @@ const Sound = (() => {
         break;
       }
       case 'horn': {   // a long, nasal blast: the raiders announcing themselves
-        const t0 = ctx.currentTime, a = ctx.createGain(), bp = ctx.createBiquadFilter();
+        const t0 = NOW(), a = ctx.createGain(), bp = ctx.createBiquadFilter();
         bp.type = 'bandpass'; bp.frequency.value = 520; bp.Q.value = 1.1;
         a.gain.setValueAtTime(0.0001, t0); a.gain.exponentialRampToValueAtTime(0.4, t0 + 0.14);
         a.gain.setValueAtTime(0.4, t0 + 0.9); a.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.5);
         const o = ctx.createOscillator(); o.type = 'sawtooth';
         o.frequency.setValueAtTime(128, t0); o.frequency.linearRampToValueAtTime(152, t0 + 0.2);
-        o.connect(bp); bp.connect(a); a.connect(sfxG); o.start(t0); o.stop(t0 + 1.6);
+        o.connect(bp); bp.connect(a); a.connect(OUT); o.start(t0); o.stop(t0 + 1.6);
         break;
       }
       case 'dawn':   [0, 2, 4, 5].forEach((d, i) => setTimeout(() => { if (ctx && st.sfx) {
                         const f = deg(d, 0), a = ctx.createGain(), o = ctx.createOscillator();
                         o.type = 'triangle'; o.frequency.value = f;
-                        a.gain.setValueAtTime(0.0001, ctx.currentTime); a.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + 0.01);
-                        a.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 1.4);
-                        o.connect(a); a.connect(sfxG); o.start(); o.stop(ctx.currentTime + 1.5);
+                        a.gain.setValueAtTime(0.0001, NOW()); a.gain.exponentialRampToValueAtTime(0.1, NOW() + 0.01);
+                        a.gain.exponentialRampToValueAtTime(0.0001, NOW() + 1.4);
+                        o.connect(a); a.connect(OUT); o.start(); o.stop(NOW() + 1.5);
                       } }, i * 115)); break;
     }
   }
-  function setMood(m) { if (m !== mood) { mood = m; phrase = null; beat = 0; prevF = 0; nStep = 0; call = null; } }
-  function tick(dt) { timer -= dt; if (timer <= 0) { timer = 0.2; schedule(); } }
+  function setMood(m) { if (m !== mood) { mood = m; phrase = null; beat = 0; prevF = 0; nStep = 0; call = null; if (moodG) moodG.gain.setTargetAtTime(MOOD_LEVEL[m] || 1, NOW(), 1.2); } }
+  function tick(dt) { timer -= dt; if (timer <= 0) { timer = 0.2; schedule(); breathe(); } }
   // ---- offline render, so the sound can actually be inspected instead of assumed ----
   // Everything is rebuilt into an OfflineAudioContext, the whole span is scheduled up front
   // (schedule() takes an explicit time for exactly this), and the rendered samples come back as
   // numbers: level, clipping, silence, DC, and the strongest pitches present. A synthesiser that
   // is silent, screaming, or ringing on a wrong fundamental shows up here, not in a guess.
-  async function renderOffline(m, seconds, sfxKinds, notes) {
+  async function renderOffline(m, seconds, sfxKinds, notes, events) {
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC) return { error: 'no OfflineAudioContext' };
-    const sr = 44100, oc = new OAC(1, Math.ceil(sr * seconds), sr);
-    const save = { ctx, master, musicG, sfxG, nb, ksBuf, mood, phrase, pi, beat, prevF, nextNote, last, started };
+    const sr = 44100, oc = new OAC(2, Math.ceil(sr * seconds), sr);
+    const save = { ctx, master, musicG, sfxG, nb, ksBuf, mood, phrase, pi, beat, prevF, nextNote, last, started, musicDuck, uiG, OUT, voices, satCurve };
     ctx = oc; nb = null; ksBuf = null; last = {}; started = true;
-    master = ctx.createGain(); master.gain.value = 0.55;
+    master = ctx.createGain(); master.gain.value = MASTER;
     master.connect(makeLimiter()).connect(ctx.destination);
-    musicG = ctx.createGain(); sfxG = ctx.createGain();
-    musicG.connect(master); sfxG.connect(master);
-    musicG.gain.value = st.musicVol * 1.4; sfxG.gain.value = st.sfxVol;
-    mood = m; phrase = null; pi = 0; beat = 0; prevF = 0; nextNote = 0; const saveStep = nStep; nStep = 0; call = null;
+    voices = []; buildBuses();
+    musicG.gain.value = st.musicVol * 1.4; sfxG.gain.value = st.sfxVol; uiG.gain.value = st.sfxVol;
+    mood = m; phrase = null; pi = 0; beat = 0; prevF = 0; nextNote = 0; const saveStep = nStep; nStep = 0; call = null; moodG.gain.value = MOOD_LEVEL[m] || 1;
     if (m) for (let t = 0; t < seconds; t += 0.2) schedule(t);
     if (sfxKinds) sfxKinds.forEach(k => { last = {}; play(k); });
+    // a scene: [time, kind, vol, at], or [time, 'gait:gallop', period] for one stride of the commander's horse
+    if (events) for (const [t, k, v, at] of events) { tOff = t; if (k.startsWith('gait:')) gait(k.slice(5), v, at || 0.75, false, 1); else play(k, v, at); if (Math.round(t * 10) % 5 === 0) breathe(); }
+    tOff = 0;
     if (notes) for (const [name, f, t, g, dur, bend] of notes) {
       if (name === 'zheng') zheng(f, t, g, dur, bend);
       else if (name === 'dizi') dizi(f, t, dur, g);
@@ -4215,10 +4307,11 @@ const Sound = (() => {
       else if (name === 'cymbal') cymbal(t, g);
     }
     const buf = await oc.startRendering();
-    const d = buf.getChannelData(0);
-    window.__audioOut = d;   // tools/audiowav.mjs saves it as a WAV, to be listened to
+    const L = buf.getChannelData(0), Rc = buf.getChannelData(1), d = new Float32Array(L.length);
+    for (let i = 0; i < L.length; i++) d[i] = (L[i] + Rc[i]) * 0.5;
+    window.__audioOut = d; window.__audioL = L; window.__audioR = Rc;   // tools/audiowav.mjs saves them as a WAV, to be listened to
     Object.assign({}, save);
-    ctx = save.ctx; master = save.master; musicG = save.musicG; sfxG = save.sfxG; nb = save.nb; ksBuf = save.ksBuf;
+    ctx = save.ctx; master = save.master; musicG = save.musicG; sfxG = save.sfxG; nb = save.nb; ksBuf = save.ksBuf; musicDuck = save.musicDuck; uiG = save.uiG; OUT = save.OUT; voices = save.voices; satCurve = save.satCurve;
     mood = save.mood; phrase = save.phrase; pi = save.pi; beat = save.beat; prevF = save.prevF;
     nextNote = save.nextNote; last = save.last; started = save.started; nStep = saveStep;
     return analyse(d, sr);
@@ -4262,7 +4355,7 @@ const Sound = (() => {
       env: envelope(d, sr, 12),
     };
   }
-  return { init, play, setMood, tick, st, volumes, renderOffline, gait: (k, p, g, wood) => { if (ctx && st.sfx) gait(k, p, g, wood); }, get ready() { return !!ctx; } };
+  return { init, play, setMood, tick, st, volumes, renderOffline, ui: k => play(k, 1, { ui: true }), gait: (k, p, g, wood) => { if (ctx && st.sfx) gait(k, p, g, wood); }, get ready() { return !!ctx; } };
 })();
 
 /* ================= input ================= */
@@ -5313,7 +5406,7 @@ function fireArcher(e, dt) {
   if (tgt && e.fireCd <= 0) {
     e.fireCd = e.t.rate * (0.85 + Math.random() * 0.3); e.shootT = 0.5; e.atkT = 0.3;
     shoot(e.pos.clone().setY(e.pos.y + 1.4), tgt, e.t.dmg, 'fire', false, { arc: 4.5, dur: 1.3 }, 'firearrow');
-    Sound.play('foeBow', 0.8);
+    sfxAt('foeBow', e.pos, 0.8, 30);
   }
   return { attacking: null, look: tgt ? tgt.pos : T };
 }
@@ -5333,7 +5426,7 @@ function standOff(e, dt) {
     if (e.etype === 'bowman') {                          // an arrow storm on where you will be
       circleDanger(p.x, p.z, 2.1, 1.05, e.t.rain);
       for (let k = 0; k < 4; k++) { const a = Math.random() * TAU, rr = Math.random() * 2; shoot(e.pos.clone().setY(e.pos.y + 1.4), { pos: new V3(p.x + Math.cos(a) * rr, 0, p.z + Math.sin(a) * rr), alive: false }, 0, 'foe', false, { dur: 1.0, arc: 6 }); }
-      Sound.play('foeBow', 0.7);
+      sfxAt('foeBow', e.pos, 0.7, 30);
     } else if (e.etype === 'potter') {                   // a fire pot: burning ground for a while after
       circleDanger(p.x, p.z, 2.3, 1.2, 8).onLand = () => firePool(p.x, p.z, 2.3, 4.5, true);
       shoot(e.pos.clone().setY(e.pos.y + 1.2), { pos: new V3(p.x, 0, p.z), alive: false }, 0, 'fire', false, { dur: 1.15, arc: 5 });
@@ -5365,7 +5458,7 @@ function siegeEngine(e, dt) {
     if (tgt) {
       const x = tgt.pos.x + (Math.random() - 0.5) * 1.5, z = tgt.pos.z + (Math.random() - 0.5) * 1.5;
       const dz = circleDanger(x, z, 3, 2.2, 18);
-      dz.onLand = () => { for (const b of [...buildings]) if (b.alive && b.hp < Infinity && Math.hypot(b.pos.x - x, b.pos.z - z) < 3 + (b.radius || 1)) damage(b, b.plot && isSupply(b.plot.cartKind) ? e.t.stone / 3 : e.t.stone, null, 'stone');   // it aims at the war carts; the loads only take the splash
+      dz.onLand = () => { sfxAt('stone', { x, z }, 1, 70); for (const b of [...buildings]) if (b.alive && b.hp < Infinity && Math.hypot(b.pos.x - x, b.pos.z - z) < 3 + (b.radius || 1)) damage(b, b.plot && isSupply(b.plot.cartKind) ? e.t.stone / 3 : e.t.stone, null, 'stone');   // it aims at the war carts; the loads only take the splash
         if (keep.alive && Math.hypot(keep.pos.x - x, keep.pos.z - z) < 4) { damage(keep, e.t.stone / 2); S.engineKeep = (S.engineKeep || 0) + e.t.stone / 2; } puff(new V3(x, 0.4, z), '#8a7a5c', 10, 2); kick(0.3); Sound.play('crash'); };
       shoot(e.pos.clone().setY(e.pos.y + 3), { pos: new V3(x, 0, z), alive: false }, 0, 'foe', false, { dur: 2.1, arc: 12 });
     }
@@ -5425,7 +5518,7 @@ function lootOrFight(e, dt, step) {
     const sp = SUPPLY[sup.kind], take = Math.min(CONVOY.sack, S.res[sp.res]);
     S.res[sp.res] -= take; e.carry = take; e.carryRes = sp.res; e.lootT = 0;
     e.sackMesh = part(new THREE.DodecahedronGeometry(0.3, 0), sp.sack, 0, 1.35, -0.32, e.m.g);
-    startFlee(e); refreshHUD(); refreshSacks(); Sound.play('crash', 0.5);
+    startFlee(e); refreshHUD(); refreshSacks(); sfxAt('loot', e.pos, 1, 60, 0.35);   // a theft: heard from anywhere, placed where
   }
   return { attacking: null, look: sup.pos };
 }
@@ -5531,10 +5624,10 @@ function playReport() {
   const count = (el, to, ms) => { const t0 = performance.now(); const tick = now => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * k * (2 - k)); if (k < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
   rows.forEach((row, i) => setTimeout(() => {
     row.classList.remove('pending'); const bar = row.querySelector('i'), n = row.querySelector('b');
-    bar.style.width = bar.dataset.w + '%'; count(n, +n.dataset.n, 420); Sound.play('tally', i);
+    bar.style.width = bar.dataset.w + '%'; count(n, +n.dataset.n, 420); Sound.play('tally', i, { ui: true });
   }, 250 + i * 330));
   const after = 250 + rows.length * 330;
-  if (total) setTimeout(() => { count(total, +total.dataset.n, 500); Sound.play('tally', rows.length + 2); if (+total.dataset.n >= 40) kick(0.25); }, after);
+  if (total) setTimeout(() => { count(total, +total.dataset.n, 500); Sound.play('tally', rows.length + 2, { ui: true }); if (+total.dataset.n >= 40) kick(0.25); }, after);
   if (cost) setTimeout(() => cost.classList.remove('pending'), after + 450);
 }
 // Rewards are ranks. Each fight you raise one arm of the column: spearmen, archers, horsemen, one
@@ -5600,7 +5693,7 @@ function offerRewards() {
     b.innerHTML = `<span class="k">${i + 1}</span>${u.img ? `<img class="art" alt="" src="${thumb(u.img)}">` : ''}<span class="t">${u.name}</span>${u.tags ? tagHTML(u) : `<span class="tags"><i class="tg tg-ab">${u.rare ? 'rare' : u.rank ? 'rank up' : u.power ? 'power-up' : 'supplies'}</i></span>`}<span class="e">${u.desc}</span>`;
     b.addEventListener('click', () => choose(u)); b.addEventListener('mouseenter', () => focusTablet(i)); tabs.appendChild(b);
   });
-  S.dawnPicks = picks; $('#dawn').hidden = false; Sound.play('dawn');
+  S.dawnPicks = picks; $('#dawn').hidden = false; Sound.ui('dawn');
   ui.banner.classList.remove('show'); bannerTimer = 0;   // a night's banner must not show through the morning
   setTimeout(() => focusTablet(0), 50);
 }
@@ -5816,12 +5909,12 @@ function markShop() {
 function pickShop() {
   if (shopSel === shopOpts.length) { $('#shop').hidden = true; return leaveShop(); }
   const o = shopOpts[shopSel]; if (!o) return;
-  if (shopBlocked(o)) { Sound.play('clang'); return; }
+  if (shopBlocked(o)) { Sound.ui('clang'); return; }
   if (o.c) pay(o.c);
   runLog({ t: 'buy', item: (o.n || '').replace(/<[^>]+>/g, ''), cost: o.c || null, gift: !!o.gift });
   o.run(); if (o.gift) S.gifted = true;
   S.lastBought = o.key || null;
-  Sound.play('build'); refreshHUD(); refreshSacks(); renderShop();
+  Sound.ui('build'); refreshHUD(); refreshSacks(); renderShop();
 }
 $('#shopGo').addEventListener('click', () => { shopSel = shopOpts.length; pickShop(); });
 function joinConvoy(kind) {
