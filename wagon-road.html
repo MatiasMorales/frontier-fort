@@ -350,6 +350,18 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 .endMeta{ font-size:14px !important; color:#a8977a; margin:14px auto 0 !important; }
 .link{ font:inherit; font-size:14px; background:none; border:0; padding:0; color:var(--gold); text-decoration:underline; text-underline-offset:3px; cursor:pointer; }
 #heroLine:empty{ display:none; }
+/* the map is the page (Build 28): one line of title, then the map at full height; the instruction, the numbers, the
+   stop under the pointer and the legend all sit in the column beside it */
+.mapSheet{ height:calc(100vh - 76px); padding-bottom:14px; box-sizing:border-box; }
+.mapSheet > h2{ font-size:clamp(24px,2.6vw,34px); margin:0 0 10px; }
+.mapSheet .smapSide{ display:flex; flex-direction:column; gap:12px; }
+.mapSheet .smapSide .lead{ text-align:left; font-size:15px; margin:0; }
+.mapSheet .smapSide > *{ flex-shrink:0; }   /* stacked, never squeezed into each other; the column scrolls if it must */
+.mapSheet .smapSide .resbar{ display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:0; }
+.mapSheet .smapSide .resbar .rc{ min-width:0; padding:5px 10px 4px; }
+.mapSheet .smapSide .resbar .rc b{ font-size:19px; }
+.mapSheet .smapSide .resbar .rc small{ font-size:11px; letter-spacing:.04em; white-space:nowrap; }
+
 /* reward tablets are buttons, and a button centres its content: anchor it to the top so pictures and titles line up */
 .tablet{ display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; position:relative; }
 .tablet .k{ z-index:1; top:6px; right:9px; font-size:13px; color:var(--paper); background:rgba(42,20,17,.85); border-radius:3px; padding:0 5px; }
@@ -440,16 +452,16 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
-<div id="buildTag" class="buildTag">Build 27 · 27 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 28 · 27 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
     <h2 id="smapT">Choose the road</h2>
-    <p id="smapP" class="lead"></p>
-    <div class="resbar" id="smapRes"></div>
     <div class="smapWrap">
       <svg id="smapSvg" viewBox="0 0 600 600" aria-label="Region map"></svg>
       <div class="smapSide">
+        <p id="smapP" class="lead"></p>
+        <div class="resbar" id="smapRes"></div>
         <div id="smapInfo"></div>
         <div class="legend" id="smapLegend"></div>
         <button class="go ghost" id="smapBack" type="button" hidden>← Back to the build phase</button>
@@ -6016,6 +6028,8 @@ function resBar(el) {
     const d = lastRes ? now[k] - lastRes[k] : 0;
     return `<div class="rc${d > 0 ? ' up' : d < 0 ? ' down' : ''}"><i class="ic ${ic}"></i><b>${val}</b><small>${label}${sub ? ` · ${sub}` : ''}</small>${d ? `<em>${d > 0 ? '+' : ''}${d}</em>` : ''}</div>`;
   };
+  // on the map only what a road costs: food and the days it lasts, the mouths, what they eat; the rest is the build screen's
+  if (el.id === 'smapRes') { el.innerHTML = chip('grain', 'grain', 'Food', S.res.grain, `${daysOfFood()} days`) + chip('men', 'men', 'Soldiers', `${S.roster.length}/${LEVELS[S.level].soldiers}`) + `<div class="rc"><b>${foodPerDay()}</b><small>Eaten a day</small></div>`; lastRes = Object.assign(now, { el: el.id }); return; }
   el.innerHTML = chip('grain', 'grain', 'Food', S.res.grain, `${daysOfFood()} days`) + (has.wood() ? chip('wood', 'wood', 'Wood', S.res.wood) : '') + (has.stone() ? chip('stone', 'stone', 'Stone', S.res.stone) : '') +
     chip('men', 'men', 'Soldiers', `${S.roster.length}/${LEVELS[S.level].soldiers}`) +
     `<div class="rc"><b>${crewCount()}</b><small>Crews</small></div>` +
@@ -6132,7 +6146,7 @@ function highlightMap() {
   if (!k) return;
   const n = S.map[k], info = NODE_INFO[n.type], fc = forecast(k);
   const fk = n.kind && FIELD_KIND[n.kind];
-  $('#smapInfo').innerHTML = `<div class="t">${icon(n.type)} ${info.n}</div><div class="e">${info.d}${fk ? `<br><span style="color:#f0c96a">\u25b8 ${fk.name}:</span> ${fk.d}` : ''}<br>${fc.days} day${fc.days > 1 ? 's' : ''} on the road \u00b7 the column eats <b>${fc.eat} food</b>${fc.hungryDays ? `<br><b style="color:#e59a82">Food runs out: ${fc.hungryDays} hungry day${fc.hungryDays > 1 ? 's' : ''}</b>` : ''}<br><i style="color:var(--gold-dim)">Click it on the map to go${mapOpts.length > 1 ? ', or point at another glowing stop' : ''}.</i></div>`;
+  $('#smapInfo').innerHTML = `<div class="t">${icon(n.type)} ${info.n}</div><div class="e">${info.d}${fk ? `<br><span style="color:#f0c96a">\u25b8 ${fk.name}:</span> ${fk.d}` : ''}<br>${fc.days} day${fc.days > 1 ? 's' : ''} on the road \u00b7 the column eats <b>${fc.eat} food</b>${fc.hungryDays ? `<br><b style="color:#e59a82">Food runs out: ${fc.hungryDays} hungry day${fc.hungryDays > 1 ? 's' : ''}</b>` : ''}</div>`;
 }
 function confirmMap() { const k = mapOpts[mapSel]; if (k === undefined) return; S.backShop = null; travelTo(k); }
 
