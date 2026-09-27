@@ -440,7 +440,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
-<div id="buildTag" class="buildTag">Build 26 · 27 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 27 · 27 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -1441,7 +1441,7 @@ function groundRing(color, r0, r1, op, dash) {
   let geo = new THREE.RingGeometry(r0, r1, dash ? 32 : 28, 1);
   if (dash) { const idx = geo.index.array, keep = []; for (let j = 0; j < 32; j++) if ((j >> 1) % 2 === 0) for (let q = 0; q < 6; q++) keep.push(idx[j * 6 + q]); geo.setIndex(keep); }
   const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, depthWrite: false }));
-  m.rotation.x = -Math.PI / 2; m.position.y = 0.05; m.renderOrder = 2; return m;
+  m.rotation.x = -Math.PI / 2; m.position.y = 0.05; m.renderOrder = 2; m.userData.ring = true; return m;
 }
 function makeHeroModel() { return makeArcherRider({ ming: true, horse: C.horseLight, legCol: '#bdb3a2', coat: C.red, hat: 'helm', hatCol: C.gold, cloak: '#7d1f18', ring: C.gold, r0: 0.85, r1: 1.05 }); }
 function makeEnemyModel(type) {
@@ -2208,6 +2208,7 @@ function refreshHUD() {
     ? (S.waves > 1 ? `Night \u2014 assault ${Math.min(S.wave + 1, S.waves)} of ${S.waves}` : 'Night, hold the valley')
     : WAGON ? ({ map: 'Choose the road', shop: 'Making ready', dusk: 'Dusk: make camp', circling: 'Circling the wagons', prep: 'Set the field' }[S.phase] || 'Daylight') : 'Daylight, build');
 }
+const camLead = { x: 0, z: 0 };
 let bannerTimer = 0, shake = 0, freeze = 0, slowMo = 0, overviewK = 0, killer = null, shooter = null;
 function hitStop(ms) { freeze = Math.max(freeze, ms / 1000); }
 function kick(a) { if (QUALITY.shake) shake = Math.min(1.2, shake + a); }
@@ -2355,6 +2356,7 @@ function hitSound(ent, src) {
   else if (ent.plot && src === 'firearrow') sfxAt('fire', ent.pos, 0.6, 34);
 }
 function damage(ent, dmg, from, src) {
+  if (ent && ent.m && (ent.etype || ent.isSoldier)) ent.flinch = Math.min(1, (ent.flinch || 0) + 0.7);
   if (!ent.alive || !(ent.hp < Infinity)) return;
   if (ent === hero && hero.dashT > 0) return;                        // the dash is a dodge: nothing lands on it
   // Armour and reach. Lamellar turns arrows - from the commander's bow, the towers and the
@@ -2583,10 +2585,12 @@ function updateSoldiers(dt) {
   for (const s of soldiers) {
     const g = s.m.g; if (s.ph === undefined) s.ph = Math.random() * 10;
     if (!s.alive) { s.dying -= dt; const k = Math.max(0, s.dying / 0.35);
-      if (WAGON) { g.rotation.z = (1 - k) * 1.45; if (s.dying <= 0 && g.visible) { g.visible = false; addFallen({ pos: s.pos, m: { g }, etype: 'ours' }); } }
+      if (WAGON) { if (!s.fallDir) g.traverse(o => { if (o.userData.ring) o.visible = false; }); s.fallDir = s.fallDir || (Math.random() < 0.5 ? -1 : 1); const [tilt, sag] = fallPose(1 - k); g.rotation.z = tilt * s.fallDir; g.position.y = (s.pos.y || 0) - sag;
+        if (!s.landed && 1 - k > 0.78) { s.landed = true; puff(s.pos, '#b9a88a', 2, 0.6); }
+        if (s.dying <= 0 && g.visible) { g.visible = false; addFallen({ pos: s.pos, m: { g }, etype: 'ours' }); } }
       else { g.scale.setScalar(Math.max(0.01, k) * 0.95); if (s.dying <= 0) g.visible = false; }
       continue; }
-    s.cd -= dt; s.bob += dt * 10; s.atkT = Math.max(0, s.atkT - dt);
+    s.cd -= dt; s.atkT = Math.max(0, s.atkT - dt);
     s.sprintT = Math.max(0, (s.sprintT || 0) - dt); s.hornT = Math.max(0, (s.hornT || 0) - dt);
     const prev = s.pos.clone();
     if (s.following && !hero.alive) s.following = false;
@@ -2620,7 +2624,10 @@ function updateSoldiers(dt) {
       else moveLand(s.pos, navGoal(s, t.pos), st.speed * (s.following || s.sprintT > 0 ? 1.4 : 1) * dt);
     } else if (s.pos.distanceTo(anchor) > 0.3) moveLand(s.pos, navGoal(s, anchor), (s.following || s.sprintT > 0 ? st.walk : 3) * dt);
     const mv = tmp.subVectors(s.pos, prev), moving = mv.lengthSq() > 1e-6;
-    if (moving) g.rotation.y = Math.atan2(mv.x, mv.z);
+    s.cad = s.cad || 0.92 + Math.random() * 0.16;   // his own cadence, and a stride driven by the ground he covers
+    s.bob += Math.min(0.9, Math.hypot(mv.x, mv.z) / Math.max(0.5, st.speed || 3) * (s.m.rider ? 13 : 10) * s.cad);
+    s.flinch = damp(s.flinch || 0, 0, 0.08, dt); if (!s.m.rider) g.rotation.x = -0.3 * s.flinch;
+    if (moving) g.rotation.y += angDiff(Math.atan2(mv.x, mv.z), g.rotation.y) * (1 - Math.pow(2, -dt / 0.05));   // he turns, rather than snapping round
     else if (t) g.rotation.y = Math.atan2(t.pos.x - s.pos.x, t.pos.z - s.pos.z);
     // at rest a man looks about him now and then, each on his own slow rhythm, so a posted squad is not a row of statues
     else g.rotation.y += angDiff(s.house.plot.rotY + (WAGON ? Math.sin(clock * 0.45 + s.ph * 1.7) * 0.7 * Math.max(0, Math.sin(clock * 0.21 + s.ph)) : 0), g.rotation.y) * Math.min(1, dt * 4);
@@ -2681,11 +2688,14 @@ function updateShots(dt) {
     }
   }
 }
+// atk > 0: the blow and its follow-through; atk < 0: the wind-up before it (Cooper: an enemy's anticipation is also its
+// telegraph). Strides ease in and out instead of snapping when a man stops.
 function animFoot(u, bob, moving, atk) {
-  u.legs.forEach((l, i) => { l.rotation.x = moving ? Math.sin(bob + (i ? Math.PI : 0)) * 0.55 : 0; });
-  const k = atk > 0 ? Math.sin((1 - atk) * Math.PI) : 0;
-  if (u.kind === 'blade') { u.arm.rotation.set(-0.4 - k * 0.6, 0.9 - k * 2.2, 0); }
-  else { u.arm.rotation.set(-0.05 + k * 0.15, 0, 0); u.arm.position.z = 0.05 + k * 0.5; }
+  u._mk = damp(u._mk === undefined ? 0 : u._mk, moving ? 1 : 0, 0.07, animDt);
+  u.legs.forEach((l, i) => { l.rotation.x = Math.sin(bob + (i ? Math.PI : 0)) * 0.55 * u._mk; });
+  const k = atk > 0 ? Math.sin((1 - atk) * Math.PI) : 0, w = atk < 0 ? -atk : 0;
+  if (u.kind === 'blade') { u.arm.rotation.set(-0.4 - k * 0.6 + w * 0.5, 0.9 - k * 2.2 + w * 0.7, 0); }
+  else { u.arm.rotation.set(-0.05 + k * 0.15 - w * 0.12, 0, 0); u.arm.position.z = 0.05 + k * 0.5 - w * 0.2; }
 }
 // Gaits, as horses move. Each leg swings on a sine; its foot lands at phase 3/2 pi (most forward). A gait is the part
 // of the stride at which each foot lands (legs: 0 fore-left, 1 fore-right, 2 hind-left, 3 hind-right):
@@ -2695,6 +2705,17 @@ function animFoot(u, bob, moving, atk) {
 const GAIT_LAND = { canter: [0.5, 0.28, 0.28, 0], gallop: [0.5, 0.36, 0.14, 0] };
 const gaitPh = (i, gk) => { const f = GAIT_LAND.canter[i] * (1 - gk) + GAIT_LAND.gallop[i] * gk; return 1.5 * Math.PI - f * TAU; };
 let animDt = 1 / 60;   // set each frame by update(): lets the animation ease without a dt of its own
+// Easing that feels the same at any frame rate (Rory Driscoll): move toward the target by a fraction set by a half-life
+// in seconds, instead of "x += (t - x) * 0.2" per frame, which runs twice as fast at 120 Hz as at 60.
+const damp = (x, t, hl, dt) => x + (t - x) * (1 - Math.pow(2, -dt / hl));
+// A fall with weight (Jonathan Cooper's anticipation and follow-through): the knees give a little, the body goes over
+// faster and faster, and lands with one small bounce. p runs 0..1 over the death; returns [tilt, sag].
+function fallPose(p) {
+  if (p < 0.15) return [0.05 * p / 0.15, 0.12 * p / 0.15];
+  const q = (p - 0.15) / 0.85, tilt = q < 0.75 ? 1.5 * (q / 0.75) * (q / 0.75) : 1.5 - 0.12 * Math.sin((q - 0.75) / 0.25 * Math.PI);
+  return [tilt, 0.12 + 0.1 * Math.min(1, q)];
+}
+const easeOutBack = p => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);   // arrives with a small overshoot
 function animArcher(u, bob, moving, shootT, aimYaw, gallop) {
   const gk = +gallop || 0;
   u._mk = (u._mk === undefined ? 0 : u._mk) + ((+moving || 0) - (u._mk || 0)) * (1 - Math.exp(-animDt * 9));   // strides fade in and out
@@ -2863,7 +2884,7 @@ function killEnemy(e) {
   if (WAGON && S.state === 'night' && !S.spawnQ.length && !enemies.some(o => o.alive && o !== e)) { slowMo = 1.3; kick(0.3); }   // the last one: let it land
   if (e.carry) { dropSack(e.pos, e.carry, e.carryRes); e.carry = 0; }
   else if (WAGON && S.state === 'night' && Math.random() < DROP.chance) dropSack(e.pos, DROP.n, has.wood() && Math.random() < 0.4 ? 'wood' : 'grain');
-  e.alive = false; e.dying = 0.4; S.kills++; scene.remove(e.bar); sfxAt('death', e.pos, 1, 34);
+  e.alive = false; e.dying = 0.5; S.kills++; scene.remove(e.bar); sfxAt('death', e.pos, 1, 34);
   if (S.ashes && e.fireT > 0) { firePool(e.pos.x, e.pos.z, 2.4, 3); puff(e.pos, '#ff6a1a', 4, 2); }
 }
 function drowned() { S.drowned++; if (S.ferryToll) { S.res.grain += 2; refreshHUD(); } }
@@ -2921,8 +2942,13 @@ function updateEnemy(e, dt) {
 function updateEnemyStep(e, dt) {
   const g = e.m.g;
   if (!e.alive) {
-    e.dying -= dt; const k = Math.max(e.dying / 0.4, 0.01);
-    if (WAGON && !e.gone && !e.sinking) { g.rotation.z = (1 - k) * 1.45; g.position.y -= dt * 0.35; }   // he falls; the body stays (addFallen)
+    e.dying -= dt; const k = Math.max(e.dying / 0.5, 0.01);
+    if (WAGON && !e.gone && !e.sinking) {   // he falls, with weight, to one side; the body stays (addFallen)
+      if (!e.fallDir) g.traverse(o => { if (o.userData.ring) o.visible = false; });   // his ground ring goes with him, not tipped up on edge
+      e.fallDir = e.fallDir || (Math.random() < 0.5 ? -1 : 1); const [tilt, sag] = fallPose(1 - k);
+      g.rotation.z = tilt * e.fallDir; g.position.y = (e.pos.y || 0) - sag;
+      if (!e.landed && 1 - k > 0.78) { e.landed = true; puff(e.pos, '#b9a88a', 2, 0.6); }
+    }
     else { g.scale.setScalar(k * (e.etype === 'captain' ? 1.5 : 1)); g.rotation.z = (1 - k) * 1.2; }
     if (e.sinking) g.position.y -= dt * 2;
     if (e.dying <= 0) { scene.remove(g); if (WAGON && !e.sinking && !e.gone) addFallen(e); return false; }   // those who withdrew or escaped leave no body
@@ -2932,7 +2958,7 @@ function updateEnemyStep(e, dt) {
   e.punch = Math.max(0, (e.punch || 0) - dt * 5);
   if (e.stunT > 0) { e.stunT -= dt; e.pos.y = groundY(e.pos); g.position.set(e.pos.x, e.pos.y, e.pos.z); g.rotation.z = Math.sin(clock * 25) * 0.15 * Math.min(1, e.stunT * 2); return true; }
   g.rotation.z = 0;
-  e.cd -= dt; e.bob += dt * (e.m.rider ? 13 : 9); e.oppT -= dt; e.slowT -= dt;
+  e.cd -= dt; e.oppT -= dt; e.slowT -= dt;
   // A night only ends when the last raider dies, so none may wander for ever. Once the warband
   // is fully ashore, a long-lived straggler drops whatever it was hunting and is put back on the
   // road graph, which always leads to the keep. Walking it there in a straight line does not
@@ -3017,6 +3043,10 @@ function updateEnemyStep(e, dt) {
   }
   if (e.pending) { e.pending.at -= dt; if (e.pending.at <= 0) { const t = e.pending.t; e.pending = null; if (t.alive) shoot(e.pos.clone().setY(e.pos.y + 2), t, e.t.dmg, 'foe'); } }
   const mv = tmp.subVectors(e.pos, prev), moving = mv.lengthSq() > 1e-6;
+  // the stride is driven by ground covered, not by the clock (David Rosen, Overgrowth): a slowed raider's feet slow with
+  // him instead of sliding; and each has his own cadence, so a warband never marches in lockstep (Total War's desync)
+  e.cad = e.cad || 0.92 + Math.random() * 0.16;
+  e.bob += Math.min(0.9, Math.hypot(mv.x, mv.z) / Math.max(0.5, e.speed) * (e.m.rider ? 13 : 9) * e.cad);
   if (attacking || mv.lengthSq() > 1e-4) e.idleT = 0;
   else if ((e.idleT = (e.idleT || 0) + dt) > 6) {
     e.idleT = 0; e.opp = null; e.oppT = 6; e.waitT = 0;
@@ -3036,7 +3066,10 @@ function updateEnemyStep(e, dt) {
       l.rotation.x = sw * 0.55;
       if (l.userData.low) l.userData.low.rotation.x = moving ? Math.max(0, -sw) * 0.7 : 0;
     });
-  else animFoot(e.m, e.bob, moving, e.atkT / 0.3);
+  else animFoot(e.m, e.bob, moving, e.atkT > 0 ? e.atkT / 0.3 : attacking && e.cd > 0 && e.cd < 0.24 ? -(1 - e.cd / 0.24) : 0);
+  // struck, he rocks back and recovers; newly arrived, he grows in with a small overshoot instead of popping into being
+  e.flinch = damp(e.flinch || 0, 0, 0.08, dt); if (!e.m.rider && e.etype !== 'engine') g.rotation.x = -0.3 * e.flinch;
+  if ((e.spawnT = (e.spawnT || 0) + dt) < 0.35) g.scale.setScalar((e.etype === 'captain' ? 1.5 : 1) * Math.max(0.05, easeOutBack(e.spawnT / 0.35)));
   if (moving) {
     const stride = Math.floor(e.bob / Math.PI);
     if (stride !== e.lastStride) {
@@ -3207,13 +3240,16 @@ function updateHero(dt) {
     moveLand(hero.pos, tmp.set(hero.pos.x + ix * 5, 0, hero.pos.z + iz * 5), HERO.speed * S.heroSpeedMul * (sprinting ? SPRINT.mul : 1) * (hero.lassoT > 0 ? 0.45 : 1) * dt, true);
     const d = Math.hypot(hero.pos.x, hero.pos.z);
     if (d < keep.radius + 0.5) { const k = (keep.radius + 0.5) / d; hero.pos.x *= k; hero.pos.z *= k; }
-    hero.face += angDiff(Math.atan2(ix, iz), hero.face) * Math.min(1, dt * 12);
+    const face0 = hero.face; hero.face += angDiff(Math.atan2(ix, iz), hero.face) * (1 - Math.pow(2, -dt / 0.055));
+    // a horse leans into a turn, harder the faster it goes (a critically damped settle, so it never wobbles)
+    hero.roll = damp(hero.roll || 0, clamp(-angDiff(hero.face, face0) / Math.max(dt, 1e-3) * (0.035 + 0.035 * (hero.gk || 0)), -0.2, 0.2), 0.09, dt);
     const b0 = hero.bob; hero.bob += dt * (14 + 3 * hero.gk);
     // each hoof is heard as its own foot lands (phase 3/2 pi), so the sound can never drift from the legs: three beats at
     // the canter, four at the gallop, the leading forefoot heaviest; the diagonal pair of the canter lands as one
     let fall = 0;
     for (let i = 0; i < 4; i++) { const p = gaitPh(i, hero.gk), a = Math.floor((b0 + p - 1.5 * Math.PI) / TAU), c = Math.floor((hero.bob + p - 1.5 * Math.PI) / TAU); if (c > a) fall += i === 0 ? 1.25 : 1; }
-    if (fall) Sound.hoof(Math.min(1.6, fall) * (0.42 + 0.3 * hero.gk), onBridge(hero.pos), fall >= 1.25, hero.gk > 0.5);
+    if (fall) { Sound.hoof(Math.min(1.6, fall) * (0.42 + 0.3 * hero.gk), onBridge(hero.pos), fall >= 1.25, hero.gk > 0.5);
+      if (!onBridge(hero.pos) && Math.random() < 0.55 + 0.4 * hero.gk) puff(tmp3.set(hero.pos.x - Math.sin(hero.face) * 0.7, hero.pos.y, hero.pos.z - Math.cos(hero.face) * 0.7), '#c8b48a', 1, 0.5); }   // dust where the hooves strike
   }
   hero.pos.y = groundY(hero.pos);
   // the charge: ride flat out and you trample foot raiders, knocking them aside (or into the river)
@@ -3245,7 +3281,7 @@ function updateHero(dt) {
       hero.charge = Math.max(0, hero.charge - 0.15);
     }
   }
-  if (moving && Math.random() < dt * (4 + hero.charge * 12 + 14 * (hero.gk || 0))) puff(hero.pos.clone().add(new V3(-Math.sin(hero.face) * 0.9, 0, -Math.cos(hero.face) * 0.9)), '#c8b48a', 1, 0.6);
+  if (moving && Math.random() < dt * hero.charge * 12) puff(hero.pos.clone().add(new V3(-Math.sin(hero.face) * 0.9, 0, -Math.cos(hero.face) * 0.9)), '#c8b48a', 1, 0.6);
   heroRing.material.opacity = 0.55 + hero.charge * 0.4; heroRing.scale.setScalar(1 + hero.charge * 0.35);
   cmdRing.visible = S.state === 'night' && hero.alive;
   if (cmdRing.visible) {
@@ -3265,7 +3301,7 @@ function updateHero(dt) {
   const mk = hero.m._mk || 0;
   g.rotation.x = -0.12 * hero.charge + Math.sin(hero.bob + 0.6) * (0.03 + 0.06 * hero.gk) * mk;
   g.position.set(hero.pos.x, hero.pos.y + (0.5 + 0.5 * Math.sin(hero.bob + 0.3)) * (0.09 + 0.1 * hero.gk) * mk, hero.pos.z);
-  g.rotation.y = hero.face;
+  g.rotation.y = hero.face; if (!moving) hero.roll = damp(hero.roll || 0, 0, 0.12, dt); g.rotation.z = hero.roll || 0;
   const inCourt = Math.hypot(hero.pos.x, hero.pos.z) < CASTLE_R - 1.5;
   if (S.state !== 'night') hero.hp = Math.min(hero.max, hero.hp + HERO.regen * 4 * dt);
   else if (inCourt || (WAGON && S.camp && Math.hypot(hero.pos.x - S.camp.cx, hero.pos.z - S.camp.cz) < CONVOY.ringR)) hero.hp = Math.min(hero.max, hero.hp + HERO.heal * 0.9 * dt);   // inside the ring is the refuge   // the courtyard is a refuge, not a bunker
@@ -3829,11 +3865,11 @@ const Sound = (() => {
   //            bow are dry and centred. All of them -> a high shelf, -5 dB above 3.2 kHz (the ear is harshest at
   //            2-5 kHz, and "too high" was the complaint) -> master, and a little into the valley's echo
   //   ui (menus, the dawn tally) -> master, dry and centred, never placed or ducked
-  const MASTER = 1.25;   // tuned by tools/audiomix.mjs to about -17 LUFS at night (it was -29: far too quiet)
+  const MASTER = 1.2;   // tuned by tools/audiomix.mjs to about -17 LUFS at night (it was -29: far too quiet)
   let musicDuck = null, uiG = null, moodG = null, musicBase = 1;
   // the day's music sits under the night's: a battle must be the loudest thing in the game (measured: the day had
   // been as loud as the night, so nights did not feel bigger)
-  const MOOD_LEVEL = { menu: 0.17, day: 0.14, night: 3 };   // set by tools/audiomix.mjs: night about -18 LUFS, the day 5 LU under it, the fight about 6 LU over its music   // night about 7 dB over the day, and level with the fight (tools/audiomix.mjs)
+  const MOOD_LEVEL = { menu: 0.17, day: 0.14, night: 4.2, after: 0.5, lament: 0.2 };   // set by tools/audiomix.mjs: night about -18 LUFS, the day 5 LU under it, the fight about 6 LU over its music   // night about 7 dB over the day, and level with the fight (tools/audiomix.mjs)
   function buildBuses() {
     musicG = ctx.createGain(); sfxG = ctx.createGain(); uiG = ctx.createGain(); musicDuck = ctx.createGain(); moodG = ctx.createGain(); musicBase = 1;
     moodG.gain.value = MOOD_LEVEL[mood] || 1;
@@ -3974,21 +4010,37 @@ const Sound = (() => {
     src.connect(hp); hp.connect(a); a.connect(musicG); src.start(t); src.stop(t + 0.75);
   }
   // Dizi: a bamboo flute is mostly odd harmonics plus a good deal of breath.
-  function dizi(f, t, dur, g) {
+  // The flute, played low like the qudi. What makes a synthesised flute sound cheap is a clean tone switched on and off:
+  // this one has a tongued chiff at the start, breath under the tone, a faint buzz of the dizi's membrane (a narrow
+  // band two and a half times the pitch), vibrato that arrives a quarter-second in as a player's does, and, when asked,
+  // a grace note from the step above or a slide up into a high note.
+  function dizi(f, t, dur, g, orn) {
+    orn = orn || {};
     const a = ctx.createGain(), lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = Math.min(2600, f * 3); lp.Q.value = 0.6;   // was f*5: its upper harmonics sat in the ear's harshest band
-    a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(g, t + 0.09);
-    a.gain.setValueAtTime(g, t + dur - 0.14); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(f, t);
+    lp.type = 'lowpass'; lp.frequency.value = Math.min(2600, f * 3); lp.Q.value = 0.6;
+    a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(g, t + 0.07);
+    a.gain.setValueAtTime(g, t + Math.max(0.08, dur - 0.14)); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    const o = ctx.createOscillator(); o.type = 'triangle';
+    if (orn.grace) { o.frequency.setValueAtTime(f * 1.122, t); o.frequency.setValueAtTime(f, t + 0.07); }   // a grace note from above
+    else if (orn.slide) { o.frequency.setValueAtTime(f * 0.94, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.09); }   // a slide up into the peak
+    else o.frequency.setValueAtTime(f, t);
     const v = ctx.createOscillator(), vg = ctx.createGain();
-    v.type = 'sine'; v.frequency.value = 5.6; vg.gain.setValueAtTime(0, t);
-    vg.gain.linearRampToValueAtTime(f * 0.009, t + dur * 0.5);   // vibrato arrives late, as a player's does
+    v.type = 'sine'; v.frequency.value = 5.4 + Math.random() * 0.6; vg.gain.setValueAtTime(0, t);
+    vg.gain.setValueAtTime(0, t + Math.min(0.25, dur * 0.4)); vg.gain.linearRampToValueAtTime(f * 0.01, t + Math.min(dur, 0.25 + dur * 0.4));   // vibrato arrives late
     v.connect(vg); vg.connect(o.frequency); v.start(t); v.stop(t + dur);
     o.start(t); o.stop(t + dur + 0.05);
     const br = ctx.createBufferSource(), bf = ctx.createBiquadFilter(), bg = ctx.createGain();
     br.buffer = noiseBuf(); br.loop = true; bf.type = 'bandpass'; bf.frequency.value = f * 2.2; bf.Q.value = 1.6;
     bg.gain.value = g * 0.07; br.connect(bf); bf.connect(bg); bg.connect(a);
-    br.start(t); br.stop(t + dur + 0.02);
+    br.start(t, Math.random() * 0.3); br.stop(t + dur + 0.02);
+    const ch = ctx.createBufferSource(), cf = ctx.createBiquadFilter(), cg = ctx.createGain();   // the tongued chiff
+    ch.buffer = noiseBuf(); cf.type = 'bandpass'; cf.frequency.value = f * 4; cf.Q.value = 2;
+    cg.gain.setValueAtTime(g * 0.5, t); cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    ch.connect(cf); cf.connect(cg); cg.connect(musicG); ch.start(t, Math.random() * 0.3); ch.stop(t + 0.04);
+    const bz = ctx.createOscillator(), zf = ctx.createBiquadFilter(), zg = ctx.createGain();   // the membrane's buzz
+    bz.type = 'sawtooth'; bz.frequency.setValueAtTime(f, t); zf.type = 'bandpass'; zf.frequency.value = f * 2.5; zf.Q.value = 7;
+    zg.gain.setValueAtTime(0.0001, t); zg.gain.exponentialRampToValueAtTime(g * 0.05, t + 0.12); zg.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    vg.connect(bz.frequency); bz.connect(zf); zf.connect(zg); zg.connect(musicG); bz.start(t); bz.stop(t + dur + 0.05);
     o.connect(lp); lp.connect(a); a.connect(musicG);
   }
   // Erhu: two strings, heavy vibrato, and a slide up into the note.
@@ -4045,7 +4097,7 @@ const Sound = (() => {
   // The same five notes rotated to the yu mode, which sits minor. Sixteenth-note steps: war drums
   // on a driving, off-balance pattern, a low plucked ostinato underneath, suona calls that come
   // and go, and a held erhu line in the last section. It builds over twelve bars and starts again.
-  let nStep = 0, call = null, ci = 0, callLeft = 0;
+  let nStep = 0, call = null, ci = 0, callLeft = 0, inten = 0, lvl = 0;
   const ND = (i, oct) => deg(i + 4, oct);
   const NIGHT_CALLS = [
     [[4, 2], [4, 2], [5, 4], [4, 2], [2, 2], [0, 4]],
@@ -4054,14 +4106,19 @@ const Sound = (() => {
     [[7, 4], [5, 2], [4, 2], [5, 1], [4, 1], [2, 2], [4, 4]],
   ];
   const BIG = { 0: 0.34, 6: 0.2, 8: 0.3, 11: 0.18, 14: 0.22 };
+  // The night follows the fight (Hades' layers, changed only on a bar line): while the raiders are out on the roads it is
+  // sparse, the bangu and a low ostinato with the big drum on the one; as they close, the full dagu pattern and the
+  // suona's calls; at the ring, cymbals, rolls and the erhu's held line. inten comes from the game (setIntensity).
   function scheduleNight(t) {
-    const STEP = 0.16, s = nStep % 16, bar = Math.floor(nStep / 16), sec = Math.floor(bar / 4) % 3;
-    if (BIG[s]) dagu(t, BIG[s]);
+    const STEP = 0.16, s = nStep % 16, bar = Math.floor(nStep / 16);
+    if (s === 0) lvl = inten < 0.15 ? 0 : inten < 0.5 ? 1 : 2;
+    const sec = lvl;
+    if (BIG[s] && (sec > 0 || s === 0 || s === 8)) dagu(t, BIG[s] * (sec ? 1 : 0.7));
     if (sec === 2 && bar % 4 === 3 && s >= 12) dagu(t, 0.1 + (s - 12) * 0.05);          // a roll into the top of the phrase
     if (s === 2 || s === 4 || s === 10 || s === 12) drum(t, 0.1);
     else if (sec > 0 && (s === 5 || s === 13)) drum(t, 0.05);
-    if (s === 0 && bar % 2 === 0) cymbal(t, 0.08);
-    if (s === 4 || s === 12) choke(t, 0.05);
+    if (sec === 2 && s === 0 && bar % 2 === 0) cymbal(t, 0.08);
+    if (sec > 0 && (s === 4 || s === 12)) choke(t, 0.05);
     if (s === 0 && bar % 8 === 0) gong(t, 0.07);
     if (s % 2 === 0) {
       const riff = sec === 0 ? [0, null, 0, null, 0, 0, null, 0] : [0, 0, 3, 0, 4, 0, 3, 2], d = riff[s / 2];
@@ -4085,31 +4142,89 @@ const Sound = (() => {
     const now = at === undefined ? ctx.currentTime : at;
     while (nextNote < now + 0.5) {
       const t = nextNote;
-      if (mood === 'night') { nextNote += scheduleNight(t); continue; }
-      if (!phrase || pi >= phrase.length) { pickPhrase(); bar++; }
-      const [d, beats] = phrase[pi++];
-      if (d === null) { beat += beats; nextNote += beats * (mood === 'day' ? 0.42 : mood === 'night' ? 0.34 : 0.55); continue; }   // a rest
-      const BEAT = mood === 'day' ? 0.42 : mood === 'night' ? 0.34 : 0.55;
-      const dur = beats * BEAT;
-      if (mood === 'menu') {
-        zheng(deg(d, -1), t, 0.2, dur + 1.8, Math.random() < 0.45);
-        if (beats > 1) zheng(deg(d - 2, -2), t + BEAT * 0.5, 0.07, 1.4, false);
-      } else if (mood === 'day') {
-        dizi(deg(d, 0), t, dur * 0.92, 0.2);                         // the flute carries the tune, low: the qudi of Kunqu, warmer than a high dizi
-        zheng(deg(d - 4, 0), t, 0.1, dur + 0.8, false);              // zheng answers underneath
-        if (beat % 4 === 0) zheng(deg(0, -1), t, 0.07, 2.2, false);
-        if (beat % 2 === 1) woodblock(t, 0.05);
-      } else {
-        // a march: suona over the drum, erhu holding the line underneath, cymbals on the accent
-        suona(deg(d, 1), t, dur * 0.9, 0.12);
-        if (beat % 2 === 0) erhu(deg(d, -1), t, dur * 0.95, 0.05, prevF || 0);
-        prevF = deg(d, -1);
-        if (beat % 4 === 0) { dagu(t, 0.3); cymbal(t, 0.07); erhu(deg(0, -2), t, BEAT * 4, 0.045); }
-        else if (beat % 4 === 2) dagu(t, 0.17);
-        else if (beat % 2 === 1) dagu(t, 0.08);
-      }
-      beat += beats; nextNote += dur;
+      nextNote += mood === 'night' ? scheduleNight(t) : scheduleSong(t);
     }
+  }
+
+  // ---- the day, the menu, the aftermath and the lament: a small composer, not a jukebox ----
+  // After the research on how Chinese instrumental music is built (see CLAUDE.md, the music pass):
+  //  * melodies grow from a few motifs, varied by sequence (moved up or down a step), inversion and augmentation;
+  //  * phrases come in pairs, a question that stops on shang or zhi and an answer that comes home to the tonic;
+  //  * each phrase begins on the note the last one ended on (鱼咬尾, the fish bites its tail), so the line never breaks;
+  //  * the zheng plays the flute's own tune half a beat late, ornamented (heterophony, as in Jiangnan sizhu), and an
+  //    erhu holds the answers' last notes;
+  //  * the day has a shape, 散-慢-中-快-散: free, slow, medium, quick, free again with a sweep on the zheng, then
+  //    twenty or thirty seconds of near-silence before it starts over (music that rests does not wear out).
+  const MOTIFS = [[[0, 1], [1, 1], [2, 2]], [[0, 1], [-1, 1], [-2, 1], [-1, 1]], [[0, 2], [2, 1], [1, 1]], [[0, 1], [0, 1], [1, 2]],
+    [[0, 1], [2, 1], [3, 1], [2, 1]], [[0, 3], [-1, 1]], [[0, 1], [1, 0.5], [2, 0.5], [1, 2]]];
+  function vary(m) {
+    const k = Math.random(); let out = m.map(x => x.slice());
+    if (k < 0.3) { const sh = Math.random() < 0.5 ? 1 : -1; out = out.map(([d, b]) => [d + sh, b]); }   // sequence
+    else if (k < 0.5) out = out.map(([d, b]) => [-d, b]);                                              // inversion
+    else if (k < 0.62) out = out.map(([d, b]) => [d, b * 2]);                                          // augmentation
+    return out;
+  }
+  let lastNote = 0, lastMotif = -1, qa = 0;
+  function composePhrase(answer) {
+    const out = []; let cur = lastNote;
+    for (let n = 0; n < 2; n++) {
+      let mi; do mi = Math.floor(Math.random() * MOTIFS.length); while (mi === lastMotif); lastMotif = mi;
+      const m = vary(MOTIFS[mi]), base = cur - m[0][0];
+      for (let q = n ? 1 : 0; q < m.length; q++) { const v = Math.max(-2, Math.min(7, base + m[q][0])); out.push([v, m[q][1]]); cur = v; }
+    }
+    const targets = answer ? [0, 5] : [1, 3];   // the question hangs on shang or zhi; the answer comes home
+    const tgt = targets.reduce((a, x) => Math.abs(x - cur) < Math.abs(a - cur) ? x : a);
+    while (cur !== tgt && out.length < 14) { cur += Math.sign(tgt - cur); out.push([cur, 1]); }
+    out.push([tgt, answer ? 3 : 2]); out.push([null, answer ? 1.5 : 0.5]);   // and a breath after it
+    lastNote = tgt; return out;
+  }
+  const FORMS = {
+    day:  [{ n: 2, beat: 0.62, free: true, vol: 0.75 }, { n: 4, beat: 0.52, vol: 0.88 }, { n: 6, beat: 0.43, wood: true, bass: true }, { n: 4, beat: 0.36, wood: true, bass: true, drum: true, vol: 1.12 }, { n: 1, beat: 0.64, free: true, gliss: true, vol: 0.8 }, { rest: 22 }],
+    menu: [{ n: 4, beat: 0.7, free: true }, { n: 4, beat: 0.6 }, { rest: 16 }],
+    lament: [{ n: 3, beat: 0.8, free: true }, { rest: 30 }],
+    after: [{ gong: true }, { n: 2, beat: 0.75, free: true }, { rest: 999 }],
+  };
+  let formI = 0, formLeft = 0;
+  function scheduleSong(t) {
+    const form = FORMS[mood] || FORMS.day, sec = form[formI % form.length];
+    if (sec.gong) { gong(t, 0.12); formI++; return 1.6; }   // 鸣金: the gong that ends a fight
+    if (sec.rest) {   // near-silence: now and then a single low zheng note
+      if (!formLeft) formLeft = sec.rest + Math.random() * 10;
+      if (mood !== 'after' && Math.random() < 0.45) zheng(deg(Math.random() < 0.5 ? 0 : 3, -1), t, 0.045, 3.2, false);
+      const step = 4.5 + Math.random() * 3; formLeft -= step; if (formLeft <= 0) { formI = 0; formLeft = 0; } return step;
+    }
+    if (!phrase || pi >= phrase.length) {
+      if (phrase) { phrase = null; formLeft--; if (formLeft <= 0) { formI++; formLeft = 0; return 0.2; } }   // clear it, or the next call counts it again and skips a section
+      if (!formLeft) formLeft = sec.n;
+      phrase = composePhrase(qa++ % 2 === 1); pi = 0;
+    }
+    const idx = pi, [d, beats] = phrase[pi++];
+    const BEAT = sec.beat * (sec.free ? 0.85 + Math.random() * 0.3 : 1), dur = beats * BEAT;
+    if (d === null) return dur;
+    const len = phrase.length, swell = (sec.vol || 1) * (0.82 + 0.34 * Math.sin(Math.PI * idx / Math.max(1, len - 2)));   // each section has its level; each phrase swells and falls
+    const cadence = idx >= len - 2, home = mood === 'lament' || mood === 'after' ? 4 : 0;   // the lament and the aftermath sit in yu
+    const f = deg(d + home, mood === 'lament' || mood === 'after' ? -1 : 0);
+    const peak = idx > 0 && phrase[idx - 1][0] !== null && d > phrase[idx - 1][0] + 1;
+    if (mood === 'menu') {
+      zheng(deg(d + home, -1), t, 0.2 * swell, dur + 1.6, Math.random() < 0.4);
+      if (beats >= 2) zheng(deg(d + home - 2, -2), t + BEAT * 0.5, 0.07, 1.4, false);
+    } else if (mood === 'after') {
+      erhu(deg(d + home, -1), t, dur * 0.96, 0.06 * swell, prevF || 0); prevF = deg(d + home, -1);
+    } else {
+      dizi(f, t, dur * 0.92, (mood === 'lament' ? 0.17 : 0.2) * swell, { grace: !cadence && beats >= 1 && Math.random() < 0.22, slide: peak });
+      if (mood === 'day') {
+        // heterophony: the zheng plays the skeleton of the same tune, half a beat behind, bent into some notes
+        if (idx % 2 === 0 || beats >= 2) zheng(deg(d, -1), t + BEAT * 0.5, 0.085 * swell, dur + 0.7, Math.random() < 0.3);
+        if (beats >= 3 && !sec.free) for (let k = 1; k < 4; k++) zheng(deg(d, -1), t + BEAT * (0.5 + k * 0.5), 0.03, 0.5, false);   // a tremolo on long notes
+        if (cadence && qa % 2 === 0 && !sec.free) erhu(deg(d, -1), t, dur * 1.25, 0.035, 0);   // the erhu holds the answer's home note
+        if (sec.bass && beat % 4 < beats) zheng(deg(0, -2), t, 0.07, 2.2, false);
+        if (sec.wood && Math.floor(beat) % 2 === 1) woodblock(t, 0.05);
+        if (sec.drum && Math.floor(beat) % 4 === 0) drum(t, 0.05);
+        if (sec.gliss && cadence) for (let k = 0; k < 7; k++) zheng(deg(k, -1), t + dur + k * 0.045, 0.05, 1.4, false);   // the closing sweep
+      }
+    }
+    beat += beats;
+    return dur;
   }
 
   // ---- the effects' clock and destination. NOW() is the audio clock plus an offset, so a test can lay a whole battle
@@ -4294,7 +4409,8 @@ const Sound = (() => {
                       } }, i * 115)); break;
     }
   }
-  function setMood(m) { if (m !== mood) { mood = m; phrase = null; beat = 0; prevF = 0; nStep = 0; call = null; if (moodG) moodG.gain.setTargetAtTime(MOOD_LEVEL[m] || 1, NOW(), 1.2); } }
+  function setMood(m) { if (m !== mood) { mood = m; phrase = null; beat = 0; prevF = 0; nStep = 0; call = null; formI = 0; formLeft = 0; if (moodG) moodG.gain.setTargetAtTime(MOOD_LEVEL[m] || 1, NOW(), 1.2); } }
+  function setIntensity(x) { inten = x; }
   function tick(dt) { timer -= dt; if (timer <= 0) { timer = 0.2; schedule(); breathe(); } }
   // ---- offline render, so the sound can actually be inspected instead of assumed ----
   // Everything is rebuilt into an OfflineAudioContext, the whole span is scheduled up front
@@ -4312,10 +4428,11 @@ const Sound = (() => {
     voices = []; buildBuses();
     musicG.gain.value = st.musicVol * 1.4; sfxG.gain.value = st.sfxVol; uiG.gain.value = st.sfxVol;
     mood = m; phrase = null; pi = 0; beat = 0; prevF = 0; nextNote = 0; const saveStep = nStep; nStep = 0; call = null; moodG.gain.value = MOOD_LEVEL[m] || 1;
-    if (m) for (let t = 0; t < seconds; t += 0.2) schedule(t);
+    const iev = (events || []).filter(e => e[1] === 'intensity').sort((x, y) => x[0] - y[0]); inten = 0; lvl = 0; formI = 0; formLeft = 0;
+    if (m) for (let t = 0; t < seconds; t += 0.2) { while (iev.length && iev[0][0] <= t) inten = iev.shift()[2]; schedule(t); }
     if (sfxKinds) sfxKinds.forEach(k => { last = {}; play(k); });
     // a scene: [time, kind, vol, at], or [time, 'gait:gallop', period] for one stride of the commander's horse
-    if (events) for (const [t, k, v, at] of events) { tOff = t; if (k.startsWith('gait:')) gait(k.slice(5), v, at || 0.75, false, 1); else play(k, v, at); if (Math.round(t * 10) % 5 === 0) breathe(); }
+    if (events) for (const [t, k, v, at] of events) { if (k === 'intensity') continue; tOff = t; if (k.startsWith('gait:')) gait(k.slice(5), v, at || 0.75, false, 1); else play(k, v, at); if (Math.round(t * 10) % 5 === 0) breathe(); }
     tOff = 0;
     if (notes) for (const [name, f, t, g, dur, bend] of notes) {
       if (name === 'zheng') zheng(f, t, g, dur, bend);
@@ -4388,7 +4505,7 @@ const Sound = (() => {
     if (Math.random() < 0.35) grit(t + 0.06, 0.05, 2, 0.05 * g, 2100, 3000);       // bit rings
     if (strideN % 7 === 0) { noiseAt(t + 0.1, 0.22, 0.2 * g, 520, 900, 1.2); noiseAt(t + 0.28, 0.12, 0.1 * g, 700, 400, 1.5); }   // a snort
   }
-  return { init, play, setMood, tick, st, volumes, renderOffline, hoof: hoofNow, ui: k => play(k, 1, { ui: true }), gait: (k, p, g, wood) => { if (ctx && st.sfx) gait(k, p, g, wood); }, get ready() { return !!ctx; } };
+  return { init, play, setMood, setIntensity, tick, st, volumes, renderOffline, hoof: hoofNow, ui: k => play(k, 1, { ui: true }), gait: (k, p, g, wood) => { if (ctx && st.sfx) gait(k, p, g, wood); }, get ready() { return !!ctx; } };
 })();
 
 /* ================= input ================= */
@@ -6333,7 +6450,7 @@ function updateTags() {
       const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h));
       if (!hit) break; y = hit.y - Math.max(hit.h, h);
     }
-    el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : el._y + (y - el._y) * 0.25;
+    el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : damp(el._y, y, 0.045, animDt);
     placeAt(el, x, el._y); placed.push({ x, y, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
@@ -6372,10 +6489,17 @@ function updateThreats() {
     const x = innerWidth / 2 + Math.cos(a) * t; let y = belowPrompt(x, 46, clamp(innerHeight / 2 + Math.sin(a) * t, clearTop(x) + 30, innerHeight - 110));
     for (const id in rTags) { const r = rTags[id]; if (r.hidden || r._px == null) continue; const sz = sizeOf(r);   // step aside from a pass marker
       if (Math.abs(r._px - x) < sz.w / 2 + 26 && y > r._y - sz.h - 26 && y < r._y + 26) y = r._y - sz.h / 2 > innerHeight / 2 ? r._y - sz.h - 30 : r._y + 30; }
-    el._x = el._x == null ? x : el._x + (x - el._x) * 0.2; el._yy = el._yy == null ? y : el._yy + (y - el._yy) * 0.2;
-    el._a = el._a == null ? a : el._a + angDiff(a, el._a) * 0.2;
-    placeAt(el, el._x, el._yy, 'translate(-50%,-50%)'); setStyle(el, '--a', (el._a + Math.PI / 2).toFixed(2) + 'rad'); setText(el.firstChild, String(b.n));
+    el._x = el._x == null ? x : damp(el._x, x, 0.06, animDt); el._yy = el._yy == null ? y : damp(el._yy, y, 0.06, animDt);
+    el._a = el._a == null ? a : el._a + angDiff(a, el._a) * (1 - Math.pow(2, -animDt / 0.06));
+    setStyle(el, '--a', (el._a + Math.PI / 2).toFixed(2) + 'rad'); setText(el.firstChild, String(b.n));
   }
+  // two neighbouring directions can crowd a corner: nudge them apart before placing, so no arrow sits on another
+  const live = threatEls.filter(e => e && !e.hidden && e._x != null);
+  for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+    const A = live[i], B = live[j], dx = B._x - A._x, dy = B._yy - A._yy, d = Math.hypot(dx, dy) || 1;
+    if (d < 50) { const push = (50 - d) / 2, ux = dx / d, uy = dy / d; A._x -= ux * push; A._yy -= uy * push; B._x += ux * push; B._yy += uy * push; }
+  }
+  for (const el of live) placeAt(el, el._x, el._yy, 'translate(-50%,-50%)');
 }
 const PHASE_OF = { map: 'road', shop: 'build', dusk: 'position', circling: 'position', prep: 'position', quietPos: 'position', night: 'night', dawn: 'night', quietNight: 'night' };
 S.phaseLog = [];
@@ -6398,7 +6522,14 @@ function updateConvoy(dt) {
   stillT = hero.pos.distanceTo(lastHero) < 0.01 && !hero.steering ? stillT + dt : 0; lastHero.copy(hero.pos);
   if (S.towing) {
     if (!S.towing.building) S.towing = null;
-    else { const r = hero.face; wagonAt(S.towing, hero.pos.x - Math.sin(r) * 3.3, hero.pos.z - Math.cos(r) * 3.3, r); }
+    else {
+      // the cart trails on its pole (a tractor-trailer hitch), not glued behind the saddle: the pole's end follows the
+      // horse's quarters, and the cart turns only as it is pulled, so it swings wide on a turn as a cart does
+      const hx = hero.pos.x - Math.sin(hero.face) * 0.9, hz = hero.pos.z - Math.cos(hero.face) * 0.9, T = S.towing;
+      if (T._tx === undefined || Math.hypot(T._tx - hx, T._tz - hz) > 6) { T._tx = hx - Math.sin(hero.face) * 2.4; T._tz = hz - Math.cos(hero.face) * 2.4; }
+      const dx = hx - T._tx, dz = hz - T._tz, dl = Math.hypot(dx, dz) || 1; T._tx = hx - dx / dl * 2.4; T._tz = hz - dz / dl * 2.4;
+      wagonAt(T, T._tx, T._tz, Math.atan2(dx, dz));
+    }
   }
   updateDropGhost();
   if (S.state === 'night' && !S.spawnQ.length) {
@@ -6528,7 +6659,13 @@ function update(dt) {
   updateAbilityBar(dt);
   updateWorkers(dt); updateBridges(dt, clock);
 
-  Sound.setMood(S.state === 'title' ? 'menu' : S.state === 'night' ? 'night' : 'day');
+  // the night ends on the gong and a lone erhu, carried through the dawn; a lost run gets its lament
+  Sound.setMood(S.state === 'title' ? 'menu' : S.state === 'lost' ? 'lament' : S.state === 'dawn' || (S.state === 'night' && S.clearT > 0) ? 'after' : S.state === 'night' ? 'night' : 'day');
+  if (S.state === 'night' && Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) {   // how close the fight is, twice a second
+    const c = S.camp ? new V3(S.camp.cx, 0, S.camp.cz) : hero.pos; let near = 0, out = 0;
+    for (const e of enemies) if (e.alive) { if (Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 16) near++; else out++; }
+    Sound.setIntensity(Math.min(1, near / 8 + (out ? 0.2 : 0)));
+  }
   const n = dayNight += ((S.state === 'night' ? 1 : 0) - dayNight) * Math.min(1, dt * 1.1);
   skyTmp.copy(DAY_SKY).lerp(NIGHT_SKY, n); scene.background.copy(skyTmp); scene.fog.color.copy(skyTmp);
   sun.intensity = lerp(2.9, 0.5, n); sun.color.setRGB(lerp(1, 0.3, n), lerp(0.84, 0.46, n), lerp(0.62, 1, n));
@@ -6564,18 +6701,26 @@ function update(dt) {
     camera.position.set(VALLEY.cx + Math.sin(titleT) * 70, 150, VALLEY.cz + 20 + Math.cos(titleT) * 70); camera.lookAt(VALLEY.cx, 0, VALLEY.cz + 12);
   } else {
     const narrow = camera.aspect < 1;
-    camFocus.lerp(tmp.set(hero.pos.x, 0, hero.pos.z), Math.min(1, dt * 3));
+    // the camera leads where the rider is going (Squirrel Eiserloh, "Juicing your cameras"): a look-ahead from his
+    // smoothed velocity, and a follow measured in half-lives, so it feels the same at any frame rate
+    const vx = (hero.pos.x - (camLead.px ?? hero.pos.x)) / Math.max(dt, 1e-3), vz = (hero.pos.z - (camLead.pz ?? hero.pos.z)) / Math.max(dt, 1e-3);
+    camLead.px = hero.pos.x; camLead.pz = hero.pos.z;
+    const lk = Math.min(1, 3.5 / Math.max(1e-3, Math.hypot(vx, vz) * 0.35));
+    camLead.x = damp(camLead.x, hero.alive ? vx * 0.35 * lk : 0, 0.35, dt); camLead.z = damp(camLead.z, hero.alive ? vz * 0.35 * lk : 0, 0.35, dt);
+    camFocus.x = damp(camFocus.x, hero.pos.x + camLead.x, 0.16, dt); camFocus.z = damp(camFocus.z, hero.pos.z + camLead.z, 0.16, dt); camFocus.y = 0;
     // hold Tab to rise and see the whole field (Thronefall players' first wish: to see both flanks at once)
-    overviewK += ((keys.Tab && WAGON ? 1 : 0) - overviewK) * Math.min(1, dt * 6);
+    overviewK = damp(overviewK, keys.Tab && WAGON ? 1 : 0, 0.11, dt);
     const dist = (WAGON ? (narrow ? 3.4 : 2.25) : (narrow ? 4.3 : 2.9)) * (1 + overviewK * 1.5);
     const fx = camFocus.x + (VALLEY.cx - camFocus.x) * overviewK * 0.7, fz = camFocus.z + (VALLEY.cz - camFocus.z) * overviewK * 0.7;
     camera.position.set(fx, 21 * dist, fz + 16 * dist); camera.lookAt(fx, 0.5, fz - 1);
     if (window.__camOverride) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); }   // test harness overview shots
+    // trauma shake (Eiserloh): the strength is the square of the trauma, and it moves on smooth noise, mostly as a small
+    // rotation, rather than jumping to a new random spot every frame (which reads as a glitch, not a blow)
     if (shake > 0.001) {
       shake = Math.max(0, shake - dt * 2.6);
-      const k = shake * shake * 1.5;
-      camera.position.x += (Math.random() - 0.5) * k; camera.position.y += (Math.random() - 0.5) * k * 0.6;
-      camera.position.z += (Math.random() - 0.5) * k;
+      const k = shake * shake, tt = clock * 22, n = (a, b) => Math.sin(tt * a + b) * 0.6 + Math.sin(tt * a * 2.31 + b * 1.7) * 0.4;
+      camera.rotateZ(n(1, 1.3) * k * 0.035); camera.rotateX(n(0.83, 4.1) * k * 0.02); camera.rotateY(n(1.19, 7.7) * k * 0.02);
+      camera.position.x += n(0.9, 2.2) * k * 0.3; camera.position.z += n(1.1, 5.4) * k * 0.3;
     }
   }
   updateOcclusion(dt);
@@ -6618,7 +6763,7 @@ setTimeout(() => {
   } catch (e) { console.info('shader warm-up skipped', e); }
   seed = seed0;
 }, 600);
-window.__ff = { makeHeroModel, animArcher, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
