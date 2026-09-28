@@ -544,7 +544,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 37 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 38 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -7075,6 +7075,7 @@ $('#copyRun').addEventListener('click', () => {
 const SAVE_KEY = 'wagon-road-save', SAVE_SKIP = new Set(['taken', 'announced', 'camp', 'towing', 'spawnQ', 'entries', 'preEntries', 'state', 'phase']);
 function saveRun() {
   if (!WAGON || S.state === 'lost' || S.state === 'won' || S.phase !== 'map') return;
+  if (!(S.path && S.path.length > 1)) { forgetRun(); return; }   // nothing to continue until the column has taken a road
   try {
     const st = {}; for (const k in S) if (!SAVE_SKIP.has(k) && typeof S[k] !== 'function') st[k] = S[k];
     const col = convoy.filter(p => p.building).map(p => ({ k: p.cartKind, lv: p.building.level || 0, hp: p.building.hp, max: p.building.max }));
@@ -7083,7 +7084,7 @@ function saveRun() {
   } catch (e) { /* a private window or a full store: the run simply isn't kept */ }
 }
 function forgetRun() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
-function savedRun() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', (k, x) => x && typeof x === 'object' && Array.isArray(x.__set) ? new Set(x.__set) : x); return v && v.v === 1 && v.S && v.col ? v : null; } catch (e) { return null; } }
+function savedRun() { try { const v = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null', (k, x) => x && typeof x === 'object' && Array.isArray(x.__set) ? new Set(x.__set) : x); return v && v.v === 1 && v.S && v.col && v.S.path && v.S.path.length > 1 ? v : null; } catch (e) { return null; } }
 function resumeRun(sv) {
   Object.assign(S, sv.S); S.taken = new Set(); S.announced = new Set(); S.spawnQ = []; S.entries = []; S.preEntries = null; S.camp = null; S.towing = null;
   for (const p of convoy) { if (p.building) { scene.remove(p.building.g); if (p.building.bar) scene.remove(p.building.bar); const i = buildings.indexOf(p.building); if (i >= 0) buildings.splice(i, 1); } if (p.ruin) scene.remove(p.ruin.g); }
