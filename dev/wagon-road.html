@@ -336,6 +336,7 @@ button:active, .tablet:active, .card:active{ transform:scale(.97); }
 .shopGroup{ display:flex; flex-direction:column; gap:8px; } .shopGroup .row{ display:flex; flex-wrap:wrap; gap:12px; justify-content:center; }
 .shopGroup h3.sec{ margin:0; font-size:14px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-dim); font-weight:600; border-bottom:1px solid var(--lacquer-edge); padding-bottom:4px; }
 .shopGroup .card{ width:176px; }
+@media (min-width:1600px) and (min-height:950px){ .shopGroup .card{ width:224px; } .card .t{ font-size:19px; } .card .e{ font-size:15px; } }   /* the offer keeps its weight on a big screen */
 .card .cost span{ display:inline-flex; align-items:center; gap:4px; }
 .shopFoot{ flex:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--lacquer-edge); }
 .column{ justify-content:center; }
@@ -420,6 +421,36 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 /* short windows (a 600-800 px laptop screen): the pause sheet tightens so its button stays on screen */
 @media (max-height:800px){ #opts{ padding-top:48px; } #opts .sheet h2{ font-size:34px; margin:0 0 6px; } #opts .optrow{ padding:6px 12px; } #opts .sheet > .hintv{ display:none; } #opts .keylist{ gap:4px 12px; } }
 
+
+/* Build 37, from the design check (tools/ux/design.mjs). The map is the focus of its screen: the parchment takes the
+   tree's shape and the full height, the side column is narrow and quiet, the heading small. */
+.mapSheet > h2{ font-size:clamp(20px,2vw,26px); margin:0 0 8px; }
+.mapSheet .smapWrap{ display:flex; justify-content:center; align-items:stretch; gap:22px; }
+.mapSheet{ max-width:min(1720px, 100%); }
+.mapSheet #smapSvg{ max-height:none; max-width:calc(100% - 326px); flex:0 0 auto; margin:0; align-self:flex-start; }   /* top edges line up with the side column */
+.mapSheet .smapSide{ flex:0 0 304px; }
+.mapSheet .smapSide .resbar .rc small{ font-size:11px; letter-spacing:.02em; }
+/* the legend as one line per place: name, then what it offers, quieter */
+.mapSheet .legend{ gap:5px; } .mapSheet .legend > span > span{ display:flex; gap:6px; align-items:baseline; flex-wrap:wrap; }
+.mapSheet .legend span b{ display:inline; font-size:14px; } .mapSheet .legend small{ font-size:12.5px; color:#bfae8e; }
+.mapSheet .legend svg{ width:22px; height:22px; }
+@media (max-height:700px){ .mapSheet .legend{ grid-template-columns:1fr 1fr; } .mapSheet .legend small{ display:none; } }
+/* the numbers are read, not looked at: quiet boxes, so the offer (build) and the map stay the loudest thing */
+.resbar .rc{ background:rgba(20,12,10,.3); border-color:rgba(122,74,52,.55); }
+@media (max-width:760px){ .mapSheet .smapWrap{ flex-direction:column; } .mapSheet #smapSvg{ height:56vh; max-width:100%; align-self:center; } .mapSheet .smapSide{ flex:none; } }
+#smapInfo{ background:rgba(24,14,12,.5); border:1px solid var(--lacquer-edge); min-height:0; }
+/* The title menu: one column of equal buttons, the primary first (a game's main menu, not a row that wraps) */
+#title .titleBtns{ display:grid; grid-template-columns:minmax(0, 340px); justify-content:center; gap:10px; }
+#title .titleBtns > .go{ width:100%; margin:0; }
+#title .titleBtns > .go[hidden]{ display:none; }
+#title .titleBtns > .go.alt{ padding-top:10px; padding-bottom:10px; }
+#title .titleBtns .cap{ display:block; font-size:13px; font-weight:400; letter-spacing:0; opacity:.8; margin-top:1px; }
+#title.has-save .keys{ display:none; }   /* a returning player knows the keys; they are in the pause menu */
+@media (max-height:700px){ #title .bigseal{ width:64px; height:64px; font-size:30px; } #title h1{ font-size:clamp(40px,7vh,64px); margin:6px 0; } #title .tagline{ font-size:15px; margin:4px auto 10px; } #title .keys{ margin-bottom:10px; } }
+/* choices: the options lead, not the seal and the heading */
+.choiceSheet .bigseal{ width:58px; height:58px; font-size:28px; margin-bottom:6px; }
+.choiceSheet h2{ font-size:clamp(24px,2.6vw,32px); margin:0 0 8px; }
+.choiceOpt{ background:linear-gradient(180deg,#4d241d,#3a1a15); border-color:#8a5a3a; } .choiceOpt b{ font-size:18px; }
 </style>
 </head>
 <body>
@@ -513,7 +544,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 36 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 37 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -6385,7 +6416,7 @@ function resBar(el) {
     chip('men', 'men', 'Soldiers', `${S.roster.length}/${LEVELS[S.level].soldiers}`) +
     `<div class="rc"><b>${crewCount()}</b><small>Crews</small></div>` +
     `<div class="rc"><b>${foodPerDay()}</b><small>Food eaten a day</small></div>` +
-    `<div class="rc"><b>${S.level + 1}</b><small>Convoy level</small></div>`;
+    (has.levels() ? `<div class="rc"><b>${S.level + 1}</b><small>Convoy level</small></div>` : '');   // shown once levels are unlocked (the ninth pass's rule)
   lastRes = Object.assign(now, { el: el.id });
 }
 function columnHTML() {
@@ -6442,6 +6473,16 @@ function joinConvoy(kind) {
 /* ---------------- the map screen ---------------- */
 let mapSel = 0, mapOpts = [];
 const MX = c => 60 + c * 80, MY = f => 556 - f * 72;
+// the parchment is sized to the tree's shape and the room there is: as tall as it can be, as wide as the shape allows
+// (CSS alone letterboxed it: with its height fixed, aspect-ratio gave way to max-width and left empty paper)
+function fitMap() {
+  const svg = $('#smapSvg'), wrap = svg && svg.parentElement; if (!wrap || $('#smap').hidden) return;
+  const ar = parseFloat(svg.style.getPropertyValue('--mapAR')) || 1;
+  if (innerWidth <= 760) { svg.style.width = ''; svg.style.height = ''; return; }
+  const H = wrap.clientHeight, W = wrap.clientWidth - 326, w = Math.min(W, H * ar);
+  svg.style.width = Math.floor(w) + 'px'; svg.style.height = Math.floor(w / ar) + 'px';
+}
+addEventListener('resize', fitMap);
 // simple drawings, so nobody needs to read a character to know what a stop is
 const ICONS = {
   fight: '<path d="M-8-8L6 6M8-8L-6 6" stroke-width="2.6"/><path d="M2 8L8 2M-2 8L-8 2" stroke-width="2.2"/>',
@@ -6466,15 +6507,16 @@ function openMap() {
     for (let d = 0; d < days; d++) { const t = (d + 1) / (days + 1); h += `<circle class="day" cx="${lerp(x1, x2, t)}" cy="${lerp(y1, y2, t)}" r="3"/>`; }
   }
   for (const k in m) {
-    const n = m[k], x = MX(n.c), y = MY(n.f), opt = mapOpts.includes(k), R = n.type === 'boss' ? 26 : 20;
+    const n = m[k], x = MX(n.c), y = MY(n.f), opt = mapOpts.includes(k), R = n.type === 'boss' ? 30 : 24;
     h += `<g class="node t-${n.type}${k === S.at ? ' here' : ''}${opt ? ' opt' : ''}${S.path.includes(k) && k !== S.at ? ' seen' : ''}" data-k="${k}">`
       + (opt ? `<circle class="halo" cx="${x}" cy="${y}" r="${R}"/><circle class="halo h2" cx="${x}" cy="${y}" r="${R}"/>` : '')
       + `<circle class="base" cx="${x}" cy="${y}" r="${R}"/><use class="ico" href="#ic-${n.type}" x="${x - R * 0.86}" y="${y - R * 0.86}" width="${R * 1.72}" height="${R * 1.72}"/></g>`;
   }
   $('#smapSvg').innerHTML = h;
   // frame the tree itself, so it fills its parchment instead of floating in an empty corner of it
-  { const xs = Object.values(m).map(n => MX(n.c)), ys = Object.values(m).map(n => MY(n.f)), x0 = Math.min(...xs) - 50, y0 = Math.min(...ys) - 50;
-    $('#smapSvg').setAttribute('viewBox', `${x0} ${y0} ${Math.max(...xs) + 50 - x0} ${Math.max(...ys) + 50 - y0}`); }
+  // and the parchment takes the tree's own shape (--mapAR), so no empty paper is left round it (the design check's fill rule)
+  { const pad = 56, xs = Object.values(m).map(n => MX(n.c)), ys = Object.values(m).map(n => MY(n.f)), x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad, vw = Math.max(...xs) + pad - x0, vh = Math.max(...ys) + pad - y0;
+    $('#smapSvg').setAttribute('viewBox', `${x0} ${y0} ${vw} ${vh}`); $('#smapSvg').style.setProperty('--mapAR', (vw / vh).toFixed(3)); fitMap(); }
   $('#smapSvg').querySelectorAll('.node.opt').forEach(g => {
     g.addEventListener('click', () => { mapSel = mapOpts.indexOf(g.dataset.k); confirmMap(); });
     g.addEventListener('mouseenter', () => { mapSel = mapOpts.indexOf(g.dataset.k); highlightMap(); });
@@ -6484,7 +6526,7 @@ function openMap() {
   $('#smapLegend').innerHTML = Object.keys(LEGEND).map(t => `<span>${icon(t)}<span><b>${NODE_INFO[t].n}</b><small>${LEGEND[t]}</small></span></span>`).join('');
   $('#smapBack').hidden = true;   // the phases only go forward
   resBar($('#smapRes'));
-  highlightMap(); $('#smap').hidden = false;
+  highlightMap(); $('#smap').hidden = false; fitMap();
 }
 $('#smapBack').addEventListener('click', () => { $('#smap').hidden = true; openShop(S.backShop, true); });
 function forecast(k) {
@@ -7069,9 +7111,9 @@ function dailyBest() {
 }
 function titleExtras() {
   const sv = savedRun(), cb = $('#contBtn');
-  if (sv && cb) { const s = sv.S; cb.hidden = false; cb.textContent = `Continue: region ${(s.region || 0) + 1}, ${s.floor ? 'floor ' + s.floor : 'at the camp'}${sv.daily ? ' (today\u2019s road)' : ''}`; $('#startBtn').textContent = 'New road'; $('#startBtn').classList.add('alt'); }   // one gold button: the one that carries on
+  if (sv && cb) { const s = sv.S; cb.hidden = false; cb.innerHTML = `Continue<small class="cap">region ${(s.region || 0) + 1}, ${s.floor ? 'floor ' + s.floor : 'at the camp'}${sv.daily ? ' \u00b7 today\u2019s road' : ''}</small>`; $('#startBtn').textContent = 'New road'; $('#startBtn').classList.add('alt'); $('#title').classList.add('has-save'); }   // one gold button: the one that carries on
   try { const b = JSON.parse(localStorage.getItem('wagon-road-daily-best') || '{}')[today()]; const tw = dailyTwist(today());
-    setHTML($('#dailyBest'), `One region, the same for everyone \u00b7 ${tw.name}${b ? ` \u00b7 best: ${b.won ? 'through' : 'floor ' + b.floor}` : ''}`); } catch (e) {}
+    setHTML($('#dailyBest'), `One short region \u00b7 ${tw.name}${b ? ` \u00b7 best: ${b.won ? 'through' : 'floor ' + b.floor}` : ''}`); } catch (e) {}
 }
 /* The register (after the Jixiao Xinshu's drawn plates): each raider kind and each of our arms, drawn once it has been
    met, with one line on how it is answered. What has been met is kept in the browser (localStorage), across runs. A
