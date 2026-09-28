@@ -543,7 +543,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 42 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 43 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -5796,6 +5796,8 @@ function ringPlan(cx, cz) {
   const R = CONVOY.ringR, slots = [];
   if (blocked(cx, cz)) return { ok: false, why: 'Too rough to make camp on' };
   if (roadDist(cx, cz) > 2.5) return { ok: false, why: 'Circle the wagons on a road, where the raiders can reach you' };
+  // not on a bridge or a ford: the ring stood in the river, drum and men in the water, walled by it on four sides
+  if (RIVER.length && riverDist(cx, cz) < RIVER_HALF + 2.2) return { ok: false, why: 'Not on the crossing: make camp on dry ground' };
   for (const en of ENTRIES) { const P = NODES[en.id]; if (P && Math.hypot(cx - P.pos.x, cz - P.pos.z) < PASS_KEEP) return { ok: false, why: 'Too close to a raider pass (inside a dashed red circle): they would be on you before the wagons are circled' }; }
   for (let k = 0; k < CONVOY.ring; k++) {
     const a = k / CONVOY.ring * TAU, x = cx + Math.sin(a) * R, z = cz + Math.cos(a) * R;
@@ -7006,7 +7008,7 @@ function updateThreats() {
     if (!steady(el, !!b, 0.6)) continue; if (!b) continue;
     const a = Math.atan2(b.y, b.x), hx = innerWidth / 2 - 40, hy = innerHeight / 2 - 60, t = Math.min(hx / Math.abs(Math.cos(a) || 1e-6), hy / Math.abs(Math.sin(a) || 1e-6));
     const x = innerWidth / 2 + Math.cos(a) * t; let y = belowPrompt(x, 46, clamp(innerHeight / 2 + Math.sin(a) * t, clearTop(x) + 30, innerHeight - 110));
-    for (const id in rTags) { const r = rTags[id]; if (r.hidden || r._px == null) continue; const sz = sizeOf(r);   // step aside from a pass marker
+    for (const r of [...Object.values(rTags), ...Object.values(wTags), groupTag]) { if (!r || r.hidden || r._px == null || r._y == null) continue; const sz = sizeOf(r);   // step aside from a pass marker or a supply label
       if (Math.abs(r._px - x) < sz.w / 2 + 26 && y > r._y - sz.h - 26 && y < r._y + 26) y = r._y - sz.h / 2 > innerHeight / 2 ? r._y - sz.h - 30 : r._y + 30; }
     el._x = el._x == null ? x : damp(el._x, x, 0.06, animDt); el._yy = el._yy == null ? y : damp(el._yy, y, 0.06, animDt);
     el._a = el._a == null ? a : el._a + angDiff(a, el._a) * (1 - Math.pow(2, -animDt / 0.06));
@@ -7411,7 +7413,10 @@ function update(dt) {
     overviewK = damp(overviewK, keys.Tab && WAGON ? 1 : 0, 0.11, dt);
     const dist = (WAGON ? (narrow ? 3.4 : 2.25) : (narrow ? 4.3 : 2.9)) * (1 + overviewK * 1.5);
     const fx = camFocus.x + (VALLEY.cx - camFocus.x) * overviewK * 0.7, fz = camFocus.z + (VALLEY.cz - camFocus.z) * overviewK * 0.7;
-    camera.position.set(fx, 21 * dist, fz + 16 * dist); camera.lookAt(fx, 0.5, fz - 1);
+    // at the border fort the camera looks down more steeply: the keep's own mountain stands south of the courtyard, and at
+    // the usual angle its ridge crossed half the fort whenever the rider was in the south half (the playtest harness)
+    const steep = FIELD.castle ? smooth(-6, 6, fz) : 0;
+    camera.position.set(fx, (21 + 3 * steep) * dist, fz + (16 - 7 * steep) * dist); camera.lookAt(fx, 0.5, fz - 1);
     if (S.state === 'ending' || (S.state === 'won' && S.endWall)) {   // the camera leaves the rider and rises to frame the Wall
       // the usual angle (the art is made to be seen from it), eased over to frame the column and the gate together
       const k = smooth01(Math.min(1, endingT / 5)), W = S.endWall, ex = lerp(fx, (hero.pos.x + W.x) / 2, k), ez = lerp(fz, (hero.pos.z + W.z) / 2, k), d2 = dist * (1 + 0.3 * k);
