@@ -544,7 +544,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 39 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 40 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -612,7 +612,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 // The daily road: one seeded run a day with one twist (Slay the Spire's Daily Climb, local best only, no server). The
 // title's button reloads the page with the day's seed set, and every random draw from here on follows it, so the map
 // and the fields are the same for everyone that day.
-const HOOF_GAIN = 0.62;   // the commander's own hooves, about 4 dB under Build 34 (Matias: a bit too loud)
+const HOOF_GAIN = 0.4;   // the commander's own hooves: about 8 dB under Build 34 (Matias, twice: too loud)
 const DAILY = (() => { try { const d = sessionStorage.getItem('wagon-road-daily'); if (d) { sessionStorage.removeItem('wagon-road-daily'); return d; } } catch (e) {} return null; })();
 if (DAILY) { let q = [...DAILY].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 2147483647, 7) || 7; Math.random = () => (q = (q * 16807) % 2147483647) / 2147483647; }
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
@@ -812,6 +812,7 @@ function hgt(x, z) {
   const rd = roadDist(x, z), rv = riverDist(x, z);
   const { amt, far } = mountainAmount(x, z);
   let m = amt * (16 + 34 * ridged(x * 0.021 + 3.1, z * 0.021 + 7.7)) + far * 22;
+  m += amt * amt * (5 * ridged(x * 0.075 + 1.7, z * 0.075 + 4.2) + 1.6 * vnoise(x * 0.23, z * 0.23));   // spurs, gullies and knuckles of rock: the slopes were smooth planes
   m *= smooth(2.5, 9, rd) * smooth(3, 10, rv);
   // the camera looks north: on generated ground the southern rim is kept low so it never walls off the view
   if (!FIELD.southWall) m *= lerp(1, 0.32, smooth(VALLEY.cz + VALLEY.rz * 0.2, VALLEY.cz + VALLEY.rz * 1.1, z));
@@ -1077,7 +1078,10 @@ function buildTerrain() {
       const rock = cRockA.clone().lerp(cRockB, band);
       rock.lerp(cCliff, smooth(0.82, 0.6, ny));
       const alp = cAlp.clone().lerp(rock, smooth(8, 20, y));
-      c.lerp(ny > 0.86 ? alp : rock, smooth(1.2, 5, y));
+      const n2 = vnoise(x * 0.17 + 5, z * 0.17 + 9), n3 = vnoise(x * 0.5, z * 0.5);
+      rock.multiplyScalar(0.95 + 0.12 * n2 + 0.05 * n3);                                   // weathered, never one flat grey (and never darker overall: the relief adds shade of its own)
+      c.lerp(ny > 0.86 - 0.08 * n2 ? alp : rock, smooth(1.2, 5, y));
+      c.lerp(cAlp, clamp(n2 - 0.25, 0, 1) * smooth(0.7, 0.9, ny) * (1 - smooth(10, 22, y)) * 0.6);   // grass reaching up the gentler slopes
       c.lerp(cSnow, smooth(28, 36, y) * smooth(0.55, 0.8, ny) + smooth(40, 46, y) * 0.7);
     }
     if (FIELD.castle && r < CASTLE_R + 0.5) c.copy(cCourt);
@@ -1089,6 +1093,7 @@ function buildTerrain() {
   const groundMat = toonMat({ vertexColors: true }); groundMat.flatShading = false;   // the land is painted smooth; models stay faceted
   groundMat.onBeforeCompile = sh => {
     addRim(sh);
+    sh.fragmentShader = sh.fragmentShader.replace('smoothstep(0.6, 0.7, rim) * uRimStr * 1.3', 'smoothstep(0.55, 0.95, rim) * uRimStr * 0.22');   // the ridges had a hard pale lip
     sh.uniforms.uOccl = { value: occl };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying float vOcclDepth;')
@@ -1477,7 +1482,7 @@ function horseBody(g, body, legCol) {
   const hair = new THREE.Group(); hair.position.set(0, -0.12, -0.12); tail.add(hair);
   part(CYL(0.07, 0.11, 0.3, 6), C.horseDark, 0, -0.15, 0, hair);
   part(CYL(0.11, 0.03, 0.34, 6), C.horseDark, 0, -0.46, 0, hair);
-  legs.tail = tail; legs.hair = hair;
+  legs.tail = tail; legs.hair = hair; legs.neck = neck; legs.head = head;
   return legs;
 }
 // the clothes that make a figure read up close: a belt or a raider's red sash, shoulder guards,
@@ -2831,7 +2836,7 @@ function updateSoldiers(dt) {
     const st = SOLDIER_TYPE[s.type || 'spear'];
     // each man picks his own raider: the nearest, but one already crowded by his comrades counts as farther
     let t = null;
-    const rng = (st.range || 0) * (WAGON && s.type === 'archer' && rankOf('archer') >= 3 ? 1.4 : 1);
+    const rng = (st.range || 0) * (WAGON && s.type === 'archer' && rankOf('archer') >= 3 ? 1.4 : 1) * (WAGON && s.type === 'archer' && hgt(s.pos.x, s.pos.z) >= HIGH_GROUND ? 1.25 : 1);   // archers on a rise shoot farther, as carts do
     if (S.state === 'night') {
       const lim = (s.following || s.sprintT > 0 ? 9 : SOLDIER.leash * S.leashMul) + rng * 0.6; let best = Infinity;
       for (const e of enemies) { if (!e.alive || e.pos.distanceTo(anchor) > lim) continue;
@@ -2961,6 +2966,51 @@ function stepShove(e, dt) {
   if (Math.abs(e.kbx) + Math.abs(e.kbz) < 0.05) e.kbx = e.kbz = 0;
 }
 const easeOutBack = p => 1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2);   // arrives with a small overshoot
+/* Hoof prints: each hoof leaves a mark where it lands, which fades out behind the horse after a few seconds (not kept on
+   the ground). One instanced mesh; a print shrinks away in its last second rather than blinking out. */
+const PRINT_MAX = 72, PRINT_LIFE = 4.5, HOOF_AT = [[0.19, 0.44], [-0.19, 0.44], [0.2, -0.46], [-0.2, -0.46]];
+const printMesh = new THREE.InstancedMesh(new THREE.CircleGeometry(0.12, 10).rotateX(-Math.PI / 2).scale(1, 1, 1.3),
+  new THREE.MeshBasicMaterial({ color: '#3b2d1e', transparent: true, opacity: 0.42, depthWrite: false }), PRINT_MAX);
+printMesh.count = 0; printMesh.frustumCulled = false; printMesh.renderOrder = 3; scene.add(printMesh);
+const prints = [], pM = new THREE.Matrix4(), pQ = new THREE.Quaternion(), pY = new THREE.Vector3(0, 1, 0), pP = new THREE.Vector3(), pS = new THREE.Vector3();
+function hoofPrint(i) {
+  if (!hero.alive || onBridge(hero.pos) || riverDist(hero.pos.x, hero.pos.z) < RIVER_HALF + 0.3) return;
+  const [lx, lz] = HOOF_AT[i], c = Math.cos(hero.face), sn = Math.sin(hero.face), x = hero.pos.x + lx * c + lz * sn, z = hero.pos.z - lx * sn + lz * c;
+  if (prints.length >= PRINT_MAX) prints.shift();
+  prints.push({ x, z, y: groundY({ x, z }) + 0.04, r: hero.face, t: 0 });
+}
+function updatePrints(dt) {
+  let j = 0;
+  for (const q of prints) { q.t += dt; if (q.t >= PRINT_LIFE) continue; const k = Math.min(1, (PRINT_LIFE - q.t) / 1.0);
+    pM.compose(pP.set(q.x, q.y, q.z), pQ.setFromAxisAngle(pY, q.r), pS.set(k, 1, k)); printMesh.setMatrixAt(j, pM); prints[j++] = q; }
+  prints.length = j; printMesh.count = j; if (j) printMesh.instanceMatrix.needsUpdate = true;
+}
+/* A horse at rest is never still (Matias: animate him when he stops). Once stopped a moment he breathes, looks about,
+   lowers his head to graze, tosses it, swishes his tail at flies, rests a hind leg, and now and then paws the ground.
+   A 14-second cycle of eased moves, each weighed by how long he has stood (k), so riding off blends straight back. */
+function horseIdle(u, dt, moving) {
+  const L = u.legs; if (!L.neck) return;
+  u._idle = moving ? 0 : (u._idle || 0) + dt; u._ic = (u._ic || 0) + (moving ? 0 : dt);
+  const k = smooth(0.6, 1.6, u._idle), t = u._ic % 14, bell = (a, b, e) => smooth(a, a + e, t) * (1 - smooth(b - e, b, t));
+  const look = Math.sin(t * 0.9) * 0.32 * bell(0, 4.2, 0.8);
+  const graze = bell(4, 7.6, 0.9), nib = Math.sin(t * 7) * 0.05 * graze;
+  const toss = t > 7.8 && t < 8.6 ? Math.sin((t - 7.8) / 0.8 * Math.PI) : 0;
+  L.neck.rotation.x = 0.62 + k * (graze * 1.6 + nib - toss * 0.28 + Math.sin(clock * 1.5) * 0.02);   // grazing: the neck goes right down
+  L.neck.rotation.y = k * look;
+  if (L.head) L.head.rotation.x = -0.72 + k * (graze * 1.15 + toss * 0.15);   // and the muzzle points into the grass, not out ahead
+  // the tail: a lazy sway, and a sharp swish at flies now and then
+  const swish = t > 8.2 && t < 9.4 ? Math.sin((t - 8.2) / 1.2 * Math.PI * 3) * 0.45 : 0;
+  if (L.hair) L.hair.rotation.z += k * (swish + Math.sin(clock * 0.9) * 0.06);
+  // resting a hind leg (the hip drops, the hoof tips), except while he paws
+  const paw = t > 10 && t < 11.6 ? Math.max(0, Math.sin((t - 10) / 0.8 * Math.PI)) : 0;
+  L[3].rotation.x += k * 0.12; if (L[3].userData.low) L[3].userData.low.rotation.x += k * 0.55;
+  L[0].rotation.x += k * paw * 0.55; if (L[0].userData.low) L[0].userData.low.rotation.x += k * paw * 1.1;
+  const stamp = t > 10 && t < 11.6 ? Math.floor((t - 10) / 0.8) : -1;
+  if (k > 0.9 && stamp !== u._stamp && stamp >= 0 && (t - 10) % 0.8 > 0.7) { u._stamp = stamp; Sound.hoof(0.22 * HOOF_GAIN, false, false, false); }
+  if (stamp < 0) u._stamp = -1;
+  // breathing: the rider rises and settles with the barrel
+  if (u.rider) u.rider.position.y = 1.2 + k * Math.sin(clock * 1.7) * 0.015;
+}
 function animArcher(u, bob, moving, shootT, aimYaw, gallop) {
   const gk = +gallop || 0;
   u._mk = (u._mk === undefined ? 0 : u._mk) + ((+moving || 0) - (u._mk || 0)) * (1 - Math.exp(-animDt * 9));   // strides fade in and out
@@ -3497,7 +3547,7 @@ function updateHero(dt) {
     // each hoof is heard as its own foot lands (phase 3/2 pi), so the sound can never drift from the legs: three beats at
     // the canter, four at the gallop, the leading forefoot heaviest; the diagonal pair of the canter lands as one
     let fall = 0;
-    for (let i = 0; i < 4; i++) { const p = gaitPh(i, hero.gk), a = Math.floor((b0 + p - 1.5 * Math.PI) / TAU), c = Math.floor((hero.bob + p - 1.5 * Math.PI) / TAU); if (c > a) fall += i === 0 ? 1.25 : 1; }
+    for (let i = 0; i < 4; i++) { const p = gaitPh(i, hero.gk), a = Math.floor((b0 + p - 1.5 * Math.PI) / TAU), c = Math.floor((hero.bob + p - 1.5 * Math.PI) / TAU); if (c > a) { fall += i === 0 ? 1.25 : 1; hoofPrint(i); } }
     if (fall) { Sound.hoof(Math.min(1.6, fall) * (0.42 + 0.3 * hero.gk) * HOOF_GAIN, onBridge(hero.pos), fall >= 1.25, hero.gk > 0.5);
       if (!onBridge(hero.pos) && Math.random() < 0.55 + 0.4 * hero.gk) puff(tmp3.set(hero.pos.x - Math.sin(hero.face) * 0.7, hero.pos.y, hero.pos.z - Math.cos(hero.face) * 0.7), '#c8b48a', 1, 0.5); }   // dust where the hooves strike
   }
@@ -3587,6 +3637,7 @@ function updateHero(dt) {
   const aimYaw = aimAt ? clamp(angDiff(Math.atan2(aimAt.pos.x - hero.pos.x, aimAt.pos.z - hero.pos.z), hero.face), -1.9, 1.9) : 0;
   hero.aimYaw = lerp(hero.aimYaw || 0, aimYaw, Math.min(1, dt * 12));
   animArcher(hero.m, hero.bob, moving, hero.shootT / 0.4, hero.aimYaw, hero.gk || 0);
+  horseIdle(hero.m, dt, moving || hero.shootT > 0);
 }
 
 function volley() {
@@ -4122,7 +4173,7 @@ const Sound = (() => {
   let musicDuck = null, uiG = null, moodG = null, musicBase = 1;
   // the day's music sits under the night's: a battle must be the loudest thing in the game (measured: the day had
   // been as loud as the night, so nights did not feel bigger)
-  const MOOD_LEVEL = { menu: 0.17, day: 0.14, night: 4.2, after: 0.5, lament: 0.2 };   // set by tools/audiomix.mjs: night about -18 LUFS, the day 5 LU under it, the fight about 6 LU over its music   // night about 7 dB over the day, and level with the fight (tools/audiomix.mjs)
+  const MOOD_LEVEL = { menu: 0.14, day: 0.115, night: 3.4, after: 0.4, lament: 0.16 };   // Build 40: every mood about 2 dB down (Matias: the music is sometimes a bit loud)   // set by tools/audiomix.mjs: night about -18 LUFS, the day 5 LU under it, the fight about 6 LU over its music   // night about 7 dB over the day, and level with the fight (tools/audiomix.mjs)
   function buildBuses() {
     musicG = ctx.createGain(); sfxG = ctx.createGain(); uiG = ctx.createGain(); musicDuck = ctx.createGain(); moodG = ctx.createGain(); musicBase = 1;
     moodG.gain.value = MOOD_LEVEL[mood] || 1;
@@ -5120,7 +5171,7 @@ function bakeModel(m) {
   const keep = new Set(), seen = new Set();
   const collect = v => { if (!v || typeof v !== 'object' || seen.has(v)) return; seen.add(v);
     if (v.isObject3D) { keep.add(v); for (const k in v.userData) collect(v.userData[k]); return; }
-    if (Array.isArray(v)) { v.forEach(collect); for (const k of ['tail', 'hair']) collect(v[k]); } };
+    if (Array.isArray(v)) { v.forEach(collect); for (const k of ['tail', 'hair', 'neck', 'head']) collect(v[k]); } };
   for (const k in m) if (k !== 'g') collect(m[k]);
   for (const k in root.userData) collect(root.userData[k]);
   const plain = o => o.isMesh && !o.isInstancedMesh && !keep.has(o) && !o.children.length && !o.userData.flag && o.visible
@@ -6752,7 +6803,7 @@ function convoyPrompt() {
       const avail = atConvoyOf(k).length; if (!avail) continue;
       const n = clamp(S.placeN[k], 1, avail); sig.push(k + n);
       opts.push({ id: 'place-' + k, n: `${kindDot(k)}Place <span class="adj" data-adj="-1">◀</span> ${n} <span class="adj" data-adj="1">▶</span> ${KIND_WORD[k][n > 1 ? 1 : 0]} here`, c: {},
-        d: `${avail} at the convoy${inGate(hero.pos) ? '. <b>Holding the gate: +50%</b>' : outForward(hero.pos) ? '. <b>Out here: +50%</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
+        d: `${avail} at the convoy${inGate(hero.pos) ? '. <b>Holding the gate: +50%</b>' : outForward(hero.pos) ? '. <b>Out here: +50%</b>' : ''}${k === 'archer' && hgt(hero.pos.x, hero.pos.z) >= HIGH_GROUND ? '. <b>High ground: +25% range</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
     }
     const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
     if (here.length) opts.push({ id: 'back', n: `Send these ${here.length} back to the convoy`, c: {}, d: 'They guard the wagons again', run: () => sendBack(here) });
@@ -7134,7 +7185,7 @@ const REGISTER = [
   ['lasso', 'r', 'Lasso rider', '套马手', 'Throws his line along a lane marked on the ground. Leave the lane, or be dragged.', 'Leave the marked lane'],
   ['captain', 'r', 'Captain', '那颜', 'Leads the warband. He shows his blow before he lands it, and stands open after.', 'Strike after his blow lands'],
   ['spear', 'a', 'Spearmen', '长枪手', 'Hold ground hand to hand. Posted beyond the ring, or in a gate, they fight 50% harder.', 'recruit'],
-  ['archer', 'a', 'Archers', '弓手', 'Shoot from where they stand. Lamellar and shields turn their arrows.', 'archers'],
+  ['archer', 'a', 'Archers', '弓手', 'Shoot from where they stand, 25% farther from high ground. Lamellar and shields turn their arrows.', 'archers'],
   ['horseman', 'a', 'Horsemen', '骑兵', 'Fast and tough: they reach what the others cannot.', 'horseman'],
   ['tower', 'a', 'Crossbow cart', '弩车', 'Bolts at one raider at a time, from the ring or set down on a road.', 'tower'],
   ['rockets', 'a', 'Rocket cart', '火箭车', 'Bursts of rockets on a crowd.', 'rockets'],
@@ -7283,7 +7334,7 @@ function update(dt) {
   } else if (active) { active = null; renderPrompt(); }
   if (playing) updateFire(dt);
   updateAbilityBar(dt);
-  updateWorkers(dt); updateBridges(dt, clock); updateBeacons(dt); if (campLife && S.state !== 'ending') updateCampLife(dt);
+  updateWorkers(dt); updateBridges(dt, clock); updateBeacons(dt); updatePrints(dt); if (campLife && S.state !== 'ending') updateCampLife(dt);
   if (S.state === 'ending' || homeTally) updateEnding(dt);
 
   // the night ends on the gong and a lone erhu, carried through the dawn; a lost run gets its lament
