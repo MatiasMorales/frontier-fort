@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 47 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 48 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3095,6 +3095,14 @@ function spawnEnemy(type, entry) {
   if (WAGON && S.hardness > 1) { e.hp *= S.hardness; e.max = e.hp; }
   if (type === 'shield') { e.shieldHp = 45; e.shieldMesh = m.shield2; }
   if (WAGON && S.state === 'night') regMark(type);
+  // torchlit warbands (the ideas playtest): one foot raider in four carries a brand, so the warband's approach reads at night.
+  // An emissive flame the bloom catches, not a light: dozens cost nothing
+  if (WAGON && (type === 'foot' || type === 'shield') && Math.random() < 1 / 4) {
+    const t = new THREE.Group(); t.position.set(-0.28, 1.05, 0.12); t.rotation.z = 0.25;
+    part(CYL(0.035, 0.035, 0.9, 4), C.woodDark, 0, 0.35, 0, t).castShadow = false;
+    const fl = part(new THREE.ConeGeometry(0.2, 0.58, 5), M('#ffb04a', { emissive: '#ff7a1a', emissiveIntensity: 3.2 }), 0, 1.0, 0, t); fl.castShadow = false;
+    m.g.add(t); e.brand = fl;
+  }
   e.to = decide(e, entry, null);
   e.bar = makeBar('#d2462f', type === 'captain' ? 1.8 : 0.9);
   scene.add(m.g); enemies.push(e);
@@ -3242,6 +3250,7 @@ function followPath(e, dt) {
 // No raider ends a frame inside a wall: pushed in by a charge he is set on open ground, and a step
 // into one slides along it or is taken back.
 function updateEnemy(e, dt) {
+  if (e.brand) { e.brand.scale.set(1, 0.85 + Math.sin(clock * 13 + e.bob) * 0.18, 1); if (!e.alive) e.brand.visible = false; }   // the brand flickers; it goes out when he falls
   if (!PIECES.length || !e.alive) return updateEnemyStep(e, dt);
   const ox = e.pos.x, oz = e.pos.z;
   if (solidAt(ox, oz)) { navGrid(); const s = navSnap(e.pos, 6); if (s) { e.pos.x = s[0] - NAV.half; e.pos.z = s[1] - NAV.half; } return updateEnemyStep(e, dt); }
