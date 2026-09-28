@@ -543,7 +543,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 43 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 44 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2678,7 +2678,7 @@ function moveLand(p, goal, spd, forHero) {
   p.x = ox; p.z = nz; if (!blocked(p.x, p.z, forHero)) return;
   p.x = ox; p.z = oz;
 }
-const side = p => Math.hypot(p.x, p.z) < CASTLE_R ? 'in' : 'out';
+const side = p => FIELD.castle && Math.hypot(p.x, p.z) < CASTLE_R ? 'in' : 'out';   // the fort's wall only exists at the fort: elsewhere it split every fight along an invisible circle
 const nearGateway = p => Math.abs(Math.hypot(p.x, p.z) - CASTLE_R) < 2.5 && Math.min(Math.abs(p.x), Math.abs(p.z)) < 2.2 && p.z < 5;
 const canReach = (a, b) => !crossesRiver(a.x, a.z, b.x, b.z) && (side(a) === side(b) || nearGateway(a) || nearGateway(b));
 function onBridge(p) { for (const c of CROSSINGS) if (c.bridge && c.intact && Math.hypot(p.x - c.x, p.z - c.z) < (c.span || RIVER_HALF + 1.2) && crossLateral(c, p.x, p.z) < 1.4) return true; return false; }
@@ -3396,7 +3396,7 @@ function separate() {
     const a = all[i].pos, b = all[j].pos, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = all[i].t.rad + all[j].t.rad;
     if (d > 0.001 && d < min) { const push = (min - d) / 2 / d; a.x -= dx * push; a.z -= dz * push; b.x += dx * push; b.z += dz * push; }
   }
-  for (const e of all) { const d = Math.hypot(e.pos.x, e.pos.z); if (d < keep.radius + e.t.rad) { const k = (keep.radius + e.t.rad) / Math.max(d, 0.01); e.pos.x *= k; e.pos.z *= k; } }
+  if (FIELD.castle) for (const e of all) { const d = Math.hypot(e.pos.x, e.pos.z); if (d < keep.radius + e.t.rad) { const k = (keep.radius + e.t.rad) / Math.max(d, 0.01); e.pos.x *= k; e.pos.z *= k; } }
 }
 
 /* ================= bridges ================= */
@@ -3538,7 +3538,9 @@ function updateHero(dt) {
   if (moving) {
     moveLand(hero.pos, tmp.set(hero.pos.x + ix * 5, 0, hero.pos.z + iz * 5), HERO.speed * S.heroSpeedMul * (sprinting ? SPRINT.mul : 1) * (hero.lassoT > 0 ? 0.45 : 1) * dt, true);
     const d = Math.hypot(hero.pos.x, hero.pos.z);
-    if (d < keep.radius + 0.5) { const k = (keep.radius + 0.5) / d; hero.pos.x *= k; hero.pos.z *= k; }
+    // the keep stands at the origin only in the border fort; on every generated field this circle was an invisible wall
+    // in the middle of the valley, often on a road (Matias found it riding)
+    if (FIELD.castle && d < keep.radius + 0.5) { const k = (keep.radius + 0.5) / d; hero.pos.x *= k; hero.pos.z *= k; }
     // he turns quickly but never whips round: the scenario runner caught a reversal spinning the horse in five frames,
     // its hindquarters sweeping 0.4 units in one (read as a glitch); capped at 14 rad/s a half-turn takes 0.22 s
     const face0 = hero.face, turnCap = dt * (window.__try && window.__try.turnCap || 14);
@@ -3605,7 +3607,7 @@ function updateHero(dt) {
   g.rotation.x = -0.12 * hero.charge + Math.sin(hero.bob + 0.6) * (0.03 + 0.06 * hero.gk) * mk;
   g.position.set(hero.pos.x, hero.pos.y + (0.5 + 0.5 * Math.sin(hero.bob + 0.3)) * (0.09 + 0.1 * hero.gk) * mk, hero.pos.z);
   g.rotation.y = hero.face; if (!moving) hero.roll = damp(hero.roll || 0, 0, 0.12, dt); g.rotation.z = hero.roll || 0;
-  const inCourt = Math.hypot(hero.pos.x, hero.pos.z) < CASTLE_R - 1.5;
+  const inCourt = FIELD.castle && Math.hypot(hero.pos.x, hero.pos.z) < CASTLE_R - 1.5;
   if (S.state !== 'night') hero.hp = Math.min(hero.max, hero.hp + HERO.regen * 4 * dt);
   else if (inCourt || (WAGON && S.camp && Math.hypot(hero.pos.x - S.camp.cx, hero.pos.z - S.camp.cz) < CONVOY.ringR)) hero.hp = Math.min(hero.max, hero.hp + HERO.heal * 0.9 * dt);   // inside the ring is the refuge   // the courtyard is a refuge, not a bunker
   hero.moveV = new V3((hero.pos.x - px) / dt, 0, (hero.pos.z - pz) / dt);
@@ -7474,7 +7476,7 @@ setTimeout(() => {
   seed = seed0;
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
-window.__ff = { get campLife() { return campLife; }, bellPos, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { get campLife() { return campLife; }, bellPos, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
