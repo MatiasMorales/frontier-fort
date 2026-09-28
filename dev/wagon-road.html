@@ -175,7 +175,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .is-paused #threats{ display:none !important; }
 #smap, #shop, #dawn{ padding-top:58px; }
 /* the dawn sheet can be taller than the window (report, ledger, cards): it scrolls, and centres only when it fits */
-#dawn{ overflow-y:auto; place-items:start center; }
+#dawn{ overflow-y:auto; place-items:start center; top:58px; padding-top:8px; box-shadow:0 -58px 0 0 rgba(22,14,12,.9); }   /* scrolls below the phase strip, never under it */
 #dawn .sheet{ margin-block:auto; }
 #dawn .tablet .art{ height:clamp(64px,12vh,140px); object-fit:contain; }
 #dawn .ledger{ margin:4px auto 10px; font-size:15px; gap:2px; }
@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 57 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 58 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -587,7 +587,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet">
     <h2 id="dawnT">Dawn</h2>
     <div class="ledger" id="ledger"></div>
-    <p style="margin:0 auto 14px;font-size:16px">The morning dispatch. Take one for the days ahead.</p>
+    <p id="dawnLead" style="margin:0 auto 14px;font-size:16px">The morning dispatch. Take one for the days ahead.</p>
     <div id="tally"></div>
     <div class="tablets" id="tablets"></div>
   </div>
@@ -2711,8 +2711,13 @@ function moveDirect(p, goal, spd) { tmp3.subVectors(goal, p); tmp3.y = 0; const 
 function moveLand(p, goal, spd, forHero) {
   const ox = p.x, oz = p.z; moveDirect(p, goal, spd);
   if (!blocked(p.x, p.z, forHero)) return;
-  const nx = p.x, nz = p.z; p.x = nx; p.z = oz; if (!blocked(p.x, p.z, forHero)) return;
-  p.x = ox; p.z = nz; if (!blocked(p.x, p.z, forHero)) return;
+  // an axis try that does not move at all is no escape (holding one key, it "succeeded" and the rider stood dead at a
+  // bridge rail: round 6 measured 64% of bridge crossings failing)
+  const nx = p.x, nz = p.z; p.x = nx; p.z = oz; if (Math.abs(nx - ox) > 1e-5 && !blocked(p.x, p.z, forHero)) return;
+  p.x = ox; p.z = nz; if (Math.abs(nz - oz) > 1e-5 && !blocked(p.x, p.z, forHero)) return;
+  // slide along a slanted edge (a bridge rail, a diagonal bank): the move turned a little either way, shortened by the cosine
+  { const mx = nx - ox, mz = nz - oz; for (const a of [0.26, 0.52, 0.79, 1.05]) for (const sg of [1, -1]) { const c = Math.cos(a), sn = Math.sin(a) * sg;
+      p.x = ox + (mx * c - mz * sn) * c; p.z = oz + (mx * sn + mz * c) * c; if (!blocked(p.x, p.z, forHero)) return; } }
   p.x = ox; p.z = oz;
 }
 const side = p => FIELD.castle && Math.hypot(p.x, p.z) < CASTLE_R ? 'in' : 'out';   // the fort's wall only exists at the fort: elsewhere it split every fight along an invisible circle
@@ -3898,7 +3903,7 @@ function updateNight(dt) {
       if (archers >= 2) {
         const p = lead(hero), a = Math.random() * Math.PI, n = Math.min(7, 3 + Math.floor(archers / 3));
         for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2) * 3.4; circleDanger(p.x + Math.cos(a) * o, p.z + Math.sin(a) * o, 2.4, 1.6, 14); }
-        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('horn', 0.5); for (let k = 0; k < 4; k++) setTimeout(() => Sound.play('foeBow', 0.9), 250 + k * 90);   // their bows, not the commander's volley kick(0.2);
+        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('horn', 0.5); for (let k = 0; k < 4; k++) setTimeout(() => Sound.play('foeBow', 0.9), 250 + k * 90); kick(0.2);   // their bows, not the commander's volley
       }
     }
   }
@@ -5854,7 +5859,7 @@ function crewTarget(w) {
   const spots = w.k === 'woodcutter' ? treeSpots : w.k === 'miner' ? rockSpots : null;
   if (spots) {
     let best = null, bd = 36;
-    for (let i = 0; i < spots.length; i += 2) { const d = Math.hypot(spots[i] - w.home.x, spots[i + 1] - w.home.z) + Math.random() * 6; if (d < bd && d > 4 && !crossesRiver(w.home.x, w.home.z, spots[i], spots[i + 1])) { bd = d; best = [spots[i], spots[i + 1]]; } }   // work on their own bank
+    for (let i = 0; i < spots.length; i += 2) { const d = Math.hypot(spots[i] - w.home.x, spots[i + 1] - w.home.z) + Math.random() * 6; if (d < bd && d > CONVOY.ringR + 2.5 && !crossesRiver(w.home.x, w.home.z, spots[i], spots[i + 1])) { bd = d; best = [spots[i], spots[i + 1]]; } }   // work on their own bank
     if (best) { const dx = best[0] - w.home.x, dz = best[1] - w.home.z, L = Math.hypot(dx, dz); return new V3(best[0] - dx / L * 1.0, 0, best[1] - dz / L * 1.0); }
   }
   for (let i = 0; i < 20; i++) { const a = Math.random() * TAU, r = 8 + Math.random() * 6, x = w.home.x + Math.sin(a) * r, z = w.home.z + Math.cos(a) * r; if (!blocked(x, z) && riverDist(x, z) > RIVER_HALF + 1.5 && !crossesRiver(w.home.x, w.home.z, x, z)) return new V3(x, 0, z); }
@@ -6328,11 +6333,11 @@ function convoyDawn() {
     battleReport(fell, wounded),
     yieldText(owed) ? `<div>At first light the crews finished their work: <b>${yieldText(owed)}</b>.</div>` : '',
     foundTxt ? `<div>You cut back <b>${foundTxt}</b> from the thieves.</div>` : '',
-    far ? `<div>${far} more lay too far out on the steppe to recover.</div>` : '',
+    far ? `<div>${far} more lay too far out on the field to recover.</div>` : '',
     fell ? `<div>${fell} soldier${fell > 1 ? 's' : ''} fell in the night${(S.lastFell || []).length ? ': <b>' + S.lastFell.slice(0, 6).join(', ') + (S.lastFell.length > 6 ? ' and others' : '') + '</b>' : ''}.</div>` : '',
     wounded ? `<div>${wounded} who went down ${wounded > 1 ? 'were' : 'was'} found alive, badly wounded.</div>` : '',
     repaired ? `<div>${repaired} wrecked cart${repaired > 1 ? 's were' : ' was'} mended with wood.</div>` : '',
-    abandoned.length ? `<div>No wood to mend: ${abandoned.join(', ')}. ${abandoned.length > 1 ? 'They ride' : 'It rides'} in the baggage: mend on a build screen, or free at a friendly fort.</div>` : '',
+    abandoned.length ? `<div>No wood to mend: ${Object.entries(abandoned.reduce((o, n) => (o[n] = (o[n] || 0) + 1, o), {})).map(([n, c]) => c > 1 ? `${c} \u00d7 ${n.toLowerCase()}` : n.toLowerCase()).join(', ')}. ${abandoned.length > 1 ? 'They ride' : 'It rides'} in the baggage: mend on a build screen, or free at a friendly fort.</div>` : '',
     `<div>${S.roster.length} soldiers · food for <b>${daysOfFood()} day${daysOfFood() === 1 ? '' : 's'}</b>.</div>`,
   ].join('');
   S.picksLeft = elite || boss ? 2 : 1; S.featNote = null;
@@ -6421,7 +6426,8 @@ function rankOffers() {
 }
 function offerRewards() {
   const picks = rankOffers();
-  $('#tally').innerHTML = (S.picksLeft > 1 ? '<i class="tg tg-combo">A hard night: take two</i> ' : '') + '<span style="font-size:14px;color:#c8b594">Raise one arm of the column. The raiders grow every fight; what you raise is how you fight them.</span>';
+  setText($('#dawnLead'), S.picksLeft > 1 ? 'The morning dispatch. A hard night: take two for the days ahead.' : 'The morning dispatch. Take one for the days ahead.');
+  $('#tally').innerHTML = '<span style="font-size:14px;color:#c8b594">Raise one arm of the column. The raiders grow every fight; what you raise is how you fight them.</span>';
   const tabs = $('#tablets'); tabs.innerHTML = '';
   picks.forEach((u, i) => {
     const b = document.createElement('button'); b.className = 'tablet'; b.type = 'button';
