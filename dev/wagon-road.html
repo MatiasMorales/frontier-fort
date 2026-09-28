@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 54 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 55 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2178,6 +2178,29 @@ const hero = { pos: new V3(0, 0, -15), hp: HERO.hp, max: HERO.hp, alive: true, c
   weapon: 'bow', stam: SPRINT.max, swingT: 0, bladeCd: 0 };
 heroM.g.rotation.order = 'YXZ';
 const heroRing = heroM.g.children[heroM.g.children.length - 1];
+// the ring lives on the ground, not on the horse: carried by the horse it bobbed and banked with him and sank into slopes
+// (Matias: the yellow circle sometimes disappears under the ground). It is seated each frame, tilted to the slope
+heroM.g.remove(heroRing); scene.add(heroRing);
+const ringQ = new THREE.Quaternion(), ringFlat = new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), -Math.PI / 2), ringN = new V3(), ringUp = new V3(0, 1, 0);
+// the height of the ground as it is drawn: the terrain is a 290 x 290 grid over 360 units, so between its vertices the
+// surface is flat, not the fine height function (a ring seated on hgt() still dipped 0.26 under the drawn ground)
+const TG = 360 / 290;
+function drawnH(x, z) {
+  const i = Math.floor((x + 180) / TG), j = Math.floor((z + 180) / TG), fx = (x + 180) / TG - i, fz = (z + 180) / TG - j;
+  const a = hgt(-180 + i * TG, -180 + j * TG), b = hgt(-180 + (i + 1) * TG, -180 + j * TG), c = hgt(-180 + i * TG, -180 + (j + 1) * TG), d = hgt(-180 + (i + 1) * TG, -180 + (j + 1) * TG);
+  return a * (1 - fx) * (1 - fz) + b * fx * (1 - fz) + c * (1 - fx) * fz + d * fx * fz;
+}
+function seatRing(ring, x, z, lift) {
+  // a plane fitted to the drawn ground round the ring's edge, then lifted clear of every point measured
+  const h = (px, pz) => onBridge({ x: px, z: pz }) ? groundY({ x: px, z: pz }) : Math.max(drawnH(px, pz), hgt(px, pz));
+  const N = 12, R = 1.05, pts = []; let sx = 0, sz = 0, sh = 0;
+  for (let k = 0; k < N; k++) { const a = k / N * TAU, px = Math.cos(a) * R, pz = Math.sin(a) * R, hh = h(x + px, z + pz); pts.push([px, pz, hh]); sh += hh; sx += px * hh; sz += pz * hh; }
+  const h0 = sh / N, gx = sx / (N * R * R / 2), gz = sz / (N * R * R / 2);   // least squares on a circle: the slopes are these sums
+  let up = h(x, z) - h0; for (const [px, pz, hh] of pts) up = Math.max(up, hh - (h0 + gx * px + gz * pz));
+  ringN.set(-gx, 1, -gz).normalize(); ringQ.setFromUnitVectors(ringUp, ringN); ring.quaternion.copy(ringQ).multiply(ringFlat);
+  const steep = Math.min(1, Math.hypot(gx, gz));   // the drawn triangles bend between samples, the more on steep ground
+  ring.position.set(x, h0 + Math.max(0, up) + (lift || 0.14) + steep * 0.4, z);
+}
 // the sabre: a curved blade carried on the right, swung from the saddle
 const sabreArm = new THREE.Group(); sabreArm.position.set(0.3, 0.42, 0.1); heroM.rider.add(sabreArm);
 {
@@ -2973,7 +2996,8 @@ function fallPose(p) {
 // A shove, not a teleport: knockback is given as a velocity that dies away with a 70 ms half-life, which carries the unit
 // the same distance (v0 = d ln2 / halfLife) but over a few frames. The runner caught raiders jumping 2.5 units in one.
 const SHOVE_HL = 0.07;
-function shove(e, dx, dz) { const k = Math.LN2 / SHOVE_HL; e.kbx = (e.kbx || 0) + dx * k; e.kbz = (e.kbz || 0) + dz * k; }
+function shove(e, dx, dz) { if (e.anchor) return;   // a trebuchet set up on its ground does not budge (round 5 saw one charged onto a bridge head, into the water)
+ const k = Math.LN2 / SHOVE_HL; e.kbx = (e.kbx || 0) + dx * k; e.kbz = (e.kbz || 0) + dz * k; }
 function stepShove(e, dt) {
   if (!e.kbx && !e.kbz) return;
   const nx = e.pos.x + e.kbx * dt, nz = e.pos.z + e.kbz * dt;
@@ -3617,13 +3641,14 @@ function updateHero(dt) {
       const ux = sp > 1e-3 ? vx / sp : nx, uz = sp > 1e-3 ? vz / sp : nz;
       // where the blow would carry him: into the river he goes at once; otherwise he is shoved there over a few frames
       const tx = e.pos.x + (ux * 0.6 + nx * 0.8) * CHARGE.knock * S.knockMul, tz = e.pos.z + (uz * 0.6 + nz * 0.8) * CHARGE.knock * S.knockMul; e.stunT = 0.7;
-      if (riverDist(tx, tz) < RIVER_HALF - 0.2 + (S.drownRoad ? 2.6 : 0) && !onBridge({ x: tx, z: tz })) { e.pos.x = tx; e.pos.z = tz; e.sinking = true; killEnemy(e); drowned(); }
+      if (e.anchor) { /* a set-up engine takes the blow where it stands */ }
+      else if (riverDist(tx, tz) < RIVER_HALF - 0.2 + (S.drownRoad ? 2.6 : 0) && !onBridge({ x: tx, z: tz })) { e.pos.x = tx; e.pos.z = tz; e.sinking = true; killEnemy(e); drowned(); }
       else if (!blocked(tx, tz)) shove(e, tx - ox, tz - oz);
       hero.charge = Math.max(0, hero.charge - 0.15);
     }
   }
   if (moving && Math.random() < dt * hero.charge * 12) puff(hero.pos.clone().add(new V3(-Math.sin(hero.face) * 0.9, 0, -Math.cos(hero.face) * 0.9)), '#c8b48a', 1, 0.6);
-  heroRing.material.opacity = 0.55 + hero.charge * 0.4; heroRing.scale.setScalar(1 + hero.charge * 0.35);
+  heroRing.material.opacity = 0.55 + hero.charge * 0.4; heroRing.scale.setScalar(1 + hero.charge * 0.35); seatRing(heroRing, hero.pos.x, hero.pos.z); heroRing.visible = hero.alive;
   cmdRing.visible = S.state === 'night' && hero.alive;
   if (cmdRing.visible) {
     cmdRing.position.set(hero.pos.x, groundY(hero.pos) + 0.05, hero.pos.z);
@@ -6138,7 +6163,8 @@ function siegeEngine(e, dt) {
   const d = Math.hypot(e.pos.x - T.x, e.pos.z - T.z);
   if (!e.deployed && d > e.t.reach) return null;             // rolling in along the roads
   if (!e.deployed && (riverDist(e.pos.x, e.pos.z) < RIVER_HALF + 1.6 || onBridge(e.pos))) return null;   // never set up in a ford or on a bridge, where nobody could reach it (the playtest found one in the river)
-  if (!e.deployed) { e.deployed = true; e.rangeCd = 3; banner('A siege engine is setting up', 'It outranges every cart. Ride out, or send men, to break it.', 3); Sound.play('horn'); }
+  if (e.deployed && e.anchor) { e.pos.x = e.anchor.x; e.pos.z = e.anchor.z; }   // nor does the crowd push it about
+  if (!e.deployed) { e.deployed = true; e.anchor = { x: e.pos.x, z: e.pos.z }; e.rangeCd = 3; banner('A siege engine is setting up', 'It outranges every cart. Ride out, or send men, to break it.', 3); Sound.play('horn'); }
   const foe = nearest([hero, ...soldiers], e.pos, f => f.alive && f.pos.distanceTo(e.pos) < 1.8 + e.t.rad);
   if (foe) return { attacking: foe, look: foe.pos };
   e.rangeCd -= dt;
@@ -6213,7 +6239,7 @@ function lootOrFight(e, dt, step) {
   return { attacking: null, look: sup.pos };
 }
 function startFlee(e) {
-  e.fleeing = true; e.inCamp = false; e.inside = false; e.speed *= 0.92; e.opp = null;
+  e.anchor = null; e.fleeing = true; e.inCamp = false; e.inside = false; e.speed *= 0.92; e.opp = null;
   const nn = nearestNode(e.pos.x, e.pos.z, id => id[0] !== 'P');
   let best = null, bc = Infinity;
   for (const en of ENTRIES) { const D = fleeDist(en.id); if (D[nn] < bc) { bc = D[nn]; best = en.id; } }
@@ -6668,6 +6694,7 @@ const ICONS = {
 const LEGEND = { fight: 'a fight', elite: 'a hard fight, two rewards', village: 'a gift, cheap recruits', rest: 'safe: heals men and carts, build', boss: 'hold it to finish the region' };
 const icon = (t, cls) => `<svg viewBox="-12 -12 24 24"${cls ? ` class="${cls}"` : ''}><use href="#ic-${t}" x="-12" y="-12" width="24" height="24"/></svg>`;
 function openMap() {
+  setTimeout(updatePhases, 0);   // the strip reads Road at once, not after the next frame
   S.phase = 'map'; S.state = 'day'; setTimeout(saveRun, 0);   // after the map is drawn: the column's place on the road is what is saved
   mapOpts = nextOptions(); mapSel = 0;
   const m = S.map;
@@ -6783,7 +6810,7 @@ function honourList() {
 function honours() {
   const all = honourList();
   if (!all.length) return '';
-  return '<b style="color:var(--gold)">Remembered</b><br>' + all.slice(0, 3).map(m => `<b>${m.name}</b>, ${m.type === 'archer' ? 'archer' : m.type === 'horse' ? 'horseman' : 'spearman'}: ${m.kills} raider${m.kills > 1 ? 's' : ''} in ${Math.max(1, m.nights || 0)} night${(m.nights || 0) > 1 ? 's' : ''}${m.dead ? `, fell at the ${m.where}` : ', still marching'}.`).join('<br>');
+  return '<b style="color:var(--gold)">Remembered</b><br>' + all.slice(0, 3).map(m => `<b>${m.name}</b>, ${m.type === 'archer' ? 'archer' : m.type === 'horse' ? 'horseman' : 'spearman'}: ${m.kills} raider${m.kills > 1 ? 's' : ''} in ${Math.max(1, m.nights || 0)} night${(m.nights || 0) > 1 ? 's' : ''}${m.dead ? `, fell at ${/^the /.test(m.where) ? '' : 'the '}${m.where}` : ', still marching'}.`).join('<br>');
 }
 // ---------------- the raiders' baggage: a prize out on the field ----------------
 // Risk and reward (Spelunky): some fields have a raider baggage cart standing out by a pass tonight's warbands will
@@ -6978,8 +7005,8 @@ function convoyGoal(el) {
   if (S.phase === 'dusk') h = `<b class="ph">Make camp</b>${step(false, 'Ride onto a road and <b>hold Space</b> to circle the wagons')}${fieldBrief()}`;
   else if (S.phase === 'circling') h = `<b class="ph">Make camp</b>${step(false, 'Circling the wagons\u2026')}`;
   else if (S.phase === 'prep') {
-    const posted = soldiers.some(x => x.alive && x.posted), moved = !!S.cartMoved;
-    const next = !posted ? 'Stop on a road ahead and <b>place soldiers</b>'
+    const posted = soldiers.some(x => x.alive && x.posted), moved = !!S.cartMoved, none = !soldiers.some(x => x.alive);   // with no men there is nobody to place
+    const next = !posted && !none ? (FIELD.castle ? 'Ride to a <b>gate</b> and <b>place soldiers</b> there: men in a gateway fight 50% harder' : 'Stop on a road ahead and <b>place soldiers</b>')
       : has.moveCarts() && !moved ? 'Stand by a war cart and <b>hold Space</b> to tow it into place'
       : 'Ride to the <b>war drum</b> in the ring and <b>hold Space</b> to begin the night';
     h = `<b class="ph">Set the field</b>${posted ? step(true, 'Soldiers posted') : ''}${moved ? step(true, 'Cart in place') : ''}${step(false, next)}${keepLine}`;
@@ -7505,7 +7532,7 @@ function update(dt) {
   renderer.toneMappingExposure = lerp(1.02, 1.0, n);
   // a soft pool around him from high up, rather than a hot light at his shoulder that blew him out
   lantern.intensity = hero.alive ? n * 3.2 : 0; lantern.distance = 17; lantern.position.set(hero.pos.x, hero.pos.y + 7, hero.pos.z + 1);
-  heroRing.material.opacity = Math.max(heroRing.material.opacity, n * 0.85);
+  heroRing.material.opacity = Math.max(heroRing.material.opacity, n * 0.85); heroRing.visible = hero.alive && hero.m.g.visible && S.state !== 'title';   // it no longer hides with the horse by itself
   for (const m of heroMats) m.emissiveIntensity = n * 0.42;
   bellSwing = Math.max(0, bellSwing - dt); bell.userData.bell.rotation.x = Math.sin(clock * 14) * 0.35 * bellSwing;
 
@@ -7570,7 +7597,7 @@ function update(dt) {
   for (const e of enemies) if (e.alive) updateBar(e, e.bar);
   for (const s of soldiers) if (s.alive) updateBar(s, s.bar);
   // at night: how many of tonight's men still stand ("0 / 22" read as the whole army lost; half the fallen are found alive at dawn)
-  setText(ui.keepN, String(WAGON ? (S.state === 'night' ? `${soldiers.filter(x => x.alive).length} of ${soldiers.length} standing` : S.roster.length + ' / ' + LEVELS[S.level].soldiers) : Math.max(0, Math.round(keep.hp))));
+  setText(ui.keepN, String(WAGON ? (S.state === 'night' ? (soldiers.length ? `${soldiers.filter(x => x.alive).length} of ${soldiers.length} standing` : 'none tonight') : S.roster.length + ' / ' + LEVELS[S.level].soldiers) : Math.max(0, Math.round(keep.hp))));
   setFill($('#stamI'), hero.stam / SPRINT.max);
   setText($('#heroN'), hero.alive ? String(Math.round(hero.hp)) : 'down'); setFill($('#heroBarI'), hero.alive ? hero.hp / hero.max : 0);
   hero.hitFlash = Math.max(0, (hero.hitFlash || 0) - dt);
@@ -7604,7 +7631,7 @@ setTimeout(() => {
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
 window.__ff = { get campLife() { return campLife; }, bellPos, CASTLE_R, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
-Object.assign(window.__ff, { banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
+Object.assign(window.__ff, { heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
 })();
 </script>
 </body>
