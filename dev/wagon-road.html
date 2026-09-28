@@ -543,7 +543,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 44 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 45 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -1213,7 +1213,8 @@ function fieldDetail(clear, tree) {
 // a way to hide itself, so a circled camp can clear the ground it stands on.
 const decor = [];
 function occupy(x, z, r, hide) { decor.push({ x, z, r, hide }); }
-function clearCampGround(cx, cz, R) { for (const d of decor) if (!d.hidden && Math.hypot(d.x - cx, d.z - cz) < R + d.r) { d.hide(); d.hidden = true; } }
+// a wood's trees stay: its ground is solid, and hiding them left an invisible wall (and closed ring sides with nothing there)
+function clearCampGround(cx, cz, R) { for (const d of decor) if (!d.hidden && Math.hypot(d.x - cx, d.z - cz) < R + d.r && !(WOODS.length && [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([u, v]) => solidAt(d.x + u * (d.r + 0.6), d.z + v * (d.r + 0.6))))) { d.hide(); d.hidden = true; } }
 // merge coloured parts into one geometry with a colour per vertex
 function mergeParts(parts) {
   const pos = [], col = [], c = new THREE.Color();
@@ -5573,6 +5574,7 @@ function enterField(type) {
   for (const k in fleeCache) delete fleeCache[k];
   const node = S.map[S.at];
   if (type === 'boss' && S.paidEnvoy) feat('official');
+  if (type !== 'boss') { keep.alive = false; }   // the fort's keep never follows the column onto a generated field
   if (type === 'boss') loadFort(); else genField(S.region >= 1 ? 5 : 4, node.kind);
   const W = veterans(waveFor()); S.nightW = W;
   S.preEntries = pickEntries(W.entries);
@@ -6334,7 +6336,8 @@ function nextRegion() {
   openMap();
 }
 function reviveHero() {
-  if (!hero.alive) { const p = convoy.find(q => q.building) || { x: 0, z: 0 }; hero.pos.set(p.x + 2, 0, p.z + 2); }
+  if (!hero.alive) { const p = convoy.find(q => q.building) || { x: 0, z: 0 }; hero.pos.set(p.x + 2, 0, p.z + 2);
+    for (let k = 0; k < 24 && blocked(hero.pos.x, hero.pos.z, true); k++) hero.pos.set(p.x + Math.cos(k * 0.8) * (2 + k * 0.3), 0, p.z + Math.sin(k * 0.8) * (2 + k * 0.3)); }   // never in a wood, water or a wall
   hero.alive = true; hero.hp = hero.max; hero.m.g.visible = true; ui.heroLine.textContent = '';
   S.morale = 1;
 }
@@ -7477,6 +7480,7 @@ setTimeout(() => {
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
 window.__ff = { get campLife() { return campLife; }, bellPos, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+Object.assign(window.__ff, { WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
 })();
 </script>
 </body>
