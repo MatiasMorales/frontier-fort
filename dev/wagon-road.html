@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 46 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 47 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -6801,6 +6801,19 @@ function convoyKeys(e) {
   return false;
 }
 let stillT = 0; const lastHero = new V3();
+// posting soldiers where the rider stops: shared by the open ground and a bridge (the playtest found no way to hold a bridge)
+function placeOpts(opts, sig, prep) {
+  if (stillT > 0.35 && prep) {          // once the drum has sounded, the men stay where they were put
+    for (const k of ['spear', 'archer', 'horse']) {
+      const avail = atConvoyOf(k).length; if (!avail) continue;
+      const n = clamp(S.placeN[k], 1, avail); sig.push(k + n);
+      opts.push({ id: 'place-' + k, n: `${kindDot(k)}Place <span class="adj" data-adj="-1">◀</span> ${n} <span class="adj" data-adj="1">▶</span> ${KIND_WORD[k][n > 1 ? 1 : 0]} here`, c: {},
+        d: `${avail} at the convoy${inGate(hero.pos) ? '. <b>Holding the gate: +50%</b>' : outForward(hero.pos) ? '. <b>Out here: +50%</b>' : ''}${k === 'archer' && hgt(hero.pos.x, hero.pos.z) >= HIGH_GROUND ? '. <b>High ground: +25% range</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
+    }
+    const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
+    if (here.length) opts.push({ id: 'back', n: `Send these ${here.length} back to the convoy`, c: {}, d: 'They guard the wagons again', run: () => sendBack(here) });
+  }
+}
 function convoyPrompt() {
   const anchor = hero.pos.clone();
   // a bridge under the rider comes before anything else, in every phase of the field
@@ -6809,7 +6822,8 @@ function convoyPrompt() {
   // could never be begun (found by the playtest harness)
   const atBell = S.state === 'day' && S.phase === 'prep' && hero.pos.distanceTo(tmp2.set(bellPos.x, hero.pos.y, bellPos.z)) < 2.2 + (lastKey === 'bell' ? 0.9 : 0);
   const brNear = !atBell && ['dusk', 'prep', 'night'].includes(S.phase) && !S.towing && CROSSINGS.find(c => c.bridge && c.intact && hero.pos.distanceTo(tmp2.set(c.x, hero.pos.y, c.z)) < (c.span || RIVER_HALF) + 1.6 + (lastKey === 'br' + c.key ? 0.9 : 0));
-  if (brNear) return { key: 'br' + brNear.key, anchor, hold: 0.8, opts: [{ n: 'Burn the bridge', c: {}, d: S.state === 'night' ? 'Anyone on it goes into the river' : 'Raiders take another road, or stop to lash it together', run: () => burnBridge(brNear) }] };
+  if (brNear) { const r = { key: 'br' + brNear.key, anchor, hold: 0.8, opts: [{ n: 'Burn the bridge', c: {}, d: S.state === 'night' ? 'Anyone on it goes into the river' : 'Raiders take another road, or stop to lash it together', run: () => burnBridge(brNear) }] };
+    const sig = []; if (S.state === 'day' && S.phase === 'prep') placeOpts(r.opts, sig, true); r.sig = sig.join(','); if (sig.length) r.key += '|p'; return r; }
   if (S.state === 'day' && S.phase === 'dusk') {
     const plan = ringPlan(hero.pos.x, hero.pos.z);
     if (!plan.ok) return { key: 'nocamp' + plan.why, anchor, opts: [{ n: 'Cannot camp here', c: null, d: plan.why, run: null }] };
@@ -6848,17 +6862,7 @@ function convoyPrompt() {
   }
   // soldiers: offered when you stop, so a panel is not always hanging over the rider.
   // Choose a kind with up/down and how many with left/right; they march out from the convoy.
-  const sig = [];
-  if (stillT > 0.35 && prep) {          // once the drum has sounded, the men stay where they were put
-    for (const k of ['spear', 'archer', 'horse']) {
-      const avail = atConvoyOf(k).length; if (!avail) continue;
-      const n = clamp(S.placeN[k], 1, avail); sig.push(k + n);
-      opts.push({ id: 'place-' + k, n: `${kindDot(k)}Place <span class="adj" data-adj="-1">◀</span> ${n} <span class="adj" data-adj="1">▶</span> ${KIND_WORD[k][n > 1 ? 1 : 0]} here`, c: {},
-        d: `${avail} at the convoy${inGate(hero.pos) ? '. <b>Holding the gate: +50%</b>' : outForward(hero.pos) ? '. <b>Out here: +50%</b>' : ''}${k === 'archer' && hgt(hero.pos.x, hero.pos.z) >= HIGH_GROUND ? '. <b>High ground: +25% range</b>' : ''}`, adj: d => { S.placeN[k] = clamp(n + d, 1, avail); }, run: () => placeSoldiers(k, n) });
-    }
-    const here = soldiers.filter(s => s.alive && s.posted && s.home.distanceTo(tmp2.set(hero.pos.x, s.home.y, hero.pos.z)) < 3.5);
-    if (here.length) opts.push({ id: 'back', n: `Send these ${here.length} back to the convoy`, c: {}, d: 'They guard the wagons again', run: () => sendBack(here) });
-  }
+  const sig = []; placeOpts(opts, sig, prep);
   if (!opts.length) return null;
   return { key: 'f|' + opts.map(o => o.id || o.n).join('|'), sig: sig.join(','), anchor, hold: 0.7, opts };
 }
