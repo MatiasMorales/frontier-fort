@@ -387,6 +387,14 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 .choiceOpt b{ color:var(--gold); font-size:17px; } .choiceOpt span{ font-size:14px; line-height:1.4; } .choiceOpt small{ color:#e0806a; font-size:13px; }
 .choiceOpt.sel{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; } .choiceOpt:active{ transform:scale(.98); }
 .choiceOpt[disabled]{ opacity:.55; cursor:default; }
+/* short windows: every group of the build screen on one screen (the playtest found the wagons row below the fold) */
+@media (max-height:860px){ #shopOpts.many .card .art{ aspect-ratio:24/11; } #shopOpts.many .card{ width:164px; padding-bottom:8px; } #shopOpts.many .card .t{ font-size:15.5px; margin:6px 6px 2px; } #shopOpts.many .card .e{ font-size:12.5px; margin:3px 8px 0; line-height:1.3; }
+  #shopOpts.many.cards{ gap:10px 18px; } .shopGroup{ gap:5px; } #shop .sheet > h2, #shopT{ font-size:clamp(26px,3.4vw,38px); margin-bottom:2px; } }
+/* the build screen's body scrolls on its own: when there is more below, its lower edge fades (as the register's list does) */
+.shopBody.more{ -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 40px), transparent); mask-image:linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }
+.shopMore{ flex:none; text-align:center; font-size:13px; color:var(--gold); margin:2px 0 0; }
+@media (max-height:700px){ #shopSub{ display:none; } #shopColumn{ display:none; } .shopGroup .card .art{ aspect-ratio:24/14; } #shopRes .rc{ padding:3px 10px; } #shopRes .rc b{ font-size:16px; } }
+.card .days{ font-size:12.5px; color:#cbb894; margin:4px 8px 0; } .card .days.low{ color:#ff9a7a; font-weight:600; }
 .homeRow{ font-size:19px; color:var(--paper); } .homeRow b{ color:var(--gold); font-variant-numeric:tabular-nums; }
 .chronRun{ border:1px solid var(--lacquer-edge); border-radius:6px; padding:10px 14px; margin:0 0 10px; background:rgba(20,12,10,.5); }
 .chronRun b{ color:var(--gold); } .chronRun .d{ color:#a8977a; font-size:13px; float:right; } .chronRun p{ margin:4px 0 0 !important; font-size:15px !important; max-width:none !important; }
@@ -543,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 45 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 46 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -571,6 +579,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
       <div class="column" id="shopColumn"></div>
       <div class="cards" id="shopOpts"></div>
     </div>
+    <div class="shopMore" id="shopMore" hidden>More below: scroll ↓</div>
     <div class="shopFoot"><span class="hintv">Click a card to buy it, or arrow keys and Space</span><button class="go" id="shopGo" type="button">To the map →</button></div>
   </div>
 </div>
@@ -2456,6 +2465,8 @@ const BIG_BANNER = /^(The Great Wall$|Position phase|Assault |A quiet night|Behi
 const calloutSeen = new Set(); let calloutT = 0, calloutN = 0;
 function banner(t, s, dur) {
   if (!WAGON || BIG_BANNER.test(t) || REGION_NAME.includes(t)) { ui.bannerT.textContent = t; ui.bannerS.textContent = s || ''; ui.banner.classList.add('show'); bannerTimer = dur || 3.2; return; }
+  // a callout never prints across a phase banner: it waits (the latest two kept) and shows as the banner goes
+  if (ui.banner.classList.contains('show') && bannerTimer > 0.2 && !banner._flush) { const q = banner.q || (banner.q = []); q.push([t, s, dur]); if (q.length > 2) q.shift(); return; }
   const el = $('#callout'), key = t.replace(/\d+/g, '#');
   if (!el.hidden && el._key === key && calloutT > 0) { calloutN++; setText(el.firstChild, `${t} \u00d7${calloutN}`); }
   else { calloutN = 1; el._key = key; setText(el.firstChild, t); setText(el.lastChild, calloutSeen.has(key) ? '' : (s || '')); calloutSeen.add(key); }
@@ -3507,8 +3518,20 @@ function dash() {
 }
 function downHero() {
   hero.alive = false; hero.hp = 0; hero.m.g.visible = false; puff(hero.pos, '#c9b28a', 8);
-  ui.heroLine.textContent = 'You fell. You will ride again at dawn.';
-  if (S.state === 'night') { S.morale = 0.65; banner('The commander has fallen!', 'The garrison wavers: towers and spearmen fight at two-thirds strength until dawn.', 4); }
+  // carried back to the wagons (the playtest found up to 140 s of watching an empty field): in the convoy game he rides
+  // again after 20 s from the ring at half strength, and the garrison wavers only until then
+  const back = WAGON && S.state === 'night' && S.camp;
+  ui.heroLine.textContent = back ? 'You fell. Carried back to the wagons…' : 'You fell. You will ride again at dawn.';
+  hero.downT = back ? 20 : 0;
+  if (S.state === 'night') { S.morale = 0.65; banner('The commander has fallen!', back ? 'The men carry him back to the wagons. The garrison wavers until he rides again.' : 'The garrison wavers: towers and spearmen fight at two-thirds strength until dawn.', 4); }
+}
+function updateDown(dt) {
+  if (hero.alive || !(hero.downT > 0) || S.state !== 'night') return;
+  hero.downT -= dt; setText(ui.heroLine, `You fell. You ride again in ${Math.ceil(Math.max(0, hero.downT))} s.`);
+  if (hero.downT > 0 || !S.camp) return;
+  hero.pos.set(S.camp.cx + 1, 0, S.camp.cz + 1); hero.alive = true; hero.hp = Math.round(hero.max * 0.5); hero.m.g.visible = true; hero.charge = 0;
+  S.morale = 1; setText(ui.heroLine, ''); camFocus.set(hero.pos.x, 0, hero.pos.z); puff(hero.pos, '#c9b28a', 6);
+  banner('The commander rides again', 'Bandaged, at half strength. The garrison takes heart.', 2.5); Sound.play('horn');
 }
 function updateHero(dt) {
   if (!hero.alive) return;
@@ -5577,6 +5600,13 @@ function enterField(type) {
   if (type !== 'boss') { keep.alive = false; }   // the fort's keep never follows the column onto a generated field
   if (type === 'boss') loadFort(); else genField(S.region >= 1 ? 5 : 4, node.kind);
   const W = veterans(waveFor()); S.nightW = W;
+  // at most two kinds the column has never faced in one night (the playtest saw region 2 open with five at once): the
+  // rest stay foot raiders, of the same weight, until a later night
+  { const met = S.metKinds || (S.metKinds = new Set(['foot'])), fresh = ['bowman', 'horse', 'torch', 'firearcher', 'potter', 'engine', 'shield', 'ironcoat', 'spearhedge', 'lancer', 'lasso'].filter(k => W[k] > 0 && !met.has(k));
+    // bowmen, pot throwers, lasso riders and engines are carved out of the foot count at night, so zeroing them gives the
+    // foot back by itself; the others are counted apart and join the foot (heavy ones at the two-foot weight they cost)
+    for (const k of fresh.slice(2)) { if (!['bowman', 'potter', 'lasso', 'engine'].includes(k)) W.foot += W[k] * (['ironcoat', 'spearhedge', 'lancer', 'shield'].includes(k) ? 2 : 1); W[k] = 0; }
+    for (const k of fresh.slice(0, 2)) met.add(k); }
   S.preEntries = pickEntries(W.entries);
   // across a river the warband comes from the far bank: the column starts on the other side
   const bank = (x, z) => { const L = FIELD.riverLine; return L ? Math.sign((x - L.x0) * L.dz - (z - L.z0) * L.dx) : 0; };
@@ -6410,9 +6440,9 @@ function crewOpts() {
 function soldierOpts(k) {
   k = k || 1;
   return [
-    { n: 'Three spearmen', img: 'recruit', c: priced(SOLDIER_COST.spear, k), d: 'Hold the ground and fight hand to hand', run: () => addSoldiers(3, 'spear'), ok: roomFor(3), sec: 'Soldiers', key: 'spear' },
-    { n: 'Three archers', img: 'archers', c: priced(SOLDIER_COST.archer, k), d: 'Shoot from behind the carts. Lamellar turns their arrows', run: () => addSoldiers(3, 'archer'), ok: roomFor(3), sec: 'Soldiers', lock: has.archers, key: 'archer' },
-    { n: 'Two horsemen', img: 'horseman', c: priced(SOLDIER_COST.horse, k), d: 'Fast and tough. Ride raiders down', run: () => addSoldiers(2, 'horse'), ok: roomFor(2), sec: 'Soldiers', lock: has.horse, key: 'horse' },
+    { n: 'Three spearmen', img: 'recruit', c: priced(SOLDIER_COST.spear, k), d: 'Hold the ground and fight hand to hand', run: () => addSoldiers(3, 'spear'), ok: roomFor(3), sec: 'Soldiers', key: 'spear', mouths: 3 },
+    { n: 'Three archers', img: 'archers', c: priced(SOLDIER_COST.archer, k), d: 'Shoot from behind the carts. Lamellar turns their arrows', run: () => addSoldiers(3, 'archer'), ok: roomFor(3), sec: 'Soldiers', mouths: 3, lock: has.archers, key: 'archer' },
+    { n: 'Two horsemen', img: 'horseman', c: priced(SOLDIER_COST.horse, k), d: 'Fast and tough. Ride raiders down', run: () => addSoldiers(2, 'horse'), ok: roomFor(2), sec: 'Soldiers', lock: has.horse, key: 'horse', mouths: 2 },
   ].filter(o => !o.lock || o.lock());
 }
 function cartOpts() {
@@ -6490,19 +6520,24 @@ function columnHTML() {
   for (const k of Object.keys(CREW)) if (S.crew[k]) out.push(chip(k, `${S.crew[k]} ${CREW[k].name.toLowerCase()}${S.crew[k] > 1 ? 's' : ''}`, S.lastBought === k));
   return `<b>Your column:</b> ${out.join('')}`;
 }
+function shopScrollHint() { const b = $('.shopBody'); if (!b) return; const more = b.scrollHeight - b.scrollTop - b.clientHeight > 12; b.classList.toggle('more', more); setHidden($('#shopMore'), !more); }
 function renderShop() {
   const news = (S.news || []).map(t => `<div class="news"><b>New \u00b7 ${TIERS[t].name}</b> ${TIERS[t].text}</div>`).join('');
   $('#shopNews').innerHTML = news; $('#shopColumn').innerHTML = columnHTML();
   $('#shopSub').innerHTML = S.shopSub;   // what each thing costs is on its card; what the column eats is in the bar below
   resBar($('#shopRes'));
-  const box = $('#shopOpts'); box.innerHTML = '';
+  const box = $('#shopOpts'); box.innerHTML = ''; box.classList.toggle('many', shopOpts.length > 6);   // compact only when there is a lot to show
+  requestAnimationFrame(shopScrollHint);
   let sec = '', group = null;
   shopOpts.forEach((o, i) => {
     // each kind of purchase is a group of its own, and the groups sit side by side instead of one thin row each
     if (o.sec !== sec) { sec = o.sec; group = document.createElement('section'); group.className = 'shopGroup'; group.innerHTML = `<h3 class="sec">${sec}</h3><div class="row"></div>`; box.appendChild(group); }
     const why = shopBlocked(o), b = document.createElement('button');
+    // what a recruit does to the road ahead: more mouths and less food (the food-pressure question, answered on the card)
+    const days = o.mouths && !why ? (() => { const eat = Math.max(1, FOOD_BASE + Math.ceil((S.roster.length + o.mouths + crewCount()) / 3) - S.rationCut), left = S.res.grain - ((o.c && o.c.grain) || 0);
+      return `<span class="days${Math.floor(left / eat) < 2 ? ' low' : ''}">Food: ${daysOfFood()} days \u2192 ${Math.floor(left / eat)}</span>`; })() : '';
     b.type = 'button'; b.className = 'card' + (i === shopSel ? ' sel' : '');
-    b.innerHTML = `${o.img ? `<img class="art" alt="" src="${thumb(o.img)}">` : ''}<span class="t">${o.n}</span><span class="cost">${o.c ? costHTML(o.c) : o.gift || o.work ? '<span class="free">free</span>' : ''}</span><span class="e">${why ? `<b class="why">${why}</b>` : o.d}</span>`;
+    b.innerHTML = `${o.img ? `<img class="art" alt="" src="${thumb(o.img)}">` : ''}<span class="t">${o.n}</span><span class="cost">${o.c ? costHTML(o.c) : o.gift || o.work ? '<span class="free">free</span>' : ''}</span><span class="e">${why ? `<b class="why">${why}</b>` : o.d}</span>${days}`;
     if (why) b.classList.add('off');
     b.addEventListener('click', () => { shopSel = i; pickShop(); });
     b.addEventListener('mouseenter', () => { shopSel = i; markShop(); });
@@ -6524,6 +6559,8 @@ function pickShop() {
   S.lastBought = o.key || null;
   Sound.ui('build'); refreshHUD(); refreshSacks(); renderShop();
 }
+document.querySelector('.shopBody').addEventListener('scroll', () => shopScrollHint());
+addEventListener('resize', () => { if (!$('#shop').hidden) shopScrollHint(); });
 $('#shopGo').addEventListener('click', () => { shopSel = shopOpts.length; pickShop(); });
 function joinConvoy(kind) {
   const isNew = true;
@@ -7352,7 +7389,7 @@ function update(dt) {
   const playing = S.state === 'day' || S.state === 'night';
   routeGroup.visible = false;
   updateBellTag(); updateHint(dt);
-  if (playing) updateHero(dt);
+  if (playing) { updateHero(dt); updateDown(dt); }
   if (WAGON) updateConvoy(dt);
   if (S.state === 'night') { updateNight(dt); updateDefences(dt); }
   if (playing) {
@@ -7454,7 +7491,8 @@ function update(dt) {
   hero.hitFlash = Math.max(0, (hero.hitFlash || 0) - dt);
   setStyle($('#hurt'), 'opacity', (hero.alive && S.state === 'night' ? Math.max(clamp(1 - hero.hp / hero.max - 0.35, 0, 1) * 1.4, hero.hitFlash * 1.6) : 0).toFixed(2));
   setFill(ui.keepBar, (WAGON ? (S.state === 'night' ? soldiers.reduce((a, x) => a + (x.alive ? x.hp : 0), 0) / Math.max(1, soldiers.reduce((a, x) => a + x.max, 0)) : S.roster.reduce((a, x) => a + x.hp, 0) / Math.max(1, S.roster.reduce((a, x) => a + x.max, 0))) : keep.hp / keep.max));
-  if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
+  if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0.2 && banner.q && banner.q.length) { const [t, s2, d] = banner.q.shift(); banner._flush = true; banner(t, s2, d); banner._flush = false; } if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
+  else if (banner.q && banner.q.length) { const [t, s2, d] = banner.q.shift(); banner._flush = true; banner(t, s2, d); banner._flush = false; }
   if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) setHidden($('#callout'), true); }
   if (WAGON && S.state === 'night') regCallouts();
 }
