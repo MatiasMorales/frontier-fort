@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 53 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 54 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -5635,11 +5635,13 @@ function arrive(n) {
   arriveGo(n);
 }
 function arriveGo(n) {
-  if (n.type === 'fight' || n.type === 'elite' || n.type === 'boss') { S.afterShop = n.type; return openShop('before'); }
-  S.afterShop = 'quiet';
+  // the crews' work is counted the moment the column arrives, at every stop (Matias: nobody should wait for a farmer to
+  // walk back); on a battlefield they still go out to the trees, rocks and fields, as life on the field, not as income
   const y = crewYield(); for (const r of RES) S.res[r] += y[r];
   S.crewNote = crewCount() ? `Your crews brought in ${yieldText(y)}.` : '';
   refreshHUD(); refreshSacks();
+  if (n.type === 'fight' || n.type === 'elite' || n.type === 'boss') { S.afterShop = n.type; return openShop('before'); }
+  S.afterShop = 'quiet';
   if (n.type === 'rest') {
     for (const r of S.roster) { r.hp = r.max; r.hungry = false; }
     for (const b of buildings) b.hp = b.max;
@@ -5804,9 +5806,8 @@ function veterans(W) {
   return W;
 }
 /* ---------------- crews at work ----------------
-   While you set the field they walk out to the nearest trees, rocks or open grass, work, and
-   carry loads back to the ring. Each makes TRIPS trips per stop; whatever is not carried in
-   before the drum is brought in at first light, so waiting earns nothing extra. */
+   Their work (TRIPS loads each) is counted when the column arrives. On a battlefield they then walk out to the nearest
+   trees, rocks or open grass, work, and carry loads back to the ring until the drum: life on the field, not income. */
 const crewUnits = [], floaters = [];
 function spawnCrew(at) {
   shelterCrew(true);
@@ -5839,9 +5840,8 @@ function updateCrew(dt) {
       if (w.pos.distanceTo(tmp.set(w.home.x, w.pos.y, w.home.z)) < 1.6 || w.walkT > 25) {
         if (w.walkT > 25) w.pos.set(w.home.x, 0, w.home.z);   // never left stranded: the load comes in all the same
         w.walkT = 0;
-        const c = CREW[w.k]; S.res[c.res] += c.per; w.trips++; w.m.load.visible = false;
-        floatText(w.pos, `+${c.per} ${c.word}`); refreshHUD(); refreshSacks();
-        if (w.trips < TRIPS) { w.st = 'out'; w.target = crewTarget(w); } else w.st = 'rest';
+        w.trips++; w.m.load.visible = false;   // the load goes on the wagon; it was counted on arrival
+        w.st = 'out'; w.target = crewTarget(w);
       }
     }
     const mv = tmp.subVectors(w.pos, prev), moving = mv.lengthSq() > 1e-6;
@@ -5851,9 +5851,9 @@ function updateCrew(dt) {
     w.pos.y = groundY(w.pos); g.position.copy(w.pos);
   }
 }
-// at the drum the crews go inside the ring; what they still owed comes in at dawn
+// at the drum the crews go inside the ring
 function shelterCrew(drop) {
-  if (!drop) S.crewOwed = crewUnits.reduce((o, w) => { const c = CREW[w.k]; o[c.res] += (TRIPS - w.trips) * c.per; return o; }, { grain: 0, wood: 0, stone: 0 });
+  S.crewOwed = null;   // nothing is owed any more: their work was counted when the column arrived
   for (const w of crewUnits) scene.remove(w.m.g);
   crewUnits.length = 0;
 }
