@@ -355,10 +355,16 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 .titleBtns{ display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
 .titleLinks{ font-size:15px !important; color:var(--gold-dim); margin:16px auto 0 !important; }
 .titleLinks .link{ font-size:15px; }
-#dailyBest{ color:#cbb894; margin-left:6px; }
+.go.alt{ background:rgba(40,20,16,.85); color:var(--gold); border:1px solid var(--gold); box-shadow:none; display:inline-grid; justify-items:center; }
+.go.alt:hover{ background:rgba(70,34,26,.9); }
+#dailyBest{ display:block; font-size:13px; font-weight:400; color:#d8c7a6; margin-top:2px; letter-spacing:0; }
 /* the register and the chronicle: heading on top, the list scrolls on its own, Back always in view (never at the end of the list) */
 .regSheet, .chronSheet{ display:flex; flex-direction:column; max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); overflow:hidden; text-align:left; }
-.regSheet{ max-width:960px; } .chronSheet{ max-width:760px; }
+.regSheet{ max-width:960px; }
+/* an empty chronicle is a page waiting to be written, not a stray line of text */
+.chronEmpty{ display:grid; justify-items:center; text-align:center; gap:6px; padding:18px 0 8px; }
+.chronEmpty .bigseal{ opacity:.55; transform:rotate(-4deg) scale(.8); margin:0 0 4px; }
+.chronEmpty b{ font-size:20px; color:var(--gold); font-weight:600; } .chronEmpty p{ margin:0 !important; max-width:420px !important; color:#d8c7a6; } .chronSheet{ max-width:760px; }
 .regSheet > h2, .regSheet > .lead, .chronSheet > h2, .chronSheet > .lead{ flex:none; text-align:center; }
 #regList, #chronList{ flex:1 1 auto; min-height:0; overflow:auto; padding:0 6px 18px 0; overscroll-behavior:contain; -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image:linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }   /* the soft lower edge says the list goes on */
 .regSheet > .go, .chronSheet > .go{ flex:none; display:block; margin:12px auto 0; }
@@ -491,8 +497,9 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
       <span><kbd>Tab</kbd>see the field</span>
       <span><kbd>Esc</kbd>pause</span>
     </div>
-    <div class="titleBtns"><button class="go" id="contBtn" type="button" hidden>Continue</button><button class="go" id="startBtn" type="button">Take the road</button></div>
-    <p class="titleLinks"><button type="button" class="link" id="dailyBtn">Today's road</button><span id="dailyBest"></span> · <button type="button" class="link" id="chronBtn">Chronicle</button> · <button type="button" class="link" id="regBtn">Register</button></p>
+    <div class="titleBtns"><button class="go" id="contBtn" type="button" hidden>Continue</button><button class="go" id="startBtn" type="button">Take the road</button>
+      <button class="go alt" id="dailyBtn" type="button">Today's road<small id="dailyBest"></small></button></div>
+    <p class="titleLinks"><button type="button" class="link" id="chronBtn">Chronicle</button> · <button type="button" class="link" id="regBtn">Register</button></p>
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
@@ -506,7 +513,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 35 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 36 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -574,6 +581,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 // The daily road: one seeded run a day with one twist (Slay the Spire's Daily Climb, local best only, no server). The
 // title's button reloads the page with the day's seed set, and every random draw from here on follows it, so the map
 // and the fields are the same for everyone that day.
+const HOOF_GAIN = 0.62;   // the commander's own hooves, about 4 dB under Build 34 (Matias: a bit too loud)
 const DAILY = (() => { try { const d = sessionStorage.getItem('wagon-road-daily'); if (d) { sessionStorage.removeItem('wagon-road-daily'); return d; } } catch (e) {} return null; })();
 if (DAILY) { let q = [...DAILY].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 2147483647, 7) || 7; Math.random = () => (q = (q * 16807) % 2147483647) / 2147483647; }
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
@@ -3459,7 +3467,7 @@ function updateHero(dt) {
     // the canter, four at the gallop, the leading forefoot heaviest; the diagonal pair of the canter lands as one
     let fall = 0;
     for (let i = 0; i < 4; i++) { const p = gaitPh(i, hero.gk), a = Math.floor((b0 + p - 1.5 * Math.PI) / TAU), c = Math.floor((hero.bob + p - 1.5 * Math.PI) / TAU); if (c > a) fall += i === 0 ? 1.25 : 1; }
-    if (fall) { Sound.hoof(Math.min(1.6, fall) * (0.42 + 0.3 * hero.gk), onBridge(hero.pos), fall >= 1.25, hero.gk > 0.5);
+    if (fall) { Sound.hoof(Math.min(1.6, fall) * (0.42 + 0.3 * hero.gk) * HOOF_GAIN, onBridge(hero.pos), fall >= 1.25, hero.gk > 0.5);
       if (!onBridge(hero.pos) && Math.random() < 0.55 + 0.4 * hero.gk) puff(tmp3.set(hero.pos.x - Math.sin(hero.face) * 0.7, hero.pos.y, hero.pos.z - Math.cos(hero.face) * 0.7), '#c8b48a', 1, 0.5); }   // dust where the hooves strike
   }
   hero.pos.y = groundY(hero.pos);
@@ -4826,6 +4834,8 @@ bb.addEventListener('pointerup', bbUp); bb.addEventListener('pointerleave', bbUp
    Each cart is a *moving plot*, so the building lifecycle - damage, wrecks, repair, ground
    bonuses, the command aura - works on carts unchanged. */
 const CONVOY = { regions: 3, floors: 4, cols: 7, sack: 8, ring: 8, ringR: 5.6, spacing: 3.6, campReach: 30 };
+// today's road is a short one: a single region, its border fort, then the Wall (about 15 minutes), the same for everyone
+if (DAILY) CONVOY.regions = 1;
 const REGION_NAME = ['The Xuanfu marches', 'The Datong corridor', 'The Great Wall breach'];
 const NODE_INFO = {
   camp:   { g: '营', n: 'Region camp',   d: 'Gather, build, trade, level up' },
@@ -6535,7 +6545,7 @@ function updateEnding(dt) {
 function winSheet() {
   S.state = 'won';
   $('#endSeal').textContent = '达'; $('#endT').textContent = 'Through the Wall';
-  $('#endP').textContent = `In ${S.day} days the column crossed ${CONVOY.regions} regions and came through the Great Wall. ${S.kills} raiders fell and ${S.fought} nights were held${S.starved ? `; ${S.starved} ${S.starved > 1 ? 'men were' : 'man was'} lost to hunger` : ''}.`;
+  $('#endP').textContent = `In ${S.day} days the column crossed ${CONVOY.regions > 1 ? CONVOY.regions + ' regions' : 'the marches'} and came through the Great Wall. ${S.kills} raiders fell and ${S.fought} nights were held${S.starved ? `; ${S.starved} ${S.starved > 1 ? 'men were' : 'man was'} lost to hunger` : ''}.`;
   const names = S.roster.map(r => r.name).filter(Boolean), shown = names.slice(0, 14);
   $('#endHonour').innerHTML = `<span class="homeRow"><b id="homeFood">0</b> food brought home \u00b7 <b id="homeMen">0</b> men</span>`
     + (names.length ? `<br><b style="color:var(--gold)">Home</b><br>${shown.join(', ')}${names.length > shown.length ? `, and ${names.length - shown.length} more` : ''}.<br>` : '<br>') + honours();
@@ -7059,9 +7069,9 @@ function dailyBest() {
 }
 function titleExtras() {
   const sv = savedRun(), cb = $('#contBtn');
-  if (sv && cb) { const s = sv.S; cb.hidden = false; cb.textContent = `Continue: region ${(s.region || 0) + 1}, floor ${s.floor || 0}${sv.daily ? ' (today\u2019s road)' : ''}`; $('#startBtn').textContent = 'A new road'; }
+  if (sv && cb) { const s = sv.S; cb.hidden = false; cb.textContent = `Continue: region ${(s.region || 0) + 1}, ${s.floor ? 'floor ' + s.floor : 'at the camp'}${sv.daily ? ' (today\u2019s road)' : ''}`; $('#startBtn').textContent = 'New road'; $('#startBtn').classList.add('alt'); }   // one gold button: the one that carries on
   try { const b = JSON.parse(localStorage.getItem('wagon-road-daily-best') || '{}')[today()]; const tw = dailyTwist(today());
-    setHTML($('#dailyBest'), `\u00b7 ${tw.name}${b ? ` \u00b7 your best today, region ${b.region} floor ${b.floor}` : ''}`); } catch (e) {}
+    setHTML($('#dailyBest'), `One region, the same for everyone \u00b7 ${tw.name}${b ? ` \u00b7 best: ${b.won ? 'through' : 'floor ' + b.floor}` : ''}`); } catch (e) {}
 }
 /* The register (after the Jixiao Xinshu's drawn plates): each raider kind and each of our arms, drawn once it has been
    met, with one line on how it is answered. What has been met is kept in the browser (localStorage), across runs. A
@@ -7149,8 +7159,9 @@ function showChronicle() {
   $('#chronList').innerHTML = runs.length ? runs.slice().reverse().map(r => { const e = r.end || {}, hon = (e.honoured || []);
     return `<div class="chronRun"><span class="d">${(r.started || '').slice(0, 10)}${r.daily ? ' \u00b7 today\u2019s road' : ''}</span><b>${e.state === 'won' ? 'Reached the Great Wall' : `Fell in region ${e.region}, floor ${e.floor}`}</b>
       <p>${e.kills || 0} raiders fell${e.nearMisses ? ` \u00b7 the grain held by a thread ${e.nearMisses > 1 ? e.nearMisses + ' times' : 'once'}` : ''}${e.why ? ` \u00b7 ${e.why}` : ''}.${hon.length ? ` Remembered: ${hon.map(m => `${m.name} (${nm(m.type)}, ${m.kills}${m.dead ? ', fell' : ''})`).join(', ')}.` : ''}</p></div>`; }).join('')
-    : '<p class="lead">No roads yet. The chronicle fills as you play.</p>';
+    : '<div class="chronEmpty"><div class="bigseal">史</div><b>No roads written yet</b><p>Each road you take is written here: how far the column got, what ended it, and the men worth remembering.</p></div>';
   $('#chron').hidden = false;
+  setText($('#chron .lead'), runs.length ? 'Every road this column has taken, newest first.' : 'The roads this column has taken.');
 }
 function speedChip() {
   const el = $('#speedChip'); if (!el) return;
@@ -7164,7 +7175,7 @@ function start() {
   $('#title').hidden = true; $('#status').hidden = false; $('#keepBox').hidden = false;
   if (resuming) { const sv = savedRun(); resuming = false; if (sv) { S.state = 'day'; resumeRun(sv); reviveHero(); banner(REGION_NAME[S.region] || 'The road', 'The column takes up the road where it stopped.', 3); openMap(); return; } }
   forgetRun();   // a new road: the last one is left behind
-  if (DAILY) { const tw = dailyTwist(DAILY); tw.apply(); setTimeout(() => banner('Today\u2019s road: ' + tw.name, tw.text, 4.5), 400); }
+  if (DAILY) { const tw = dailyTwist(DAILY); tw.apply(); setTimeout(() => banner('Today\u2019s road: ' + tw.name, tw.text + ' One region, then the Wall.', 4.5), 400); }
   S.commander = 'default';
   if (!DAILY && COMMANDERS.some(c => c.feat && FEATS.has(c.key))) return chooseCommander(startDay);   // only once there is a choice to make
   startDay();
