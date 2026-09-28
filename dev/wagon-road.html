@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 48 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 49 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -5134,6 +5134,7 @@ function addWagon(kind, level, x, z, rot) {
   return p;
 }
 function rebuildCart(p) { const b = build(p, p.ruin.kind, true, p.ruin.level); b.barY = 2.5; b.radius = 1.45; return b; }
+function mendWreck(p) { if (!p.wreck) return; p.ruin = { kind: p.wreck.kind, level: p.wreck.level, g: new THREE.Group() }; p.wreck = null; return rebuildCart(p); }
 function wagonAt(p, x, z, rot) {
   p.x = x; p.z = z; p.rotY = rot; p.pos.set(x, Math.max(hgt(x, z), 0), z);
   const b = p.building;
@@ -5589,7 +5590,7 @@ function arriveGo(n) {
   if (n.type === 'rest') {
     for (const r of S.roster) { r.hp = r.max; r.hungry = false; }
     for (const b of buildings) b.hp = b.max;
-    for (const p of convoy) if (p.ruin) rebuildCart(p);
+    for (const p of convoy) { if (p.ruin) rebuildCart(p); else if (p.wreck) mendWreck(p); }
     banner('Behind the walls of a friendly fort', 'The men are fed and healed, every cart mended.', 3.5);
     return openShop('rest');
   }
@@ -6214,9 +6215,11 @@ function convoyDawn() {
     if (isSupply(p.cartKind)) { rebuildCart(p); continue; }
     const cost = { wood: REPAIR[p.cartKind] };
     if (afford(cost)) { pay(cost); rebuildCart(p); repaired++; }
-    else abandoned.push(DEFS[p.cartKind].name);
+    // not thrown away: the wreck rides in the baggage and can be mended on a build screen, or free at a friendly fort
+    // (setbacks, not resets; the ideas playtest saw six crossbow carts silently abandoned)
+    else { abandoned.push(DEFS[p.cartKind].name); p.wreck = { kind: p.ruin.kind, level: p.ruin.level }; scene.remove(p.ruin.g); p.ruin = null; }
   }
-  for (let i = convoy.length - 1; i >= 0; i--) if (!convoy[i].building) { if (convoy[i].ruin) scene.remove(convoy[i].ruin.g); convoy.splice(i, 1); }
+  for (let i = convoy.length - 1; i >= 0; i--) if (!convoy[i].building && !convoy[i].wreck) { if (convoy[i].ruin) scene.remove(convoy[i].ruin.g); convoy.splice(i, 1); }
   // a near miss is worth a moment (Spelunky, Hades): the food wagon came through the night nearly burned
   const fw = convoy.find(p => p.cartKind === 'food' && p.building), held = fw ? fw.building.hp / fw.building.max : 1;
   const nearMiss = held < 0.15 && S.nightType !== 'boss';
@@ -6241,7 +6244,7 @@ function convoyDawn() {
     fell ? `<div>${fell} soldier${fell > 1 ? 's' : ''} fell in the night${(S.lastFell || []).length ? ': <b>' + S.lastFell.slice(0, 6).join(', ') + (S.lastFell.length > 6 ? ' and others' : '') + '</b>' : ''}.</div>` : '',
     wounded ? `<div>${wounded} who went down ${wounded > 1 ? 'were' : 'was'} found alive, badly wounded.</div>` : '',
     repaired ? `<div>${repaired} wrecked cart${repaired > 1 ? 's were' : ' was'} mended with wood.</div>` : '',
-    abandoned.length ? `<div>Abandoned for want of wood: ${abandoned.join(', ')}.</div>` : '',
+    abandoned.length ? `<div>No wood to mend: ${abandoned.join(', ')}. ${abandoned.length > 1 ? 'They ride' : 'It rides'} in the baggage: mend on a build screen, or free at a friendly fort.</div>` : '',
     `<div>${S.roster.length} soldiers · food for <b>${daysOfFood()} day${daysOfFood() === 1 ? '' : 's'}</b>.</div>`,
   ].join('');
   S.picksLeft = elite || boss ? 2 : 1;
@@ -6369,7 +6372,7 @@ function nextRegion() {
   // through the border: the column rests behind it, men healed and carts mended, before the new region
   for (const r of S.roster) { r.hp = r.max; r.hungry = false; }
   for (const b of buildings) b.hp = b.max;
-  for (const p of convoy) if (p.ruin) rebuildCart(p);
+  for (const p of convoy) { if (p.ruin) rebuildCart(p); else if (p.wreck) mendWreck(p); }
   S.state = 'day'; refreshHUD();
   banner(REGION_NAME[S.region], 'Through the border. The column rested: every man healed, every cart mended. Choose the road.', 4.5);
   openMap();
@@ -6456,7 +6459,8 @@ function soldierOpts(k) {
 }
 function cartOpts() {
   const open = { tower: has.xbow(), barricade: has.wood(), rockets: has.heavy(), bombard: has.levels() && S.commander !== 'liaodong', palisade: has.palisade() };
-  const out = CART_KINDS.filter(k => open[k]).map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), sec: 'Wagons', key: k }));
+  const out = convoy.filter(p => p.wreck).map(p => ({ n: 'Mend the ' + DEFS[p.wreck.kind].name.toLowerCase(), img: p.wreck.kind, c: { wood: REPAIR[p.wreck.kind] || 4 }, d: 'Wrecked in the night, carried in the baggage', run: () => mendWreck(p), sec: 'Wagons', once: true }))
+    .concat(CART_KINDS.filter(k => open[k]).map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), sec: 'Wagons', key: k })));
   const L = LEVELS[S.level + 1];
   if (L && has.levels()) out.push({ n: `Convoy level ${S.level + 2}`, img: 'level', c: L.cost, d: `Room for ${L.soldiers} soldiers and ${L.crew} crew, and every cart ${Math.round((L.hp / LEVELS[S.level].hp - 1) * 100)}% tougher`, run: levelUp, sec: 'Wagons' });
   return out;
@@ -6565,6 +6569,7 @@ function pickShop() {
   if (o.c) pay(o.c);
   runLog({ t: 'buy', item: (o.n || '').replace(/<[^>]+>/g, ''), cost: o.c || null, gift: !!o.gift });
   o.run(); if (o.gift) S.gifted = true;
+  if (o.once) { shopOpts.splice(shopSel, 1); shopSel = Math.min(shopSel, shopOpts.length - 1); }   // a mended wreck is mended
   S.lastBought = o.key || null;
   Sound.ui('build'); refreshHUD(); refreshSacks(); renderShop();
 }
