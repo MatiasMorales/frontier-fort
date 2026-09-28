@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 55 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 56 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3529,7 +3529,7 @@ function updateDefences(dt) {
       b.cd = b.level ? d.up.every : d.every;
       const from = b.pos.clone().setY(b.pos.y + b.g.userData.fireY), m = new THREE.Mesh(ballGeo, M('#2b2b2b', { metalness: 0.4 }));
       scene.add(m); shots.push({ m, from, target: best, src: 'bombard', dmg: (b.level ? d.up.dmg : d.dmg) * md.dmgMul * cmd * (WAGON ? rankMul('bombard') : 1), grape: WAGON && rankOf('bombard') >= 3, ball: true, dur: 0.5 + from.distanceTo(best.pos) * 0.03, k: 0, arc: 2.5 });
-      puff(from, '#d8d2c6', 4, 1); kick(0.28); hitStop(45); recoil(b, best.pos, 0.35);
+      puff(from, '#d8d2c6', 4, 1); kick(0.28); hitStop(45); recoil(b, best.pos, 0.35); sfxAt('bombard', b.pos, 1, 60);   // the gun's own boom (the sound review found it never played: only the ball's impact did)
     } else if (b.kind === 'caltrops') {
       const dps = b.level ? d.up.trap : d.trap;
       for (const e of enemies) if (e.alive && e.pos.distanceTo(b.pos) < 2.2) { e.slowT = 0.25; damage(e, dps * dt, null, 'caltrops'); if (S.scorchRoad) ignite(e, 2); }
@@ -3567,7 +3567,7 @@ function updateDown(dt) {
   if (hero.downT > 0) return;
   if (S.camp) hero.pos.set(S.camp.cx + 1, 0, S.camp.cz + 1); else hero.pos.set(bellPos.x + 1.5, 0, bellPos.z + 1.5); hero.alive = true; hero.hp = Math.round(hero.max * 0.5); hero.m.g.visible = true; hero.charge = 0;
   S.morale = 1; setText(ui.heroLine, ''); camFocus.set(hero.pos.x, 0, hero.pos.z); puff(hero.pos, '#c9b28a', 6); hero.graceT = 3;   // three seconds before a blow can land: he rode out into an overrun ring and fell again in 1.2 s
-  banner('The commander rides again', 'Bandaged, at half strength. The garrison takes heart.', 2.5); Sound.play('horn');
+  banner('The commander rides again', 'Bandaged, at half strength. The garrison takes heart.', 2.5); Sound.play('wardrum');   // our drum, not the raiders' horn
 }
 function updateHero(dt) {
   if (!hero.alive) return;
@@ -3898,7 +3898,7 @@ function updateNight(dt) {
       if (archers >= 2) {
         const p = lead(hero), a = Math.random() * Math.PI, n = Math.min(7, 3 + Math.floor(archers / 3));
         for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2) * 3.4; circleDanger(p.x + Math.cos(a) * o, p.z + Math.sin(a) * o, 2.4, 1.6, 14); }
-        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('volley'); kick(0.2);
+        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('horn', 0.5); for (let k = 0; k < 4; k++) setTimeout(() => Sound.play('foeBow', 0.9), 250 + k * 90);   // their bows, not the commander's volley kick(0.2);
       }
     }
   }
@@ -4261,7 +4261,7 @@ const Sound = (() => {
   function duck(depth, hold) { if (!musicDuck) return; const t = NOW(), g = musicDuck.gain; g.cancelScheduledValues(t); g.setTargetAtTime(depth * musicBase, t, 0.03); g.setTargetAtTime(musicBase, t + (hold || 0.5), 0.3); }
   // how important each sound is. When many play at once the least important are dropped first: the commander's own
   // actions and threats to him are never dropped; far arrows and footsteps go first (Overwatch's buckets, simplified)
-  const PRI = { loot: 5, horn: 5, wardrum: 5, hurt: 5, volley: 5, bell: 5, ability: 5, tally: 5, dawn: 5, bow: 4, bombard: 4, stone: 4, crash: 4, clang: 3, build: 3, burst: 3, xbow: 3, rocket: 3, impact: 3,
+  const PRI = { loot: 5, horn: 5, wardrum: 5, hurt: 5, volley: 5, bell: 5, ability: 5, tally: 5, dawn: 5, bow: 4, bombard: 4, stone: 4, crash: 4, clang: 3, build: 3, burst: 4, xbow: 4, rocket: 4, impact: 4,   // the column's own guns stay heard when the voices run out
     fire: 2, death: 2, foeHit: 2, woodHit: 2, hit: 1, meleeHit: 1, foeBow: 1, ourBow: 0, step: 0, foeHoof: 0 };
   const LEN = { horn: 1.5, wardrum: 0.9, bombard: 0.7, stone: 0.9, crash: 0.6, fire: 0.6, rocket: 0.8, burst: 0.4, impact: 0.4, bell: 2, volley: 0.6 };
   const VOICE_CAP = 26; let voices = [];
@@ -4684,7 +4684,7 @@ const Sound = (() => {
     if (at && at.ui) OUT = uiG;
     else if (at) { const pn = ctx.createStereoPanner(), lp = ctx.createBiquadFilter(); pn.pan.value = Math.max(-1, Math.min(1, at.pan || 0));
       lp.type = 'lowpass'; lp.frequency.value = 1300 + 15000 * Math.pow(1 - Math.min(1, at.far || 0), 2); lp.Q.value = 0.5; lp.connect(pn); pn.connect(sfxG); OUT = lp; }
-    if (DUCK[kind]) duck(DUCK[kind][0] + (1 - DUCK[kind][0]) * Math.min(1, (at && at.far) || 0), DUCK[kind][1]);   // a far bombard dips the music less
+    if (DUCK[kind] && !(kind === 'hurt' && NOW() - (play._hurtDuck || 0) < 1.2)) { if (kind === 'hurt') play._hurtDuck = NOW(); duck(DUCK[kind][0] + (1 - DUCK[kind][0]) * Math.min(1, (at && at.far) || 0), DUCK[kind][1]); }   // a far bombard dips the music less; standing in fire must not pump the music
     try { voice(kind, v, now); } finally { OUT = sfxG; }
   }
   const DUCK = { bombard: [0.55, 0.45], stone: [0.5, 0.6], horn: [0.6, 1.1], wardrum: [0.6, 0.8], crash: [0.7, 0.4], hurt: [0.75, 0.3] };
@@ -5534,7 +5534,7 @@ function welcome() {
   hero.alive = true; hero.m.g.visible = true; hero.pos.set(0, 0, -R - 13); hero.face = 0; camFocus.set(0, 0, -R + 1);
   layoutColumn(0, -R - 16.5, 0);
   welcomeS = { t: 0, leaves, men, done: false };
-  Sound.play('horn');   // no callout: the HUD steps back for the scene, and the scene says it
+  Sound.play('bell');   // the fort's bell greets the column (the horn is the raiders'); no callout: the scene says it
 }
 function updateWelcome(dt) {
   const W = welcomeS; if (!W || S.phase !== 'welcome') return;
@@ -6175,7 +6175,7 @@ function siegeEngine(e, dt) {
       const x = tgt.pos.x + (Math.random() - 0.5) * 1.5, z = tgt.pos.z + (Math.random() - 0.5) * 1.5;
       const dz = circleDanger(x, z, 3, 2.2, 18);
       dz.onLand = () => { sfxAt('stone', { x, z }, 1, 70); for (const b of [...buildings]) if (b.alive && b.hp < Infinity && Math.hypot(b.pos.x - x, b.pos.z - z) < 3 + (b.radius || 1)) damage(b, b.plot && isSupply(b.plot.cartKind) ? e.t.stone / 3 : e.t.stone, null, 'stone');   // it aims at the war carts; the loads only take the splash
-        if (keep.alive && Math.hypot(keep.pos.x - x, keep.pos.z - z) < 4) { damage(keep, e.t.stone / 2); S.engineKeep = (S.engineKeep || 0) + e.t.stone / 2; } puff(new V3(x, 0.4, z), '#8a7a5c', 10, 2); kick(0.3); Sound.play('crash'); };
+        if (keep.alive && Math.hypot(keep.pos.x - x, keep.pos.z - z) < 4) { damage(keep, e.t.stone / 2); S.engineKeep = (S.engineKeep || 0) + e.t.stone / 2; } puff(new V3(x, 0.4, z), '#8a7a5c', 10, 2); kick(0.3); 0 /* the placed 'stone' carries it: a centred crash made a far stone sound as if it landed on you */; };
       shoot(e.pos.clone().setY(e.pos.y + 3), { pos: new V3(x, 0, z), alive: false }, 0, 'foe', false, { dur: 2.1, arc: 12 });
     }
   }
@@ -6347,12 +6347,14 @@ function playReport() {
   const box = document.querySelector('#ledger .report'); if (!box) return;
   const rows = [...box.querySelectorAll('.kr')], total = box.querySelector('b > span[data-n]'), cost = box.querySelector('.cost');
   const count = (el, to, ms) => { const t0 = performance.now(); const tick = now => { const k = Math.min(1, (now - t0) / ms); el.textContent = Math.round(to * k * (2 - k)); if (k < 1) requestAnimationFrame(tick); }; requestAnimationFrame(tick); };
-  rows.forEach((row, i) => setTimeout(() => {
+  const T = playReport.timers = playReport.timers || []; T.forEach(clearTimeout); T.length = 0;
+  const later = (fn, ms) => T.push(setTimeout(() => { if (S.state === 'dawn') fn(); }, ms));   // no tally blips over the map once the dawn is gone
+  rows.forEach((row, i) => later(() => {
     row.classList.remove('pending'); const bar = row.querySelector('i'), n = row.querySelector('b');
     bar.style.width = bar.dataset.w + '%'; count(n, +n.dataset.n, 420); Sound.play('tally', i, { ui: true });
   }, 250 + i * 330));
   const after = 250 + rows.length * 330;
-  if (total) setTimeout(() => { count(total, +total.dataset.n, 500); Sound.play('tally', rows.length + 2, { ui: true }); if (+total.dataset.n >= 40) kick(0.25); }, after);
+  if (total) later(() => { count(total, +total.dataset.n, 500); Sound.play('tally', rows.length + 2, { ui: true }); if (+total.dataset.n >= 40) kick(0.25); }, after);
   if (cost) setTimeout(() => cost.classList.remove('pending'), after + 450);
 }
 // Rewards are ranks. Each fight you raise one arm of the column: spearmen, archers, horsemen, one
@@ -7515,7 +7517,8 @@ function update(dt) {
   if (S.state === 'night' && Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) {   // how close the fight is, twice a second
     const c = S.camp ? new V3(S.camp.cx, 0, S.camp.cz) : hero.pos; let near = 0, out = 0;
     for (const e of enemies) if (e.alive) { if (Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 16) near++; else out++; }
-    Sound.setIntensity(Math.min(1, near / 8 + (out ? 0.2 : 0)));
+    let byHero = 0; if (hero.alive) for (const e of enemies) if (e.alive && Math.hypot(e.pos.x - hero.pos.x, e.pos.z - hero.pos.z) < 12) byHero++;
+    Sound.setIntensity(Math.min(1, Math.max(near, byHero) / 8 + (out ? 0.1 : 0)));   // the fight is where he is too; a far warband alone stays quiet
   }
   const n = dayNight += ((S.state === 'night' ? 1 : 0) - dayNight) * Math.min(1, dt * 1.1);
   skyTmp.copy(DAY_SKY).lerp(NIGHT_SKY, n); scene.background.copy(skyTmp); scene.fog.color.copy(skyTmp);
@@ -7631,7 +7634,7 @@ setTimeout(() => {
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
 window.__ff = { get campLife() { return campLife; }, bellPos, CASTLE_R, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
-Object.assign(window.__ff, { heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
+Object.assign(window.__ff, { SFX_MIN, heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
 })();
 </script>
 </body>
