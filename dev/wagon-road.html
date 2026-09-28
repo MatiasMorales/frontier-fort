@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 50 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 51 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2262,7 +2262,7 @@ const beacons = [], bsmoke = [], bM = new THREE.Matrix4(), bQ = new THREE.Quater
 const SMOKE_MEAN = ['', 'a raiding party', 'a large raid', 'a chief\u2019s warband', 'the whole horde'];
 function beaconSmokes(total) { return S.nightType === 'boss' ? 4 : S.nightType === 'elite' ? 3 : total >= 45 ? 2 : 1; }
 function clearBeacons() {
-  campLife = null;
+  campLife = null; welcomeS = null;
   while (beaconGroup.children.length) beaconGroup.remove(beaconGroup.children[0]);
   beacons.length = 0; bsmoke.length = 0; smokeMesh.count = 0;
 }
@@ -4854,6 +4854,7 @@ const Sound = (() => {
 addEventListener('keydown', e => {
   Sound.init();
   if (choiceKeys(e)) return;
+  if (WAGON && S.phase === 'welcome') { if (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape') endWelcome(); e.preventDefault(); return; }
   if (WAGON && convoyKeys(e)) return;
   if (e.code === 'Escape') { if (!$('#reg').hidden) $('#reg').hidden = true; else if (!$('#chron').hidden) $('#chron').hidden = true; else if (S.state !== 'title') setPaused(!paused); e.preventDefault(); return; }
   if (paused) return;
@@ -5482,6 +5483,56 @@ function travelTo(k) {
 // what the crews bring in at one stop
 function crewYield() { const y = { grain: 0, wood: 0, stone: 0 }; for (const k in CREW) y[CREW[k].res] += S.crew[k] * CREW[k].per * TRIPS; return y; }
 const yieldText = y => RES.filter(r => y[r]).map(r => `+${y[r]} ${resWord(r)}`).join(', ');
+/* The welcome at a friendly fort (Matias: soldiers who receive you, and open the gates; no input needed). The column comes
+   down the north road to a shut gate; a horn, the leaves swing open, and the commander rides in with the wagons behind him
+   between two files of the garrison, who cheer. About eight seconds; Space skips. The fort stays for the quiet night. */
+let welcomeS = null;
+function welcome() {
+  loadFort(); keep.alive = false; S.camp = null; S.phase = 'welcome'; S.state = 'day';
+  bannerTimer = 0; ui.banner.classList.remove('show'); banner.q = [];
+  document.body.classList.add('ending');   // the HUD steps back for the scene
+  const R = CASTLE_R, g = new THREE.Group(); beaconGroup.add(g);
+  // the gate: two studded leaves hung on the gateway's sides
+  const leaves = [];
+  for (const sx of [-1, 1]) { const h = new THREE.Group(); h.position.set(sx * 1.85, Math.max(hgt(sx * 1.85, -R), 0), -R); g.add(h);
+    part(B(1.8, 3.0, 0.22), C.woodDark, -sx * 0.9, 1.5, 0, h); for (const y of [0.6, 1.5, 2.4]) part(B(1.84, 0.12, 0.28), '#2b2622', -sx * 0.9, y, 0, h);
+    leaves.push({ h, sx }); }
+  // the garrison: two files along the road inside the gate, a banner at their head
+  const men = [];
+  for (let i = 0; i < 10; i++) { const side = i % 2 ? 1 : -1, row = Math.floor(i / 2), x = side * 2.6, z = -R + 3 + row * 2.1;
+    const m = makeUnitModel('spear'); m.g.position.set(x, Math.max(groundY({ x, z }), 0), z); m.g.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+    m.g.traverse(o => { if (o.geometry && o.geometry.type === 'RingGeometry') o.visible = false; }); g.add(m.g); men.push({ m, ph: i * 0.37, y0: m.g.position.y }); }
+  part(CYL(0.05, 0.05, 3.6, 4), C.woodDark, 2.6, 1.8, -R + 1.2, g); part(B(0.05, 1.2, 1.7), C.lacquer, 2.6, 3.0, -R + 2.1, g).userData.flag = true;
+  // the column on the road outside the north gate, facing in
+  hero.alive = true; hero.m.g.visible = true; hero.pos.set(0, 0, -R - 13); hero.face = 0; camFocus.set(0, 0, -R + 1);
+  layoutColumn(0, -R - 16.5, 0);
+  welcomeS = { t: 0, leaves, men, done: false };
+  Sound.play('horn');
+  banner('A friendly fort', 'The garrison opens the gate.', 3);
+}
+function updateWelcome(dt) {
+  const W = welcomeS; if (!W || S.phase !== 'welcome') return;
+  W.t += dt;
+  const open = smooth(0.8, 2.6, W.t);
+  for (const l of W.leaves) l.h.rotation.y = l.sx * open * 1.75;                 // swinging inward
+  if (W.t > 0.8 && !W.creak) { W.creak = true; Sound.play('build'); }
+  const riding = W.t > 1.8 && hero.pos.z < -4.5;
+  keys.KeyS = riding;
+  if (riding || W.t < 1.8) layoutColumn(hero.pos.x, Math.min(hero.pos.z - 3.4, -CASTLE_R - 16.5 + Math.max(0, W.t - 1.8) * 30), 0);
+  for (const s of W.men) {                                                        // they cheer as he comes through
+    const c = W.t > 2.2 ? Math.max(0, Math.sin((W.t * 2.4 - s.ph) * Math.PI)) : 0;
+    animFoot(s.m, 0, false, c ? 1 - c : 0); s.m.g.position.y = s.y0 + c * 0.3;
+  }
+  if ((!riding && W.t > 6.5) || W.t > 12) endWelcome();
+}
+function endWelcome() {
+  const W = welcomeS; if (!W || W.done) return; W.done = true; keys.KeyS = false;
+  for (const l of W.leaves) l.h.rotation.y = l.sx * 1.75;
+  document.body.classList.remove('ending'); S.phase = 'shop';
+  banner('Behind the walls of a friendly fort', 'The men are fed and healed, every cart mended.', 3.5);
+  openShop('rest');
+}
+
 /* ---------------- weighty choices (docs/plans/2026-09-28-weighty-choices.md) ----------------
    One screen for every choice: a scene, one named soldier's view, and buttons that print their full consequence
    (pillar 7). Envoys offer passage for food; refugees and deserters ask to join; commanders are chosen at the start. */
@@ -5592,8 +5643,7 @@ function arriveGo(n) {
     for (const r of S.roster) { r.hp = r.max; r.hungry = false; }
     for (const b of buildings) b.hp = b.max;
     for (const p of convoy) { if (p.ruin) rebuildCart(p); else if (p.wreck) mendWreck(p); }
-    banner('Behind the walls of a friendly fort', 'The men are fed and healed, every cart mended.', 3.5);
-    return openShop('rest');
+    return welcome();   // the garrison opens the gate and the column rides in; then the build screen
   }
   openShop(n.type);
 }
@@ -7429,7 +7479,7 @@ function update(dt) {
   updateAbilityBar(dt);
   updateWorkers(dt); updateBridges(dt, clock); updateBeacons(dt); updatePrints(dt); if (campLife && S.state !== 'ending') updateCampLife(dt);
   if (S.state === 'ending' || homeTally) updateEnding(dt);
-  if (WAGON) updateQuiet(dt);
+  if (WAGON) { updateQuiet(dt); updateWelcome(dt); }
 
   // the night ends on the gong and a lone erhu, carried through the dawn; a lost run gets its lament
   Sound.setMood(S.state === 'title' ? 'menu' : S.state === 'lost' ? 'lament' : S.state === 'dawn' || S.state === 'ending' || S.state === 'won' || (S.state === 'night' && S.clearT > 0) ? 'after' : S.state === 'night' ? 'night' : 'day');
@@ -7480,7 +7530,8 @@ function update(dt) {
     const lk = Math.min(1, 3.5 / Math.max(1e-3, Math.hypot(vx, vz) * 0.35));
     camLead.x = damp(camLead.x, hero.alive ? vx * 0.35 * lk : 0, 0.35, dt); camLead.z = damp(camLead.z, hero.alive ? vz * 0.35 * lk : 0, 0.35, dt);
     // while he is down the camera goes where the fight is, the ring (or the fort's courtyard), not the empty spot where he fell
-    const down = WAGON && !hero.alive && S.state === 'night', fxT = down ? (S.camp ? S.camp.cx : bellPos.x) : hero.pos.x + camLead.x, fzT = down ? (S.camp ? S.camp.cz : bellPos.z) : hero.pos.z + camLead.z;
+    const down = WAGON && !hero.alive && S.state === 'night', wel = WAGON && S.phase === 'welcome';   // the welcome frames the gate and the courtyard
+    const fxT = wel ? 0 : down ? (S.camp ? S.camp.cx : bellPos.x) : hero.pos.x + camLead.x, fzT = wel ? -CASTLE_R + 1 : down ? (S.camp ? S.camp.cz : bellPos.z) : hero.pos.z + camLead.z;
     camFocus.x = damp(camFocus.x, fxT, down ? 0.5 : 0.16, dt); camFocus.z = damp(camFocus.z, fzT, down ? 0.5 : 0.16, dt); camFocus.y = 0;
     // hold Tab to rise and see the whole field (Thronefall players' first wish: to see both flanks at once)
     overviewK = damp(overviewK, keys.Tab && WAGON ? 1 : 0, 0.11, dt);
