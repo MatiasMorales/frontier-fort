@@ -193,7 +193,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 @media (max-width:760px){ .smapWrap{ grid-template-columns:1fr; } }
 /* while a full-screen menu is up, the field's HUD steps back: the menu carries its own numbers */
 body.ending :is(#status, #keepBox, #goal, #help, .wtag, .rtag, .threat, #bellTag, #phases, #callout, #speedChip){ opacity:0 !important; transition:opacity var(--out); }
-body:has(:is(#smap, #shop, #dawn, #end):not([hidden])) :is(#status, #keepBox, #banner, #callout, #goal, #help, .wtag, .rtag, .threat, #bellTag){ opacity:0 !important; transition:opacity var(--out); }
+body:has(:is(#smap, #shop, #dawn, #end, #choice):not([hidden])) :is(#status, #keepBox, #banner, #callout, #goal, #help, .wtag, .rtag, .threat, #bellTag){ opacity:0 !important; transition:opacity var(--out); }
 #smapSvg{ width:100%; height:auto; max-height:calc(100vh - 335px); margin:0 auto; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
 #smapSvg line{ stroke:#8a7353; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 7; opacity:.7; }
 #smapSvg line.live{ stroke:#a3352c; stroke-dasharray:none; opacity:.8; }
@@ -369,6 +369,15 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 .regCard.locked img{ filter:brightness(0) opacity(.35); } .regCard.locked b, .regCard.locked p{ color:#8f806a; }
 .regCard.new{ border-color:var(--gold); }
 #ledger .nearMiss{ color:#ffcf8a; font-size:1.08em; border-left:3px solid #d2462f; padding-left:10px; margin-bottom:6px; }
+.choiceSheet{ max-width:780px; } .choiceSheet .lead{ max-width:620px; margin-left:auto; margin-right:auto; }
+.choiceSheet .say{ font-style:italic; color:#dccaa6; font-size:15px; margin:0 auto 14px; max-width:600px; }
+.choiceOpts{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; }
+.choiceOpts:has(> :nth-child(4)){ grid-template-columns:repeat(2, 1fr); }
+@media (max-width:560px){ .choiceOpts:has(> :nth-child(4)){ grid-template-columns:1fr; } }
+.choiceOpt{ font:inherit; text-align:left; cursor:pointer; border:1px solid var(--lacquer-edge); border-radius:8px; padding:12px 14px; background:rgba(40,20,16,.8); color:var(--paper); display:grid; gap:4px; align-content:start; transition:border-color 100ms, transform 100ms; }
+.choiceOpt b{ color:var(--gold); font-size:17px; } .choiceOpt span{ font-size:14px; line-height:1.4; } .choiceOpt small{ color:#e0806a; font-size:13px; }
+.choiceOpt.sel{ border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset; } .choiceOpt:active{ transform:scale(.98); }
+.choiceOpt[disabled]{ opacity:.55; cursor:default; }
 .homeRow{ font-size:19px; color:var(--paper); } .homeRow b{ color:var(--gold); font-variant-numeric:tabular-nums; }
 .chronRun{ border:1px solid var(--lacquer-edge); border-radius:6px; padding:10px 14px; margin:0 0 10px; background:rgba(20,12,10,.5); }
 .chronRun b{ color:var(--gold); } .chronRun .d{ color:#a8977a; font-size:13px; float:right; } .chronRun p{ margin:4px 0 0 !important; font-size:15px !important; max-width:none !important; }
@@ -488,8 +497,11 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 <div id="reg" class="overlay" hidden style="z-index:85;background:radial-gradient(ellipse at center, #1c1311, #140d0b)">
   <div class="sheet regSheet"><h2>The register</h2><p class="lead">After Qi Jiguang's drill books: every raider and every arm, drawn once met, with how it is answered.</p><div id="regList"></div><button class="go" id="regClose" type="button">Back</button></div>
 </div>
+<div id="choice" class="overlay" hidden style="z-index:86">
+  <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
+</div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 32 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 33 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3460,7 +3472,7 @@ function updateHero(dt) {
       }
       if (WAGON && S.rares.lance) ignite(e, 3);
       damage(e, CHARGE.dmg * (light ? 1 : e.t.trample || 0.5) * hero.charge * S.heroDmgMul, null, 'hero'); e.hitCd = 0.6;
-      if (!e.alive) hitStop(55);               // a kill under hoof should land
+      if (!e.alive) { hitStop(55); if (WAGON && (S.chargeKills = (S.chargeKills || 0) + 1) >= 25) feat('liaodong'); }   // a kill under hoof should land
       if (!e.alive && S.steppe) volleyCd = 0;   // riders of the steppe: a trampled raider readies the volley
       puff(e.pos, '#b59a6a', 3, 1);
       if (e.etype === 'captain') { hero.charge = 0; break; }
@@ -4708,6 +4720,7 @@ const Sound = (() => {
 /* ================= input ================= */
 addEventListener('keydown', e => {
   Sound.init();
+  if (choiceKeys(e)) return;
   if (WAGON && convoyKeys(e)) return;
   if (e.code === 'Escape') { if (!$('#reg').hidden) $('#reg').hidden = true; else if (!$('#chron').hidden) $('#chron').hidden = true; else if (S.state !== 'title') setPaused(!paused); e.preventDefault(); return; }
   if (paused) return;
@@ -4863,7 +4876,7 @@ const TIERS = [
 const tier = () => Math.min(4, S.region >= 1 ? 4 : S.fought);
 const has = {
   wood: () => tier() >= 1, moveCarts: () => tier() >= 1, archers: () => tier() >= 1, xbow: () => tier() >= 1,
-  roads: () => tier() >= 2, stone: () => tier() >= 3, heavy: () => tier() >= 3, horse: () => tier() >= 3,
+  roads: () => tier() >= 2, stone: () => tier() >= 3, heavy: () => tier() >= 3, horse: () => tier() >= 3 || S.commander === 'liaodong',
   palisade: () => tier() >= 4, levels: () => tier() >= 4,
 };
 function checkUnlocks() {
@@ -5333,7 +5346,107 @@ function travelTo(k) {
 // what the crews bring in at one stop
 function crewYield() { const y = { grain: 0, wood: 0, stone: 0 }; for (const k in CREW) y[CREW[k].res] += S.crew[k] * CREW[k].per * TRIPS; return y; }
 const yieldText = y => RES.filter(r => y[r]).map(r => `+${y[r]} ${resWord(r)}`).join(', ');
+/* ---------------- weighty choices (docs/plans/2026-09-28-weighty-choices.md) ----------------
+   One screen for every choice: a scene, one named soldier's view, and buttons that print their full consequence
+   (pillar 7). Envoys offer passage for food; refugees and deserters ask to join; commanders are chosen at the start. */
+let choiceCur = null, choiceSel = 0;
+function showChoice(c) {
+  choiceCur = c; choiceSel = Math.max(0, c.opts.findIndex(o => !o.off));
+  $('#choiceSeal').textContent = c.seal; $('#choiceT').textContent = c.title; $('#choiceP').innerHTML = c.text; $('#choiceSay').innerHTML = c.say || '';
+  $('#choiceOpts').innerHTML = c.opts.map((o, i) => `<button type="button" class="choiceOpt" data-i="${i}"${o.off ? ' disabled' : ''}><b>${o.t}</b><span>${o.d}</span>${o.off ? `<small>${o.off}</small>` : ''}</button>`).join('');
+  $('#choiceOpts').querySelectorAll('.choiceOpt').forEach(b => { b.onclick = () => pickChoice(+b.dataset.i); b.onmouseenter = () => { if (!b.disabled) { choiceSel = +b.dataset.i; renderChoice(); } }; });
+  renderChoice(); $('#choice').hidden = false;
+  // test harnesses and bots: a driven browser refuses and sends on (option 2), so balance runs stay comparable, unless told otherwise
+  const auto = window.__autoChoice !== undefined ? window.__autoChoice : navigator.webdriver && !window.__choiceTest ? 1 : undefined;
+  if (auto !== undefined) { let a = Math.min(auto, c.opts.length - 1); if (c.opts[a].off) a = c.opts.findIndex(o => !o.off); pickChoice(a); }
+}
+function renderChoice() { $('#choiceOpts').querySelectorAll('.choiceOpt').forEach((b, i) => b.classList.toggle('sel', i === choiceSel)); }
+function pickChoice(i) {
+  const c = choiceCur; if (!c || !c.opts[i] || c.opts[i].off) return;
+  choiceCur = null; $('#choice').hidden = true; Sound.ui('build');
+  runLog({ t: 'choice', what: c.key, took: c.opts[i].key || i });
+  c.opts[i].run();
+}
+function choiceKeys(e) {
+  if (!choiceCur) return false;
+  const n = choiceCur.opts.length, step = d => { for (let k = 1; k <= n; k++) { const j = (choiceSel + d * k + n * 4) % n; if (!choiceCur.opts[j].off) { choiceSel = j; break; } } renderChoice(); };
+  if (/^Digit[1-4]$/.test(e.code)) pickChoice(+e.code.slice(5) - 1);
+  else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') step(1);
+  else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') step(-1);
+  else if (e.code === 'Enter' || e.code === 'Space') pickChoice(choiceSel);
+  e.preventDefault(); return true;
+}
+// one of the men gives his view: stories come from a few named people (pillar 4)
+function soldierSays(lines) {
+  const m = S.roster.length ? S.roster[Math.floor(Math.random() * S.roster.length)] : null; if (!m) return '';
+  return `${m.name}, ${KIND_WORD[m.type || 'spear'][0]}: \u201c${lines[Math.floor(Math.random() * lines.length)]}\u201d`;
+}
+function remark(title, lines) { const say = soldierSays(lines); if (say) setTimeout(() => banner(title, say, 4.5), 600); }
+function maybeEvent(n) {
+  if (!WAGON || S.fought < 1) return false;
+  S.evReg = S.evReg || {}; const R = S.evReg[S.region] || (S.evReg[S.region] = { envoy: 0, road: 0 });
+  if (n.type === 'fight' && S.fought >= 2 && !R.envoy && Math.random() < 0.3) { R.envoy = 1; envoy(n); return true; }
+  const crewRoom = LEVELS[S.level].crew - crewCount(), menRoom = LEVELS[S.level].soldiers - S.roster.length;
+  if (R.road < 2 && Math.random() < 0.2 && (crewRoom >= 1 || menRoom >= 3)) {
+    R.road++; if (menRoom >= 3 && (crewRoom < 1 || Math.random() < 0.5)) deserters(n); else refugees(n, Math.min(2, crewRoom)); return true;
+  }
+  return false;
+}
+function envoy(n) {
+  const price = Math.round(Math.max(10, foodPerDay() * 3) * (S.commander === 'official' ? 0.5 : 1));
+  showChoice({ key: 'envoy', seal: '使', title: 'An envoy under a white standard',
+    text: `A rider comes in under a white horsetail standard. His chief wants grain, not your lives: since the border markets were shut, the steppe goes hungry. \u201cLeave <b>${price} food</b> on the road, and the road is yours tonight.\u201d`,
+    say: soldierSays(['Pay them, and they will be back hungrier.', 'Better sacks than men.', 'My father traded with these people, before the markets closed.', 'We came to fight, not to feed them.']),
+    opts: [
+      { key: 'pay', t: `Pay ${price} food`, d: 'No fight tonight: nobody is lost, but there are no spoils and no morning reward.', off: S.res.grain < price ? `You have ${S.res.grain} food` : '',
+        run: () => { S.res.grain -= price; S.paidEnvoy = true; refreshHUD(); arriveGo({ type: 'parley' }); } },
+      { key: 'fight', t: 'Refuse', d: 'The warband comes tonight, as it would have. Fight for the spoils and the morning reward.', run: () => arriveGo(n) },
+    ] });
+}
+function refugees(n, k) {
+  showChoice({ key: 'refugees', seal: '民', title: 'Refugees on the road',
+    text: `A family column from a burned village, carts piled with what the raiders left. They ask to walk with you as far as the Wall, and to work for their keep.`,
+    say: soldierSays(['They have walked far enough.', 'More mouths, and the sacks are light already.', 'My village looked like that.']),
+    opts: [
+      { key: 'take', t: 'Take them in', d: `${k} farmer${k > 1 ? 's' : ''} join your crews, and eat with the column.`, run: () => { S.crew.farmer += k; refreshHUD(); arriveGo(n); } },
+      { key: 'send', t: 'Send them on', d: 'Nothing changes. The column goes on without them.', run: () => { arriveGo(n); remark('They go on alone', ['I hope they find the Wall.', 'Nothing we could do.', 'They will not make it alone.']); } },
+    ] });
+}
+function deserters(n) {
+  showChoice({ key: 'deserters', seal: '兵', title: 'Deserters from a broken garrison',
+    text: `Three spearmen come out of a gully, wounded, from a fort the raiders took. They ran once. They say they will not run again.`,
+    say: soldierSays(['Everyone runs once.', 'I would not turn my back on them.', 'Three more spears is three more spears.']),
+    opts: [
+      { key: 'take', t: 'Take them in', d: 'Three spearmen join, wounded (40% health), and eat with the column.', run: () => { const a = S.roster.length; addSoldiers(3, 'spear'); for (const r of S.roster.slice(a)) r.hp = Math.round(r.max * 0.4); refreshHUD(); arriveGo(n); } },
+      { key: 'send', t: 'Turn them away', d: 'Nothing changes. The column goes on without them.', run: () => { arriveGo(n); remark('They are turned away', ['A deserter is a deserter.', 'We will need those spears.', 'I have run before too.']); } },
+    ] });
+}
+/* Commanders, unlocked by feats (never by grinding), chosen when a road starts. Each changes how the column plays. */
+const COMMANDERS = [
+  { key: 'default', name: 'The column\u2019s commander', d: 'The column as it stands: fourteen spearmen and forty food.', apply: () => {} },
+  { key: 'drill', name: 'A drillmaster', feat: 'Find the Wagon fort combination', d: 'Drilled in Qi Jiguang\u2019s manner: spearmen start at rank 1 and fight in mandarin-duck files. Four fewer spearmen.',
+    apply: () => { S.roster.splice(0, 4); raiseRank('spear'); S.rares.duck = true; } },
+  { key: 'official', name: 'A Datong horse-market official', feat: 'Pay an envoy and still reach a border fort', d: 'Knows the steppe\u2019s traders: 25 more food, and envoys ask half. Four fewer spearmen.',
+    apply: () => { S.roster.splice(0, 4); S.res.grain += 25; } },
+  { key: 'liaodong', name: 'A Liaodong cavalry captain', feat: 'Bring down 25 raiders with your charge in one road', d: 'Four horsemen ride with him from the start, and horsemen can be hired early. No bombards.',
+    apply: () => addSoldiers(4, 'horse') },
+];
+let FEATS = new Set(); try { FEATS = new Set(JSON.parse(localStorage.getItem('wagon-road-feats') || '[]')); } catch (e) {}
+function feat(k) {
+  if (FEATS.has(k)) return; FEATS.add(k);
+  try { localStorage.setItem('wagon-road-feats', JSON.stringify([...FEATS])); } catch (e) {}
+  const c = COMMANDERS.find(x => x.key === k); if (c) setTimeout(() => banner('A new commander', `${c.name} can lead your next road.`, 4.5), 1200);
+}
+function chooseCommander(then) {
+  showChoice({ key: 'commander', seal: '将', title: 'Who leads the column?', text: 'Each commander changes how the column fights, not how strong it is.',
+    opts: COMMANDERS.map(c => ({ key: c.key, t: c.name, d: c.d, off: c.feat && !FEATS.has(c.key) ? 'Unlocked by: ' + c.feat.toLowerCase() : '',
+      run: () => { S.commander = c.key; c.apply(); refreshHUD(); then(); } })) });
+}
 function arrive(n) {
+  if (maybeEvent(n)) return;
+  arriveGo(n);
+}
+function arriveGo(n) {
   if (n.type === 'fight' || n.type === 'elite' || n.type === 'boss') { S.afterShop = n.type; return openShop('before'); }
   S.afterShop = 'quiet';
   const y = crewYield(); for (const r of RES) S.res[r] += y[r];
@@ -5358,6 +5471,7 @@ function enterField(type) {
   while (flareGroup.children.length) flareGroup.remove(flareGroup.children[0]);
   for (const k in fleeCache) delete fleeCache[k];
   const node = S.map[S.at];
+  if (type === 'boss' && S.paidEnvoy) feat('official');
   if (type === 'boss') loadFort(); else genField(S.region >= 1 ? 5 : 4, node.kind);
   const W = veterans(waveFor()); S.nightW = W;
   S.preEntries = pickEntries(W.entries);
@@ -6194,7 +6308,7 @@ function soldierOpts(k) {
   ].filter(o => !o.lock || o.lock());
 }
 function cartOpts() {
-  const open = { tower: has.xbow(), barricade: has.wood(), rockets: has.heavy(), bombard: has.levels(), palisade: has.palisade() };
+  const open = { tower: has.xbow(), barricade: has.wood(), rockets: has.heavy(), bombard: has.levels() && S.commander !== 'liaodong', palisade: has.palisade() };
   const out = CART_KINDS.filter(k => open[k]).map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), sec: 'Wagons', key: k }));
   const L = LEVELS[S.level + 1];
   if (L && has.levels()) out.push({ n: `Convoy level ${S.level + 2}`, img: 'level', c: L.cost, d: `Room for ${L.soldiers} soldiers and ${L.crew} crew, and every cart ${Math.round((L.hp / LEVELS[S.level].hp - 1) * 100)}% tougher`, run: levelUp, sec: 'Wagons' });
@@ -6202,8 +6316,8 @@ function cartOpts() {
 }
 function openShop(kind, reopen) {
   shopKind = kind; S.phase = 'shop'; S.state = 'day'; S.backShop = kind;
-  const title = { market: 'Horse market', village: 'Village', rest: 'Friendly fort', before: S.afterShop === 'boss' ? 'Before the border fort' : 'Before the fight' }[kind];
-  S.shopSub = { market: '<b>Buy and sell here.</b> Trade food, wood and stone, and spend on the column.', village: 'They share <b>one gift</b>, and their sons join cheaply.', rest: 'Everyone is healed and every cart mended. Spend while you are safe.', before: '<b>Raiders are waiting on this ground.</b> Spend now: next you position, then the night.' }[kind] + (S.crewNote ? ` <b>${S.crewNote}</b>` : '');
+  const title = { parley: 'Passage paid', market: 'Horse market', village: 'Village', rest: 'Friendly fort', before: S.afterShop === 'boss' ? 'Before the border fort' : 'Before the fight' }[kind];
+  S.shopSub = { parley: 'The warband lets you pass. <b>No fight tonight.</b> Spend on the column, then camp.', market: '<b>Buy and sell here.</b> Trade food, wood and stone, and spend on the column.', village: 'They share <b>one gift</b>, and their sons join cheaply.', rest: 'Everyone is healed and every cart mended. Spend while you are safe.', before: '<b>Raiders are waiting on this ground.</b> Spend now: next you position, then the night.' }[kind] + (S.crewNote ? ` <b>${S.crewNote}</b>` : '');
   $('#shopGo').textContent = kind === 'before' ? 'To the field \u2192' : 'Make camp \u2192';
   $('#shopT').textContent = 'Build phase \u00b7 ' + title;
   shopOpts = [];
@@ -6997,6 +7111,7 @@ function comboCheck() {
   for (const c of COMBOS) if (c.on()) {
     S.combo[c.key] = true;
     if (!regMet.has('c_' + c.key)) { regMark('c_' + c.key, true); regQueue.push({ title: 'A combination: ' + c.name, sub: c.short }); }
+    if (c.key === 'wagonfort') feat('drill');
   }
   if (S.combo.wagonfort) S.drum = 4;
 }
@@ -7045,6 +7160,8 @@ function start() {
   if (resuming) { const sv = savedRun(); resuming = false; if (sv) { S.state = 'day'; resumeRun(sv); reviveHero(); banner(REGION_NAME[S.region] || 'The road', 'The column takes up the road where it stopped.', 3); openMap(); return; } }
   forgetRun();   // a new road: the last one is left behind
   if (DAILY) { const tw = dailyTwist(DAILY); tw.apply(); setTimeout(() => banner('Today\u2019s road: ' + tw.name, tw.text, 4.5), 400); }
+  S.commander = 'default';
+  if (!DAILY && COMMANDERS.some(c => c.feat && FEATS.has(c.key))) return chooseCommander(startDay);   // only once there is a choice to make
   startDay();
 }
 let resuming = false;
@@ -7220,7 +7337,7 @@ setTimeout(() => {
   } catch (e) { console.info('shader warm-up skipped', e); }
   seed = seed0;
 }, 600);
-window.__ff = { beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
