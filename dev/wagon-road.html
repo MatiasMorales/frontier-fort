@@ -275,6 +275,7 @@ body:has(:is(#smap, #shop, #dawn, #end):not([hidden])) :is(#status, #keepBox, #b
 .wtag.group{ display:flex; gap:10px; font-weight:600; } .wtag.group[hidden]{ display:none; } .wtag.group span{ padding:0 2px 1px; } .wtag.group .ic{ margin-right:4px; }
 .rtag{ border-color:#d2462f; text-align:center; } .rtag b{ display:block; color:#ff7a5a; font-size:14px; letter-spacing:.06em; text-transform:uppercase; }
 .rtag i{ position:absolute; left:50%; bottom:-7px; width:12px; height:12px; margin-left:-6px; transform:rotate(45deg); background:rgba(38,20,16,.88); border-right:1px solid #d2462f; border-bottom:1px solid #d2462f; }
+.rtag .wb{ display:flex; gap:8px; justify-content:center; font-weight:600; font-variant-numeric:tabular-nums; } .rtag .wb span{ display:inline-flex; align-items:center; gap:2px; } .rtag .wb svg{ color:#ffcdb8; }
 .rtag.edge i{ display:none; } .rtag.edge{ background:rgba(120,30,20,.92); } .rtag.edge b{ color:#ffd9cc; }
 .is-paused .wtag, .is-paused .rtag{ display:none !important; }
 #shopOpts{ }
@@ -356,6 +357,16 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 #dailyBest{ color:#cbb894; margin-left:6px; }
 .chronSheet{ max-width:760px; max-height:calc(100vh - 80px); overflow:auto; text-align:left; }
 .chronSheet h2, .chronSheet .lead{ text-align:center; } .chronSheet > .go{ display:block; margin:14px auto 0; }
+.regSheet{ max-width:960px; max-height:calc(100vh - 60px); overflow:auto; text-align:left; }
+.regSheet h2, .regSheet .lead{ text-align:center; } .regSheet > .go{ display:block; margin:14px auto 0; }
+.regSheet h3{ font-family:var(--brush, serif); color:var(--gold); font-size:18px; margin:14px 0 8px; letter-spacing:.04em; }
+.regGrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; }
+.regCard{ border:1px solid var(--lacquer-edge); border-radius:6px; padding:8px 10px 10px; background:rgba(20,12,10,.55); display:grid; grid-template-rows:auto auto 1fr; gap:4px; }
+.regCard img{ width:100%; aspect-ratio:24/17; object-fit:contain; border-radius:4px; background:radial-gradient(ellipse at 50% 60%, rgba(234,219,192,.14), rgba(0,0,0,0) 70%); }
+.regCard b{ color:var(--gold); font-size:16px; } .regCard .zh{ color:#c9a86a; margin-left:6px; font-size:15px; }
+.regCard p{ margin:0 !important; font-size:14px !important; line-height:1.4; color:var(--paper); max-width:none !important; }
+.regCard.locked img{ filter:brightness(0) opacity(.35); } .regCard.locked b, .regCard.locked p{ color:#8f806a; }
+.regCard.new{ border-color:var(--gold); }
 .chronRun{ border:1px solid var(--lacquer-edge); border-radius:6px; padding:10px 14px; margin:0 0 10px; background:rgba(20,12,10,.5); }
 .chronRun b{ color:var(--gold); } .chronRun .d{ color:#a8977a; font-size:13px; float:right; } .chronRun p{ margin:4px 0 0 !important; font-size:15px !important; max-width:none !important; }
 #speedChip{ position:fixed; right:calc(16px + env(safe-area-inset-right,0px)); bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:6; font-size:14px; padding:5px 12px; border-radius:16px; background:rgba(30,16,13,.86); border:1px solid var(--lacquer-edge); color:var(--paper); cursor:pointer; user-select:none; }
@@ -440,6 +451,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
       <span><kbd>↑</kbd><kbd>↓</kbd></span><span>choose an action</span><span><kbd>◀</kbd><kbd>▶</kbd></span><span>how many soldiers</span>
       <span><kbd>F</kbd></span><span>double speed (night)</span><span><kbd>P</kbd></span><span>pause and look</span>
     </div>
+    <button class="link" id="oReg" type="button" style="justify-self:center">The register: raiders and how to answer them</button>
     <button class="go" id="oClose" type="button">Back to the valley</button>
     <p class="hintv" style="margin:6px 0 0;justify-self:center">Esc closes this too</p>
   </div>
@@ -463,15 +475,18 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
       <span><kbd>Esc</kbd>pause</span>
     </div>
     <div class="titleBtns"><button class="go" id="contBtn" type="button" hidden>Continue</button><button class="go" id="startBtn" type="button">Take the road</button></div>
-    <p class="titleLinks"><button type="button" class="link" id="dailyBtn">Today's road</button><span id="dailyBest"></span> · <button type="button" class="link" id="chronBtn">Chronicle</button></p>
+    <p class="titleLinks"><button type="button" class="link" id="dailyBtn">Today's road</button><span id="dailyBest"></span> · <button type="button" class="link" id="chronBtn">Chronicle</button> · <button type="button" class="link" id="regBtn">Register</button></p>
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
 <div id="chron" class="overlay" hidden style="z-index:40;background:radial-gradient(ellipse at center, rgba(26,18,16,.93), rgba(20,13,11,.98))">
   <div class="sheet chronSheet"><h2>The chronicle</h2><p class="lead">Every road this column has taken, newest first.</p><div id="chronList"></div><button class="go" id="chronClose" type="button">Back</button></div>
 </div>
+<div id="reg" class="overlay" hidden style="z-index:61;background:radial-gradient(ellipse at center, #1c1311, #140d0b)">
+  <div class="sheet regSheet"><h2>The register</h2><p class="lead">After Qi Jiguang's drill books: every raider and every arm, drawn once met, with how it is answered.</p><div id="regList"></div><button class="go" id="regClose" type="button">Back</button></div>
+</div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 30 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 31 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2162,6 +2177,66 @@ function flare(id) {
   part(B(0.05, 0.9, 1.3), '#d2462f', 0, 3.4, 0.65, g).userData.flag = true;
 }
 
+/* The beacon chain (烽火). Ming frontier law tied the number of smokes on a beacon to the size of the raiding force,
+   so the towers on the ridge above tonight's passes are lit one after another as the column arrives, and each carries
+   that many columns of smoke: one for a raiding party, two for a large raid, three for a chief's warband, four for the
+   horde at the border fort. The smoke is one instanced mesh (a single draw call) and stops when the night begins. */
+const beaconGroup = new THREE.Group(); scene.add(beaconGroup);
+const SMOKE_MAX = 260, smokeMesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0),
+  new THREE.MeshLambertMaterial({ color: '#77706a', transparent: true, opacity: 0.55, depthWrite: false, flatShading: true }), SMOKE_MAX);
+smokeMesh.count = 0; smokeMesh.frustumCulled = false; smokeMesh.castShadow = false; scene.add(smokeMesh);
+const beacons = [], bsmoke = [], bM = new THREE.Matrix4(), bQ = new THREE.Quaternion(), bUp = new THREE.Vector3(0, 1, 0), bP = new THREE.Vector3(), bS = new THREE.Vector3();
+const SMOKE_MEAN = ['', 'a raiding party', 'a large raid', 'a chief\u2019s warband', 'the whole horde'];
+function beaconSmokes(total) { return S.nightType === 'boss' ? 4 : S.nightType === 'elite' ? 3 : total >= 45 ? 2 : 1; }
+function clearBeacons() {
+  while (beaconGroup.children.length) beaconGroup.remove(beaconGroup.children[0]);
+  beacons.length = 0; bsmoke.length = 0; smokeMesh.count = 0;
+}
+function lightBeacons(ids, n) {
+  clearBeacons();
+  ids.forEach((id, i) => {
+    const P = NODES[id] && NODES[id].pos; if (!P) return;
+    // a little to one side of the pass, so the tower stands clear of the road
+    let dx = P.x - VALLEY.cx, dz = P.z - VALLEY.cz; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
+    let x = P.x, z = P.z, best = 1e9;
+    // on the shoulder of the pass, just above the valley floor: higher up, the mountain that dissolves round the rider hides it
+    for (const out of [-6, -4, -2, 0]) for (const side of [-7, -5.5, -4, 4, 5.5, 7]) {
+      const cx = P.x + dx * out - dz * side, cz = P.z + dz * out + dx * side, h = hgt(cx, cz), cost = Math.abs(h - 1.6) + (side < 0 ? 0.3 : 0) + (blocked(cx, cz) ? 5 : 0);
+      if (cost < best) { best = cost; x = cx; z = cz; }
+    }
+    const y = Math.max(hgt(x, z), 0) - 0.2;
+    const g = new THREE.Group(); g.position.set(x, y, z); beaconGroup.add(g);
+    part(CYL(0.8, 1.2, 3.4, 4), EARTH[0], 0, 1.7, 0, g).rotation.y = Math.PI / 4;
+    part(CYL(0.45, 0.38, 0.4, 6), '#3a2e26', 0, 3.6, 0, g);
+    const fl = part(new THREE.ConeGeometry(0.36, 0.9, 6), M('#ff9a3a', { emissive: '#ff6a00', emissiveIntensity: 1.6 }), 0, 4.2, 0, g);
+    fl.castShadow = false; fl.visible = false;
+    beacons.push({ x, y: y + 4.2, z, fl, n, lit: 0.9 + i * 1.1, on: false, emit: 0 });
+  });
+}
+function updateBeacons(dt) {
+  const burning = S.state === 'day' && (S.phase === 'dusk' || S.phase === 'circling' || S.phase === 'prep');
+  for (const b of beacons) {
+    if (!b.on) { b.lit -= dt; if (b.lit <= 0 && burning) { b.on = true; b.fl.visible = true; sfxAt('fire', b, 0.8, 90, 0.3); } continue; }
+    b.fl.scale.y = 1 + Math.sin(clock * 11 + b.x) * 0.15;
+    if (!burning) continue;
+    b.emit -= dt;
+    if (b.emit <= 0 && bsmoke.length < SMOKE_MAX - b.n) {
+      b.emit = 0.32;
+      for (let k = 0; k < b.n; k++) bsmoke.push({ x: b.x + (k - (b.n - 1) / 2) * 1.5, y: b.y + 0.4, z: b.z, t: 0, life: 4.5 + Math.random(), r: Math.random() * 6 });
+    }
+  }
+  if (!bsmoke.length) { smokeMesh.count = 0; return; }
+  let j = 0;
+  for (let i = 0; i < bsmoke.length; i++) {
+    const q = bsmoke[i]; q.t += dt; if (q.t >= q.life) continue;
+    const k = q.t / q.life, sc = (0.45 + k * 1.6) * Math.min(1, (1 - k) * 4);   // grows as it rises, thins away at the top
+    q.y += dt * (2.6 - k * 1.2); q.x += dt * (0.5 + k * 0.9);                  // a steady wind off the steppe
+    bM.compose(bP.set(q.x, q.y, q.z), bQ.setFromAxisAngle(bUp, q.r + q.t * 0.3), bS.set(sc, sc * 0.8, sc));
+    smokeMesh.setMatrixAt(j, bM); bsmoke[j++] = q;
+  }
+  bsmoke.length = j; smokeMesh.count = j; smokeMesh.instanceMatrix.needsUpdate = true;
+}
+
 /* ================= health bars & HUD ================= */
 const barGeo = new THREE.PlaneGeometry(1, 1);
 function makeBar(color, w) {
@@ -2834,6 +2909,7 @@ function spawnEnemy(type, entry) {
     barY: type === 'captain' ? 4.2 : (type === 'horse' || type === 'lancer' ? 2.7 : type === 'ironcoat' ? 2.3 : 2.0), rainCd: 2 + Math.random() * 3, slamCd: 0, lance: 'idle', lanceT: 2 + Math.random() * 2, speed: t.speed * (0.9 + Math.random() * 0.2) };
   if (WAGON && S.hardness > 1) { e.hp *= S.hardness; e.max = e.hp; }
   if (type === 'shield') { e.shieldHp = 45; e.shieldMesh = m.shield2; }
+  if (WAGON && S.state === 'night') regMark(type);
   e.to = decide(e, entry, null);
   e.bar = makeBar('#d2462f', type === 'captain' ? 1.8 : 0.9);
   scene.add(m.g); enemies.push(e);
@@ -3525,7 +3601,8 @@ function startNight() {
   S.foodDmg = {}; S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0; S.volleyT = 12; S.drum = 0; S.drumT = 0;
   S.armourUsed = false; S.longWallUsed = false; for (const c of CROSSINGS) c.burnedTonight = false; Sound.play('bell');
   active = null; renderPrompt();
-  const W = WAGON ? veterans(waveFor(S.day)) : waveFor(S.day), f = W.foot, h = W.horse, cap = W.captain, ne = W.entries;
+  // the warband was drawn when the column arrived (enterField), so the pass markers could say exactly who is coming
+  const W = S.nightW || (WAGON ? veterans(waveFor(S.day)) : waveFor(S.day)), f = W.foot, h = W.horse, cap = W.captain, ne = W.entries; S.nightW = null;
   S.hardness = W.hardness || 1;
   S.entries = (S.preEntries && S.preEntries.length ? S.preEntries : pickEntries(ne)); S.preEntries = null;
   const neUsed = S.entries.length;   // a river's far bank may have fewer passes than the night asked for
@@ -4567,7 +4644,7 @@ const Sound = (() => {
 addEventListener('keydown', e => {
   Sound.init();
   if (WAGON && convoyKeys(e)) return;
-  if (e.code === 'Escape') { if (S.state !== 'title') setPaused(!paused); e.preventDefault(); return; }
+  if (e.code === 'Escape') { if (!$('#reg').hidden) $('#reg').hidden = true; else if (!$('#chron').hidden) $('#chron').hidden = true; else if (S.state !== 'title') setPaused(!paused); e.preventDefault(); return; }
   if (paused) return;
   keys[e.code] = true;
   if (S.state === 'dawn') {
@@ -5217,7 +5294,7 @@ function enterField(type) {
   for (const k in fleeCache) delete fleeCache[k];
   const node = S.map[S.at];
   if (type === 'boss') loadFort(); else genField(S.region >= 1 ? 5 : 4, node.kind);
-  const W = waveFor();
+  const W = veterans(waveFor()); S.nightW = W;
   S.preEntries = pickEntries(W.entries);
   // across a river the warband comes from the far bank: the column starts on the other side
   const bank = (x, z) => { const L = FIELD.riverLine; return L ? Math.sign((x - L.x0) * L.dz - (z - L.z0) * L.dx) : 0; };
@@ -5227,8 +5304,8 @@ function enterField(type) {
     S.preEntries = sides[farSide].sort(() => Math.random() - 0.5).slice(0, W.entries);
     S.homeBank = -(+farSide);
   } else S.homeBank = 0;
-  const total = ['foot', 'horse', 'lancer', 'shield', 'torch', 'ironcoat', 'spearhedge', 'captain'].reduce((a, k) => a + (W[k] || 0), 0);
-  S.passCount = Math.round(total / S.preEntries.length);
+  S.byPass = warbandByPass(W, S.preEntries.length);
+  S.passCount = Math.round(S.byPass.reduce((a, g) => a + g.n, 0) / Math.max(1, S.byPass.length));
   drawPassZones(); placeBaggage(type);
   let x, z, rot;
   if (type === 'boss') { x = 0; z = -22; rot = 0; }
@@ -5248,6 +5325,8 @@ function enterField(type) {
   hero.pos.set(x + Math.cos(rot) * 2.6, 0, z - Math.sin(rot) * 2.6); hero.face = rot; hero.alive = true; hero.m.g.visible = true;
   camFocus.set(hero.pos.x, 0, hero.pos.z);
   for (const id of S.preEntries) flare(id);
+  regOwned();
+  lightBeacons(S.preEntries, beaconSmokes(S.byPass.reduce((a, g) => a + g.n, 0)));
   musterSoldiers(); convoyHomes();
   DIST_TARGET = type === 'boss' ? 'K' : nearestNode(x, z, id => id[0] !== 'P'); distDirty = true;
   refreshSacks(); refreshHUD();
@@ -5311,6 +5390,28 @@ function pickEntries(n) { return ENTRIES.map(x => x.id).sort(() => Math.random()
 // allows (up to half by the end), and raiders everywhere are tougher each region. The warband does
 // not only grow; what it is made of changes, so the same army that won early loses late.
 const WAVE_TUNE = { all: 0.9, fire: 1.5 };   // see the end of veterans()
+// Who comes down each pass tonight, by kind, with startNight's own rule (the i-th raider of a kind takes pass i mod n).
+// Kinds are grouped by how you answer them: blades, riders, bows, armour, engines, captains.
+const WB_KIND = { foot: 'blade', torch: 'blade', horse: 'rider', lancer: 'rider', lasso: 'rider', bowman: 'bow', firearcher: 'bow', potter: 'bow',
+  shield: 'armour', ironcoat: 'armour', spearhedge: 'armour', engine: 'engine', captain: 'captain' };
+const WB_ORDER = ['blade', 'rider', 'bow', 'armour', 'engine', 'captain'];
+const WB_NAME = { blade: 'foot raiders', rider: 'riders', bow: 'archers', armour: 'armoured men', engine: 'siege engine', captain: 'captain' };
+function warbandByPass(W, ne) {
+  const n = { ...W }; n.foot = Math.max(8, (W.foot || 0) - (W.bowman || 0) - (W.potter || 0) - (W.lasso || 0) - (W.engine || 0) * 2);
+  const out = Array.from({ length: Math.max(1, ne) }, () => ({ n: 0 }));
+  for (const t in WB_KIND) { const c = n[t] || 0; for (let k = 0; k < out.length; k++) { const m = Math.floor(c / out.length) + (k < c % out.length ? 1 : 0); if (m) { const g = WB_KIND[t]; out[k][g] = (out[k][g] || 0) + m; out[k].n += m; } } }
+  return out;
+}
+// small drawn glyphs for the pass markers: a picture and a number reads at a glance, a list of words does not
+const WB_SVG = {
+  blade: '<path d="M3 13 L12 4 L13.5 2.5 L13 5 L4.5 13.5Z M2.5 11.5 L4.5 13.5" stroke="currentColor" stroke-width="1.6" fill="currentColor" stroke-linecap="round"/>',
+  rider: '<path d="M2 14 L4 9 Q4 6 7 5 L9 2 L10 4.5 L13.5 6.5 L12.5 8 L10 7.5 L10 10 L12 14 M4 9 L6 14" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>',
+  bow: '<path d="M5 2 Q13 8 5 14" stroke="currentColor" stroke-width="1.7" fill="none"/><path d="M5 2 L5 14 M3 8 L13 8 M11 6 L13 8 L11 10" stroke="currentColor" stroke-width="1.2" fill="none"/>',
+  armour: '<path d="M8 1.5 L14 4 Q14 11 8 14.5 Q2 11 2 4Z" fill="currentColor"/><path d="M8 4 L8 12 M4.5 7 L11.5 7" stroke="#261410" stroke-width="1.2"/>',
+  engine: '<path d="M2 14 L6 6 L10 14 M3.5 11 L8.5 11 M6 6 L14 2 M6 6 L4 9" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/><circle cx="4" cy="10" r="1.6" fill="currentColor"/>',
+  captain: '<path d="M8 1 L10 6 L15 6 L11 9.5 L12.5 14.5 L8 11.5 L3.5 14.5 L5 9.5 L1 6 L6 6Z" fill="currentColor"/>',
+};
+function warbandHTML(g) { return WB_ORDER.filter(k => g[k]).map(k => `<span title="${g[k]} ${WB_NAME[k]}"><svg viewBox="0 0 16 16" width="15" height="15">${WB_SVG[k]}</svg>${g[k]}</span>`).join(''); }
 function veterans(W) {
   const g = runStep(), T = tier(), share = Math.min(0.5, 0.055 * Math.max(0, g - 5));   // none in the first region, half the foot by the end of region 3
   const pool = ['bowman', ...(T >= 1 ? ['horse', 'horse'] : []), ...(T >= 2 ? ['potter', 'firearcher'] : []), ...(T >= 3 ? ['shield', 'ironcoat', 'spearhedge', 'lancer', 'lasso'] : [])];
@@ -5400,7 +5501,7 @@ function clearField() {
   for (const a of shots) scene.remove(a.m); shots.length = 0;
   for (const r of rockets) r.ms.forEach(m => scene.remove(m)); rockets.length = 0;
   for (const sk of sacks) scene.remove(sk.m); sacks.length = 0;
-  clearDangers(); clearPermanence(); clearBaggage();
+  clearDangers(); clearPermanence(); clearBaggage(); clearBeacons();
   for (const p of S.roadPlots) { if (p.building) { const b = p.building; b.alive = false; scene.remove(b.g); if (b.bar) scene.remove(b.bar); buildings.splice(buildings.indexOf(b), 1); } if (p.ruin) scene.remove(p.ruin.g); }
   S.roadPlots = [];
   for (const g of gapMarks) scene.remove(g); gapMarks.length = 0;
@@ -5985,6 +6086,8 @@ const THUMBS = {
   salvage: () => group([logs(3), -0.6, 0], [pile('#a39d92', new THREE.DodecahedronGeometry(0.3, 0), 3), 0.8, 0]),
   timber: () => logs(6),
 };
+for (const t of ['foot', 'bowman', 'horse', 'torch', 'firearcher', 'potter', 'engine', 'shield', 'ironcoat', 'spearhedge', 'lasso', 'captain']) THUMBS['r_' + t] = () => makeEnemyModel(t).g;
+THUMBS.r_lancer = () => makeLancerModel().g;
 function thumb(key) {
   if (thumbCache[key] !== undefined) return thumbCache[key];
   const make = THUMBS[key]; if (!make) return (thumbCache[key] = '');
@@ -6388,7 +6491,9 @@ function fieldBrief() {
   const f = FIELD.features || [], out = [];
   if (f.includes('fort')) out.push('a ruined fort'); if (f.includes('wall')) out.push('a border wall'); if (f.includes('beacon')) out.push('a beacon mound');
   if (BAG.cart && !BAG.taken) out.push('a raider baggage cart');
-  return out.length ? `<div class="brief">On this field: ${out.join(' \u00b7 ')}</div>` : '';
+  const bn = beacons.length ? beacons[0].n : 0;
+  const bl = bn && S.phase !== 'circling' ? `<div class="brief">The beacons show ${['', 'one smoke', 'two smokes', 'three smokes', 'four smokes'][bn]}: ${SMOKE_MEAN[bn]}</div>` : '';
+  return bl + (out.length ? `<div class="brief">On this field: ${out.join(' \u00b7 ')}</div>` : '');
 }
 function nightTip() {
   const alive = t => enemies.some(e => e.alive && e.etype === t);
@@ -6502,7 +6607,8 @@ function updateTags() {
     const el = rTags[id] || (rTags[id] = Object.assign(document.createElement('div'), { className: 'rtag' }));
     if (!el.parentNode) tagBox.appendChild(el);
     const en = ENTRIES.find(e => e.id === id); if (!en || !NODES[id]) { setHidden(el, true); continue; }
-    setHTML(el, S.state === 'night' ? '<b>Raiders</b><i></i>' : `<b>${S.passCount} raiders</b>${en.name.replace(/^the /, '')}<i></i>`);   // by night the arrows carry the count; the name has done its work
+    const g = S.byPass && S.byPass[ids.indexOf(id)];
+    setHTML(el, S.state === 'night' ? '<b>Raiders</b><i></i>' : g ? `<b>${g.n} raiders</b><span class="wb">${warbandHTML(g)}</span><i></i>` : `<b>${S.passCount} raiders</b>${en.name.replace(/^the /, '')}<i></i>`);   // by night the arrows carry the count
     screenTag(el, NODES[id].pos, 6, true);
   }
   // labels must not hide each other. Fixed order, so two labels never swap places from one
@@ -6723,6 +6829,63 @@ function titleExtras() {
   try { const b = JSON.parse(localStorage.getItem('wagon-road-daily-best') || '{}')[today()]; const tw = dailyTwist(today());
     setHTML($('#dailyBest'), `\u00b7 ${tw.name}${b ? ` \u00b7 your best today, region ${b.region} floor ${b.floor}` : ''}`); } catch (e) {}
 }
+/* The register (after the Jixiao Xinshu's drawn plates): each raider kind and each of our arms, drawn once it has been
+   met, with one line on how it is answered. What has been met is kept in the browser (localStorage), across runs. A
+   raider met for the first time says so in a callout, once. */
+const REGISTER = [
+  ['foot', 'r', 'Foot raider', '步卒', 'The mass of every warband. Carts and spearmen hold them; a gallop tramples them.', 'Carts and spears hold them'],
+  ['bowman', 'r', 'Steppe bowman', '弓手', 'Stands off and rains arrows where you are riding. Keep moving, and ride him down.', 'Keep moving; ride him down'],
+  ['horse', 'r', 'Horse archer', '骑射', 'Shoots, then wheels away. Run him down while he stands to loose.', 'Catch him while he stands'],
+  ['torch', 'r', 'Torchbearer', '火把手', 'Sprints past your line for the carts. Catch him on the road.', 'Catch him on the road'],
+  ['firearcher', 'r', 'Fire archer', '火箭手', 'Stands beyond the carts\u2019 reach and burns the loads. Ride out, or post men forward.', 'Ride out to him'],
+  ['potter', 'r', 'Pot thrower', '火罐手', 'His fire pot leaves the ground burning for a few seconds. Keep your men out of it.', 'Keep out of the flames'],
+  ['engine', 'r', 'Siege engine', '回回炮', 'Drops stones on the ring from far out. Only men on the field, or your charge, reach it.', 'Only men out on the field reach it'],
+  ['shield', 'r', 'Shieldman', '盾手', 'Arrows stop at his shield from the front. Take him in the flank, or charge.', 'Flank him, or charge'],
+  ['ironcoat', 'r', 'Ironcoat', '铁甲', 'Lamellar turns arrows. The gallop charge breaks him.', 'Arrows glance off: charge him'],
+  ['spearhedge', 'r', 'Spear hedge', '枪阵', 'Long spears break a charge. Shoot him off the road.', 'Shoot him; never charge'],
+  ['lancer', 'r', 'Lancer', '枪骑', 'Charges in a straight line. Step aside, then strike.', 'Step aside, then strike'],
+  ['lasso', 'r', 'Lasso rider', '套马手', 'Throws his line along a lane marked on the ground. Leave the lane, or be dragged.', 'Leave the marked lane'],
+  ['captain', 'r', 'Captain', '那颜', 'Leads the warband. He shows his blow before he lands it, and stands open after.', 'Strike after his blow lands'],
+  ['spear', 'a', 'Spearmen', '长枪手', 'Hold ground hand to hand. Posted beyond the ring, or in a gate, they fight 50% harder.', 'recruit'],
+  ['archer', 'a', 'Archers', '弓手', 'Shoot from where they stand. Lamellar and shields turn their arrows.', 'archers'],
+  ['horseman', 'a', 'Horsemen', '骑兵', 'Fast and tough: they reach what the others cannot.', 'horseman'],
+  ['tower', 'a', 'Crossbow cart', '弩车', 'Bolts at one raider at a time, from the ring or set down on a road.', 'tower'],
+  ['rockets', 'a', 'Rocket cart', '火箭车', 'Bursts of rockets on a crowd.', 'rockets'],
+  ['bombard', 'a', 'Bombard cart', '将军炮', 'Heavy shot at the toughest raider in reach.', 'bombard'],
+  ['barricade', 'a', 'Barricade wagon', '拒马车', 'Set across a road, it bars it; in the ring, it closes a side.', 'barricade'],
+  ['palisade', 'a', 'Palisade wagon', '鹿角车', 'Unfolds stakes that close the ring on both sides of it.', 'palisade'],
+  ['commander', 'a', 'The commander', '将', 'Shoots standing still, tramples at a gallop, and makes the carts round him fire 50% harder.', 'commander'],
+];
+let regMet = new Set(), regFresh = new Set();
+try { regMet = new Set(JSON.parse(localStorage.getItem('wagon-road-register') || '[]')); } catch (e) {}
+const regQueue = [];
+function regMark(key, quiet) {
+  if (regMet.has(key)) return; regMet.add(key); regFresh.add(key);
+  try { localStorage.setItem('wagon-road-register', JSON.stringify([...regMet])); } catch (e) {}
+  const r = REGISTER.find(x => x[0] === key);
+  if (r && !quiet && r[1] === 'r') regQueue.push(r);
+}
+// what the column owns is in the register from the start: the commander, the men and the carts it has
+function regOwned() {
+  regMark('commander', true); regMark('barricade', true);
+  for (const m of S.roster || []) regMark(m.type === 'horse' ? 'horseman' : m.type, true);
+  for (const p of convoy) if (p.cartKind && REGISTER.some(x => x[0] === p.cartKind)) regMark(p.cartKind, true);
+}
+// one new raider at a time, under the phase strip, when no other callout is showing
+function regCallouts() {
+  if (!regQueue.length || calloutT > 0) return;
+  const r = regQueue.shift(); banner('New raider: ' + r[2], r[5], 4);   // the short answer; the register has the rest
+}
+function showRegister() {
+  regMark('commander', true); regMark('barricade', true); if (S.state !== 'title') regOwned();
+  const card = r => { const met = regMet.has(r[0]), src = thumb(r[1] === 'r' ? 'r_' + r[0] : r[5]);
+    return `<div class="regCard${met ? '' : ' locked'}${regFresh.has(r[0]) ? ' new' : ''}">${src ? `<img alt="" src="${src}">` : ''}<div><b>${met ? r[2] : 'Not yet met'}</b>${met ? `<span class="zh">${r[3]}</span>` : ''}</div><p>${met ? r[4] : (r[1] === 'r' ? 'Met on the road, it will be drawn here.' : 'Not yet with the column.')}</p></div>`; };
+  const nr = REGISTER.filter(r => r[1] === 'r'), na = REGISTER.filter(r => r[1] === 'a');
+  $('#regList').innerHTML = `<h3>Raiders \u00b7 ${nr.filter(r => regMet.has(r[0])).length} of ${nr.length} met</h3><div class="regGrid">${nr.map(card).join('')}</div>`
+    + `<h3>Our arms</h3><div class="regGrid">${na.map(card).join('')}</div>`;
+  regFresh.clear();
+  $('#reg').hidden = false;
+}
 function showChronicle() {
   let runs = []; try { runs = JSON.parse(localStorage.getItem('wagon-road-runs') || '[]'); } catch (e) {}
   const nm = t => t === 'archer' ? 'archer' : t === 'horse' ? 'horseman' : 'spearman';
@@ -6734,7 +6897,7 @@ function showChronicle() {
 }
 function speedChip() {
   const el = $('#speedChip'); if (!el) return;
-  const show = WAGON && (S.state === 'night' || lookPause) && !paused;
+  const show = WAGON && ((S.state === 'night' && fast) || lookPause) && !paused;   // at normal speed the key hint says it; the chip only marks a changed clock
   setHidden(el, !show); if (!show) return;
   setClass(el, 'paused', lookPause);
   setHTML(el, lookPause ? '<b>Paused</b> \u00b7 P to go on' : fast ? '<b>2\u00d7</b> \u00b7 F for normal speed' : '1\u00d7 \u00b7 F for double speed');
@@ -6753,6 +6916,9 @@ $('#contBtn').addEventListener('click', () => { Sound.init(); resuming = true; s
 $('#dailyBtn').addEventListener('click', () => { try { sessionStorage.setItem('wagon-road-daily', today()); sessionStorage.setItem('wagon-road-again', '1'); } catch (e) {} location.reload(); });
 $('#chronBtn').addEventListener('click', showChronicle);
 $('#chronClose').addEventListener('click', () => { $('#chron').hidden = true; });
+$('#regBtn').addEventListener('click', showRegister);
+$('#oReg').addEventListener('click', showRegister);
+$('#regClose').addEventListener('click', () => { $('#reg').hidden = true; });
 $('#speedChip').addEventListener('click', () => { if (S.state === 'night' && !lookPause) { fast = !fast; usedHint('fast'); } else if (lookPause) lookPause = false; speedChip(); });
 titleExtras();
 wireOptions();
@@ -6804,7 +6970,7 @@ function update(dt) {
   } else if (active) { active = null; renderPrompt(); }
   if (playing) updateFire(dt);
   updateAbilityBar(dt);
-  updateWorkers(dt); updateBridges(dt, clock);
+  updateWorkers(dt); updateBridges(dt, clock); updateBeacons(dt);
 
   // the night ends on the gong and a lone erhu, carried through the dawn; a lost run gets its lament
   Sound.setMood(S.state === 'title' ? 'menu' : S.state === 'lost' ? 'lament' : S.state === 'dawn' || (S.state === 'night' && S.clearT > 0) ? 'after' : S.state === 'night' ? 'night' : 'day');
@@ -6889,6 +7055,7 @@ function update(dt) {
   setFill(ui.keepBar, (WAGON ? (S.state === 'night' ? soldiers.reduce((a, x) => a + (x.alive ? x.hp : 0), 0) / Math.max(1, soldiers.reduce((a, x) => a + x.max, 0)) : S.roster.reduce((a, x) => a + x.hp, 0) / Math.max(1, S.roster.reduce((a, x) => a + x.max, 0))) : keep.hp / keep.max));
   if (bannerTimer > 0) { bannerTimer -= dt; if (bannerTimer <= 0) ui.banner.classList.remove('show'); }
   if (calloutT > 0) { calloutT -= dt; if (calloutT <= 0) setHidden($('#callout'), true); }
+  if (WAGON && S.state === 'night') regCallouts();
 }
 requestAnimationFrame(frame);
 // Shader warm-up: three.js compiles a material's shader the first time something using it is drawn, which can hitch
@@ -6910,7 +7077,7 @@ setTimeout(() => {
   } catch (e) { console.info('shader warm-up skipped', e); }
   seed = seed0;
 }, 600);
-window.__ff = { saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+window.__ff = { beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
