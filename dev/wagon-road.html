@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 58 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 59 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2268,7 +2268,7 @@ const flareGroup = new THREE.Group(); scene.add(flareGroup);
 function flare(id) {
   const p = NODES[id].pos, g = new THREE.Group(); g.position.set(p.x, p.y, p.z); flareGroup.add(g);
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 1.4, 30, 8, 1, true), new THREE.MeshBasicMaterial({ color: '#ff4a2a', transparent: true, opacity: 0.35, depthWrite: false }));
-  beam.position.y = 15; g.add(beam);
+  beam.position.y = 15; g.add(beam); g.userData.beam = beam;
   part(CYL(0.07, 0.07, 4, 5), C.woodDark, 0, 2, 0, g);
   part(B(0.05, 0.9, 1.3), '#d2462f', 0, 3.4, 0.65, g).userData.flag = true;
 }
@@ -2665,7 +2665,7 @@ function damage(ent, dmg, from, src) {
     S.nightKills[src || 'other'] = (S.nightKills[src || 'other'] || 0) + 1;
     // the war drum: every raider the commander drops beats it harder; full, the column surges
     if (WAGON && src === 'hero' && !(S.drumT > 0)) { S.drum = (S.drum || 0) + 1;
-      if (S.drum >= 8) { S.drum = 0; S.drumT = 8; banner('The war drums quicken', 'Every soldier and cart fights a third harder for a few breaths.', 2); Sound.play('ability'); kick(0.25); } }
+      if (S.drum >= 8) { S.drum = 0; S.drumT = 8; banner('The war drums quicken', 'Every soldier and cart fights a third harder for a few breaths.', 2); Sound.play('wardrum'); kick(0.25); } }
   }
   if (window.__dmgLog && ent.plot && isSupply(ent.kind)) window.__dmgLog.push([src || (from ? 'shot' : 'melee'), dmg]);
   if (WAGON && ent.plot && ent.kind === 'food' && S.foodDmg) { const k = src || (from ? 'shot' : 'melee'); S.foodDmg[k] = (S.foodDmg[k] || 0) + Math.min(dmg, ent.hp); }   // what burned it, for the end screen   // test harness: what hurts the loads
@@ -2674,7 +2674,7 @@ function damage(ent, dmg, from, src) {
   // a fire arrow in a supply wagon burns part of the load, for as long as nobody stops the archers
   if (WAGON && src === 'firearrow' && ent.plot && isSupply(ent.kind)) {
     const sp = SUPPLY[ent.kind], lost = Math.min(ETYPES.firearcher.burn, S.res[sp.res]);
-    if (lost > 0) { S.res[sp.res] -= lost; S.nightBurned = (S.nightBurned || 0) + lost; refreshSacks(); refreshHUD(); floatText(ent.pos, `\u2212${lost} ${sp.word} burned`); }
+    if (lost > 0) { S.res[sp.res] -= lost; S.nightBurned = (S.nightBurned || 0) + lost; refreshSacks(); refreshHUD(); floatText(ent.pos.clone().setY(ent.pos.y + 2.4), `\u2212${lost} ${sp.word} burned`); }   // above the supply sign, not across it
     puff(ent.pos, '#ff7a2a', 3, 1.5);
   }
   if (ent === hero) { hero.hitFlash = 0.3; Sound.play('hurt'); kick(0.5); }
@@ -3888,7 +3888,7 @@ function updateNight(dt) {
     if (q.wave > S.wave) {          // a fresh assault: name it, so the breather had a point
       S.wave = q.wave;
       banner(`Assault ${S.wave + 1} of ${S.waves}`, S.wave + 1 === S.waves ? 'The last of them. Hold.' : 'They come again.', 2.6);
-      Sound.play('horn'); Sound.play('wardrum'); kick(0.35);
+      Sound.play('horn'); setTimeout(() => Sound.play('wardrum'), 650); kick(0.35);   // their horn, then our drum answering
       refreshHUD();
     }
     spawnEnemy(q.type, q.entry);
@@ -3903,7 +3903,7 @@ function updateNight(dt) {
       if (archers >= 2) {
         const p = lead(hero), a = Math.random() * Math.PI, n = Math.min(7, 3 + Math.floor(archers / 3));
         for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2) * 3.4; circleDanger(p.x + Math.cos(a) * o, p.z + Math.sin(a) * o, 2.4, 1.6, 14); }
-        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('horn', 0.5); for (let k = 0; k < 4; k++) setTimeout(() => Sound.play('foeBow', 0.9), 250 + k * 90); kick(0.2);   // their bows, not the commander's volley
+        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); for (let k = 0; k < 4; k++) setTimeout(() => Sound.play('foeBow', 0.9), k * 90); kick(0.2);   // no horn: the horn means only 'they come' (round 7 counted 95 in 27 nights)   // their bows, not the commander's volley
       }
     }
   }
@@ -6177,7 +6177,7 @@ function siegeEngine(e, dt) {
   if (!e.deployed && d > e.t.reach) return null;             // rolling in along the roads
   if (!e.deployed && (riverDist(e.pos.x, e.pos.z) < RIVER_HALF + 1.6 || onBridge(e.pos))) return null;   // never set up in a ford or on a bridge, where nobody could reach it (the playtest found one in the river)
   if (e.deployed && e.anchor) { e.pos.x = e.anchor.x; e.pos.z = e.anchor.z; }   // nor does the crowd push it about
-  if (!e.deployed) { e.deployed = true; e.anchor = { x: e.pos.x, z: e.pos.z }; e.rangeCd = 3; banner('A siege engine is setting up', 'It outranges every cart. Ride out, or send men, to break it.', 3); Sound.play('horn'); }
+  if (!e.deployed) { e.deployed = true; e.anchor = { x: e.pos.x, z: e.pos.z }; e.rangeCd = 3; banner('A siege engine is setting up', 'It outranges every cart. Ride out, or send men, to break it.', 3); Sound.play('build'); Sound.play('clang', 0.6); }   // timbers and iron being set up, not a horn
   const foe = nearest([hero, ...soldiers], e.pos, f => f.alive && f.pos.distanceTo(e.pos) < 1.8 + e.t.rad);
   if (foe) return { attacking: foe, look: foe.pos };
   e.rangeCd -= dt;
@@ -6785,7 +6785,7 @@ function convoyWin() {
     m.home.set(bx, 0, bz); m.home.y = Math.max(groundY(m.home), 0); m.pos.copy(m.home); m.following = false; m.atConvoy = false; });
   S.endWall = { x: pn.pos.x, z: pn.pos.z };
   banner('The Great Wall', `After ${S.day} days on the road, the gate at the breach stands open.`, 6);
-  Sound.play('horn'); setTimeout(() => Sound.play('wardrum'), 900);
+  Sound.play('bell'); setTimeout(() => Sound.play('wardrum'), 900);   // the Wall's bell and our drum: the horn is the raiders'
 }
 function updateEnding(dt) {
   endingT += dt;
@@ -7079,7 +7079,7 @@ function screenTag(el, p, y, pin) {
   else setHidden(el, false);
   if (behind) { x = innerWidth - x; yy = innerHeight - m; }
   // anchored at its foot, so it clears the panels by its own height; pushed off its spot it loses its pointer
-  el._px = clamp(x, m + 50, innerWidth - m - 50);
+  const hw = sizeOf(el).w / 2 + 12; el._px = clamp(x, Math.max(m + 50, hw), innerWidth - Math.max(m + 50, hw));   // a wide marker is never cut by the edge
   const floor = clearTop(el._px, sizeOf(el).w) + sizeOf(el).h + 12; el._floor = floor;
   setClass(el, 'edge', (off && pin) || yy < floor);
   el._py = belowPrompt(el._px, sizeOf(el).w, clamp(yy, floor, innerHeight - m));
@@ -7127,13 +7127,14 @@ function updateTags() {
   const shown = [...(bt && !bt.hidden ? [bt] : []), groupTag, ...Object.keys(SUPPLY).map(k => wTags[k]), ...ids.map(id => rTags[id])].filter(el => el && !el.hidden);
   const placed = [];
   for (const el of shown) {
-    const x = el._px, sz = sizeOf(el), w = sz.w, h = sz.h + 4; let y = el._py;
-    for (let guard = 0; guard < 8; guard++) {
+    const x = el._px, sz = sizeOf(el), w = sz.w, h = sz.h + 4; let y = el._py, dir = 0;
+    for (let guard = 0; guard < 12; guard++) {
       const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h));
       if (!hit) break;
+      if (dir) { y = dir < 0 ? hit.y - Math.max(hit.h, h) : hit.y + Math.max(hit.h, h); if (dir < 0 && y < (el._floor || 0)) { dir = 1; y = hit.y + Math.max(hit.h, h); } continue; }   // keep going the way it went: flipping could end on top of another label
       // make room upward, unless that would put it under a panel (the playtest harness found two edge markers
       // stacked into the Soldiers panel): then below
-      const up = hit.y - Math.max(hit.h, h); y = up >= (el._floor || 0) ? up : hit.y + Math.max(hit.h, h);
+      const up = hit.y - Math.max(hit.h, h); dir = up >= (el._floor || 0) ? -1 : 1; y = dir < 0 ? up : hit.y + Math.max(hit.h, h);
     }
     el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : damp(el._y, y, 0.045, animDt);
     placeAt(el, x, el._y); placed.push({ x, y, w, h });
@@ -7555,6 +7556,8 @@ function update(dt) {
 
   for (const b of buildings) if (b.pop < 1) { b.pop = Math.min(1, b.pop + dt * 3.2); const k = b.pop; b.g.scale.setScalar(Math.max(0.05, 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2))); }
   const wave = o => { if (o.userData.flag) o.rotation.y = Math.sin(clock * 4 + o.id) * 0.25; };
+  // a pass beam close under the camera reads as a red slab across the view (round 7): it thins as the camera nears it
+  for (const fg of flareGroup.children) { const bm = fg.userData.beam; if (!bm) continue; const d = Math.hypot(fg.position.x - camera.position.x, fg.position.z - camera.position.z); bm.material.opacity = 0.35 * clamp((d - 20) / 35, 0.12, 1); }
   keepModel.traverse(wave); flareGroup.traverse(wave); if (S.state === 'ending' || S.state === 'won') beaconGroup.traverse(wave);
   // every cart's pennant too: the flag list is gathered once per model, not traversed each frame
   if (BAG.cart) BAG.cart.traverse(wave);
@@ -7647,8 +7650,8 @@ setTimeout(() => {
   seed = seed0;
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
-window.__ff = { get campLife() { return campLife; }, bellPos, CASTLE_R, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
-Object.assign(window.__ff, { SFX_MIN, heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
+window.__ff = { get campLife() { return campLife; }, musterSoldiers, bellPos, CASTLE_R, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+Object.assign(window.__ff, { addSoldiers, joinConvoy, SFX_MIN, heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
 })();
 </script>
 </body>
