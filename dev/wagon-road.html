@@ -544,7 +544,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 38 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 39 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -6507,7 +6507,7 @@ function openMap() {
     for (let d = 0; d < days; d++) { const t = (d + 1) / (days + 1); h += `<circle class="day" cx="${lerp(x1, x2, t)}" cy="${lerp(y1, y2, t)}" r="3"/>`; }
   }
   for (const k in m) {
-    const n = m[k], x = MX(n.c), y = MY(n.f), opt = mapOpts.includes(k), R = n.type === 'boss' ? 30 : 24;
+    const n = m[k], x = MX(n.c), y = MY(n.f), opt = mapOpts.includes(k), R = n.type === 'boss' ? 22 : 17;   // about 60 px across at 1080p, 35 px on a small window (24 was far too big once the map took the full height)
     h += `<g class="node t-${n.type}${k === S.at ? ' here' : ''}${opt ? ' opt' : ''}${S.path.includes(k) && k !== S.at ? ' seen' : ''}" data-k="${k}">`
       + (opt ? `<circle class="halo" cx="${x}" cy="${y}" r="${R}"/><circle class="halo h2" cx="${x}" cy="${y}" r="${R}"/>` : '')
       + `<circle class="base" cx="${x}" cy="${y}" r="${R}"/><use class="ico" href="#ic-${n.type}" x="${x - R * 0.86}" y="${y - R * 0.86}" width="${R * 1.72}" height="${R * 1.72}"/></g>`;
@@ -6515,7 +6515,7 @@ function openMap() {
   $('#smapSvg').innerHTML = h;
   // frame the tree itself, so it fills its parchment instead of floating in an empty corner of it
   // and the parchment takes the tree's own shape (--mapAR), so no empty paper is left round it (the design check's fill rule)
-  { const pad = 56, xs = Object.values(m).map(n => MX(n.c)), ys = Object.values(m).map(n => MY(n.f)), x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad, vw = Math.max(...xs) + pad - x0, vh = Math.max(...ys) + pad - y0;
+  { const pad = 40, xs = Object.values(m).map(n => MX(n.c)), ys = Object.values(m).map(n => MY(n.f)), x0 = Math.min(...xs) - pad, y0 = Math.min(...ys) - pad, vw = Math.max(...xs) + pad - x0, vh = Math.max(...ys) + pad - y0;
     $('#smapSvg').setAttribute('viewBox', `${x0} ${y0} ${vw} ${vh}`); $('#smapSvg').style.setProperty('--mapAR', (vw / vh).toFixed(3)); fitMap(); }
   $('#smapSvg').querySelectorAll('.node.opt').forEach(g => {
     g.addEventListener('click', () => { mapSel = mapOpts.indexOf(g.dataset.k); confirmMap(); });
