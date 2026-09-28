@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 52 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 53 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -5509,8 +5509,7 @@ function welcome() {
   hero.alive = true; hero.m.g.visible = true; hero.pos.set(0, 0, -R - 13); hero.face = 0; camFocus.set(0, 0, -R + 1);
   layoutColumn(0, -R - 16.5, 0);
   welcomeS = { t: 0, leaves, men, done: false };
-  Sound.play('horn');
-  banner('A friendly fort', 'The garrison opens the gate.', 3);
+  Sound.play('horn');   // no callout: the HUD steps back for the scene, and the scene says it
 }
 function updateWelcome(dt) {
   const W = welcomeS; if (!W || S.phase !== 'welcome') return;
@@ -7570,7 +7569,8 @@ function update(dt) {
   for (const b of buildings) if (b.bar) updateBar(b, b.bar);
   for (const e of enemies) if (e.alive) updateBar(e, e.bar);
   for (const s of soldiers) if (s.alive) updateBar(s, s.bar);
-  setText(ui.keepN, String(WAGON ? (S.state === 'night' ? soldiers.filter(x => x.alive).length : S.roster.length) + ' / ' + LEVELS[S.level].soldiers : Math.max(0, Math.round(keep.hp))));
+  // at night: how many of tonight's men still stand ("0 / 22" read as the whole army lost; half the fallen are found alive at dawn)
+  setText(ui.keepN, String(WAGON ? (S.state === 'night' ? `${soldiers.filter(x => x.alive).length} of ${soldiers.length} standing` : S.roster.length + ' / ' + LEVELS[S.level].soldiers) : Math.max(0, Math.round(keep.hp))));
   setFill($('#stamI'), hero.stam / SPRINT.max);
   setText($('#heroN'), hero.alive ? String(Math.round(hero.hp)) : 'down'); setFill($('#heroBarI'), hero.alive ? hero.hp / hero.max : 0);
   hero.hitFlash = Math.max(0, (hero.hitFlash || 0) - dt);
@@ -7604,7 +7604,7 @@ setTimeout(() => {
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
 window.__ff = { get campLife() { return campLife; }, bellPos, CASTLE_R, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
-Object.assign(window.__ff, { WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
+Object.assign(window.__ff, { banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
 })();
 </script>
 </body>
