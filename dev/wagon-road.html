@@ -192,6 +192,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 .smapWrap{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:16px; align-items:start; }
 @media (max-width:760px){ .smapWrap{ grid-template-columns:1fr; } }
 /* while a full-screen menu is up, the field's HUD steps back: the menu carries its own numbers */
+body.ending :is(#status, #keepBox, #goal, #help, .wtag, .rtag, .threat, #bellTag, #phases, #callout, #speedChip){ opacity:0 !important; transition:opacity var(--out); }
 body:has(:is(#smap, #shop, #dawn, #end):not([hidden])) :is(#status, #keepBox, #banner, #callout, #goal, #help, .wtag, .rtag, .threat, #bellTag){ opacity:0 !important; transition:opacity var(--out); }
 #smapSvg{ width:100%; height:auto; max-height:calc(100vh - 335px); margin:0 auto; display:block; background:linear-gradient(180deg,#e7d8b7,#d6c39b); border-radius:6px; box-shadow:inset 0 0 0 1px #9c8250, 0 8px 24px rgba(0,0,0,.35); }
 #smapSvg line{ stroke:#8a7353; stroke-width:3; stroke-linecap:round; stroke-dasharray:2 7; opacity:.7; }
@@ -367,6 +368,8 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
 .regCard p{ margin:0 !important; font-size:14px !important; line-height:1.4; color:var(--paper); max-width:none !important; }
 .regCard.locked img{ filter:brightness(0) opacity(.35); } .regCard.locked b, .regCard.locked p{ color:#8f806a; }
 .regCard.new{ border-color:var(--gold); }
+#ledger .nearMiss{ color:#ffcf8a; font-size:1.08em; border-left:3px solid #d2462f; padding-left:10px; margin-bottom:6px; }
+.homeRow{ font-size:19px; color:var(--paper); } .homeRow b{ color:var(--gold); font-variant-numeric:tabular-nums; }
 .chronRun{ border:1px solid var(--lacquer-edge); border-radius:6px; padding:10px 14px; margin:0 0 10px; background:rgba(20,12,10,.5); }
 .chronRun b{ color:var(--gold); } .chronRun .d{ color:#a8977a; font-size:13px; float:right; } .chronRun p{ margin:4px 0 0 !important; font-size:15px !important; max-width:none !important; }
 #speedChip{ position:fixed; right:calc(16px + env(safe-area-inset-right,0px)); bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:6; font-size:14px; padding:5px 12px; border-radius:16px; background:rgba(30,16,13,.86); border:1px solid var(--lacquer-edge); color:var(--paper); cursor:pointer; user-select:none; }
@@ -479,14 +482,14 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   </div>
 </div>
 <!-- the version, small in the corner of the title and pause screens: never beside a button, where it reads as part of it -->
-<div id="chron" class="overlay" hidden style="z-index:40;background:radial-gradient(ellipse at center, rgba(26,18,16,.93), rgba(20,13,11,.98))">
+<div id="chron" class="overlay" hidden style="z-index:85;background:radial-gradient(ellipse at center, rgba(26,18,16,.93), rgba(20,13,11,.98))">
   <div class="sheet chronSheet"><h2>The chronicle</h2><p class="lead">Every road this column has taken, newest first.</p><div id="chronList"></div><button class="go" id="chronClose" type="button">Back</button></div>
 </div>
-<div id="reg" class="overlay" hidden style="z-index:61;background:radial-gradient(ellipse at center, #1c1311, #140d0b)">
+<div id="reg" class="overlay" hidden style="z-index:85;background:radial-gradient(ellipse at center, #1c1311, #140d0b)">
   <div class="sheet regSheet"><h2>The register</h2><p class="lead">After Qi Jiguang's drill books: every raider and every arm, drawn once met, with how it is answered.</p><div id="regList"></div><button class="go" id="regClose" type="button">Back</button></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 31 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 32 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2189,6 +2192,7 @@ const beacons = [], bsmoke = [], bM = new THREE.Matrix4(), bQ = new THREE.Quater
 const SMOKE_MEAN = ['', 'a raiding party', 'a large raid', 'a chief\u2019s warband', 'the whole horde'];
 function beaconSmokes(total) { return S.nightType === 'boss' ? 4 : S.nightType === 'elite' ? 3 : total >= 45 ? 2 : 1; }
 function clearBeacons() {
+  campLife = null;
   while (beaconGroup.children.length) beaconGroup.remove(beaconGroup.children[0]);
   beacons.length = 0; bsmoke.length = 0; smokeMesh.count = 0;
 }
@@ -2218,23 +2222,82 @@ function updateBeacons(dt) {
   for (const b of beacons) {
     if (!b.on) { b.lit -= dt; if (b.lit <= 0 && burning) { b.on = true; b.fl.visible = true; sfxAt('fire', b, 0.8, 90, 0.3); } continue; }
     b.fl.scale.y = 1 + Math.sin(clock * 11 + b.x) * 0.15;
-    if (!burning) continue;
+    if (!burning && !b.cook) continue;
     b.emit -= dt;
     if (b.emit <= 0 && bsmoke.length < SMOKE_MAX - b.n) {
-      b.emit = 0.32;
-      for (let k = 0; k < b.n; k++) bsmoke.push({ x: b.x + (k - (b.n - 1) / 2) * 1.5, y: b.y + 0.4, z: b.z, t: 0, life: 4.5 + Math.random(), r: Math.random() * 6 });
+      b.emit = b.cook ? 0.55 : 0.32;
+      for (let k = 0; k < b.n; k++) bsmoke.push({ x: b.x + (k - (b.n - 1) / 2) * 1.5, y: b.y + 0.4, z: b.z, t: 0, life: 4.5 + Math.random(), r: Math.random() * 6, s: b.cook ? 0.4 : 1 });
     }
   }
   if (!bsmoke.length) { smokeMesh.count = 0; return; }
   let j = 0;
   for (let i = 0; i < bsmoke.length; i++) {
     const q = bsmoke[i]; q.t += dt; if (q.t >= q.life) continue;
-    const k = q.t / q.life, sc = (0.45 + k * 1.6) * Math.min(1, (1 - k) * 4);   // grows as it rises, thins away at the top
+    const k = q.t / q.life, sc = (0.45 + k * 1.6) * Math.min(1, (1 - k) * 4) * q.s;   // grows as it rises, thins away at the top
     q.y += dt * (2.6 - k * 1.2); q.x += dt * (0.5 + k * 0.9);                  // a steady wind off the steppe
     bM.compose(bP.set(q.x, q.y, q.z), bQ.setFromAxisAngle(bUp, q.r + q.t * 0.3), bS.set(sc, sc * 0.8, sc));
     smokeMesh.setMatrixAt(j, bM); bsmoke[j++] = q;
   }
   bsmoke.length = j; smokeMesh.count = j; smokeMesh.instanceMatrix.needsUpdate = true;
+}
+
+/* Camp life (Hades' small living details): once the wagons are circled, a cook fire with its pot and smoke, two horses
+   tethered and grazing, and a camp dog that trots about the ring, sits, and lies down by the fire when the night comes.
+   A handful of meshes, updated with a few sines a frame. */
+let campLife = null;
+function makeDog() {
+  const g = new THREE.Group(), fur = '#8a6440', dark = '#4a3424';
+  const body = part(CYL(0.13, 0.15, 0.62, 6), fur, 0, 0.42, 0, g); body.rotation.x = Math.PI / 2;
+  const head = new THREE.Group(); head.position.set(0, 0.6, 0.36); g.add(head);
+  part(new THREE.SphereGeometry(0.13, 6, 5), fur, 0, 0, 0, head);
+  part(CYL(0.06, 0.08, 0.2, 5), dark, 0, -0.04, 0.14, head).rotation.x = Math.PI / 2;           // muzzle
+  for (const ex of [0.07, -0.07]) part(new THREE.ConeGeometry(0.05, 0.14, 4), dark, ex, 0.13, -0.02, head);
+  const legs = [];
+  for (const [x, z] of [[0.08, 0.22], [-0.08, 0.22], [0.08, -0.22], [-0.08, -0.22]]) {
+    const lg = new THREE.Group(); lg.position.set(x, 0.36, z); g.add(lg); part(CYL(0.035, 0.03, 0.36, 4), fur, 0, -0.18, 0, lg); legs.push(lg); }
+  const tail = new THREE.Group(); tail.position.set(0, 0.5, -0.3); g.add(tail);
+  part(CYL(0.03, 0.02, 0.3, 4), fur, 0, 0.13, -0.04, tail).rotation.x = -0.5;
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return { g, head, legs, tail };
+}
+function pitchCamp(cx, cz) {
+  if (campLife) return;
+  const fx = cx + 2.4, fz = cz - 1.6, fy = Math.max(groundY({ x: fx, z: fz }), 0);
+  const g = new THREE.Group(); g.position.set(fx, fy, fz); beaconGroup.add(g);
+  for (let k = 0; k < 7; k++) { const a = k / 7 * TAU; part(new THREE.DodecahedronGeometry(0.16, 0), '#8d887e', Math.cos(a) * 0.5, 0.08, Math.sin(a) * 0.5, g); }
+  for (const r of [0.4, -0.5]) part(CYL(0.07, 0.07, 0.8, 5), C.woodDark, 0, 0.12, 0, g).rotation.set(Math.PI / 2, r, 0);
+  const fl = part(new THREE.ConeGeometry(0.26, 0.6, 6), M('#ff9a3a', { emissive: '#ff6a00', emissiveIntensity: 1.6 }), 0, 0.4, 0, g); fl.castShadow = false;
+  for (let k = 0; k < 3; k++) { const a = k / 3 * TAU; const leg = part(CYL(0.025, 0.025, 1.4, 4), '#3a2e26', Math.cos(a) * 0.45, 0.65, Math.sin(a) * 0.45, g); leg.rotation.set(Math.sin(a) * 0.32, 0, -Math.cos(a) * 0.32); }
+  part(new THREE.SphereGeometry(0.24, 7, 5), '#2f2a26', 0, 0.78, 0, g).scale.set(1, 0.8, 1);           // the pot
+  beacons.push({ x: fx, y: fy + 1, z: fz, fl, n: 1, lit: 0, on: true, emit: 0.2, cook: true });
+  const horses = [];
+  for (const [ox, oz, col] of [[-3.4, 1.6, C.horseDark], [-3.0, -1.4, C.horseLight]]) {
+    const hg = new THREE.Group(), x = cx + ox, z = cz + oz; hg.position.set(x, Math.max(groundY({ x, z }), 0), z); hg.rotation.y = Math.random() * TAU;
+    horseBody(hg, col); part(B(0.5, 0.06, 0.62), C.lacquer, 0, 1.3, 0, hg);                         // the saddle cloth
+    const neck = hg.children.find(c => c.isGroup && Math.abs(c.position.y - 1.18) < 1e-3 && c.position.z > 0.4);
+    beaconGroup.add(hg); horses.push({ g: hg, neck, ph: Math.random() * 10 });
+  }
+  const dog = makeDog(); dog.g.position.set(cx, Math.max(groundY({ x: cx, z: cz }), 0), cz + 1.5); beaconGroup.add(dog.g);
+  campLife = { cx, cz, fx, fz, horses, dog, dogT: 0, dogTo: null, bob: 0 };
+}
+function updateCampLife(dt) {
+  const L = campLife; if (!L) return;
+  for (const h of L.horses) if (h.neck) { h.ph += dt; const graze = Math.max(0, Math.sin(h.ph * 0.35)); h.neck.rotation.x = 0.62 + graze * 1.25 + Math.sin(h.ph * 1.7) * 0.04 * graze; }
+  const d = L.dog, night = S.state === 'night';
+  L.dogT -= dt;
+  if (!L.dogTo || L.dogT <= 0) {
+    if (night) L.dogTo = { x: L.fx - 0.9, z: L.fz + 0.9, lie: true };
+    else { const a = Math.random() * TAU, r = 1.5 + Math.random() * 2.8; L.dogTo = { x: L.cx + Math.cos(a) * r, z: L.cz + Math.sin(a) * r, lie: false }; }
+    L.dogT = night ? 1e9 : 5 + Math.random() * 5;
+  }
+  const dx = L.dogTo.x - d.g.position.x, dz = L.dogTo.z - d.g.position.z, dist = Math.hypot(dx, dz), moving = dist > 0.15;
+  if (moving) { const sp = Math.min(dist, dt * 2.2); d.g.position.x += dx / dist * sp; d.g.position.z += dz / dist * sp; d.g.rotation.y = damp(d.g.rotation.y, d.g.rotation.y + angDiff(Math.atan2(dx, dz), d.g.rotation.y), 0.08, dt); L.bob += dt * 13; }
+  d.g.position.y = Math.max(groundY(d.g.position), 0);
+  d.legs.forEach((lg, i) => { lg.rotation.x = moving ? Math.sin(L.bob + (i === 0 || i === 3 ? 0 : Math.PI)) * 0.6 : damp(lg.rotation.x, 0, 0.1, dt); });
+  const lie = !moving && L.dogTo.lie;
+  d.g.scale.y = damp(d.g.scale.y, lie ? 0.55 : 1, 0.2, dt);
+  d.tail.rotation.z = Math.sin(clock * (moving ? 14 : 6)) * (lie ? 0.15 : 0.5);
+  d.head.rotation.y = moving ? 0 : Math.sin(clock * 0.7 + 1) * 0.5;
 }
 
 /* ================= health bars & HUD ================= */
@@ -2327,7 +2390,7 @@ function hitStop(ms) { freeze = Math.max(freeze, ms / 1000); }
 function kick(a) { if (QUALITY.shake) shake = Math.min(1.2, shake + a); }
 // One channel each. The big centre banner is for the phases of the game only; everything else is a small callout under
 // the phase strip that replaces the last one, merges repeats ("×3") and gives its explanation only the first time.
-const BIG_BANNER = /^(Position phase|Assault |A quiet night|Behind the walls|The border fort sallies|The chief|Night|\d+ days on the road|A day on the road|Day \d)/;
+const BIG_BANNER = /^(The Great Wall$|Position phase|Assault |A quiet night|Behind the walls|The border fort sallies|The chief|Night|\d+ days on the road|A day on the road|Day \d)/;
 const calloutSeen = new Set(); let calloutT = 0, calloutN = 0;
 function banner(t, s, dur) {
   if (!WAGON || BIG_BANNER.test(t) || REGION_NAME.includes(t)) { ui.bannerT.textContent = t; ui.bannerS.textContent = s || ''; ui.banner.classList.add('show'); bannerTimer = dur || 3.2; return; }
@@ -2745,7 +2808,8 @@ function updateSoldiers(dt) {
     // at rest a man looks about him now and then, each on his own slow rhythm, so a posted squad is not a row of statues
     else g.rotation.y += angDiff(s.house.plot.rotY + (WAGON ? Math.sin(clock * 0.45 + s.ph * 1.7) * 0.7 * Math.max(0, Math.sin(clock * 0.21 + s.ph)) : 0), g.rotation.y) * Math.min(1, dt * 4);
     // the night is won: weapons up and a jump, each man a beat apart
-    const cheer = WAGON && S.state === 'night' && S.clearT > 0 ? Math.max(0, Math.sin((S.clearT * 2.6 - s.ph * 0.12) * Math.PI)) : 0;
+    const cheerT = WAGON ? (S.state === 'night' && S.clearT > 0 ? S.clearT : S.state === 'ending' ? endingT : 0) : 0;
+    const cheer = cheerT > 0 ? Math.max(0, Math.sin((cheerT * 2.6 - s.ph * 0.12) * Math.PI)) : 0;
     if (s.m.rider) animArcher(s.m, s.bob, moving, 0, 0); else animFoot(s.m, s.bob, moving, cheer ? 1 - cheer : s.atkT / 0.3);
     s.pos.y = groundY(s.pos);
     g.position.set(s.pos.x, s.pos.y + (moving ? Math.abs(Math.sin(s.bob)) * 0.08 : 0) + cheer * 0.35, s.pos.z);
@@ -2798,6 +2862,7 @@ function updateShots(dt) {
       for (let j = 0; j < 3; j++) puff(r.to[j], j % 2 ? '#ff6a1a' : '#ff9a45', 2, 2.5);
       sfxAt('burst', r.center, 1, 44);
       puff(r.center, '#4a4440', 3);
+      if (S.combo && S.combo.firedragon) firePool(r.center.x, r.center.z, 2.2, 3);   // the fire dragon
     }
   }
 }
@@ -3598,7 +3663,7 @@ function startDay() {
 }
 function startNight() {
   S.state = 'night'; S.clearT = 0; S.nightT = 0; bellSwing = 1.2; S.announced = new Set();
-  S.foodDmg = {}; S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0; S.volleyT = 12; S.drum = 0; S.drumT = 0;
+  S.foodDmg = {}; S.nightKills = {}; S.nightBurned = 0; S.nightStolen = 0; S.nightWrecked = 0; S.volleyT = 12; S.drum = 0; S.drumT = 0; if (WAGON) comboCheck();
   S.armourUsed = false; S.longWallUsed = false; for (const c of CROSSINGS) c.burnedTonight = false; Sound.play('bell');
   active = null; renderPrompt();
   // the warband was drawn when the column arrived (enterField), so the pass markers could say exactly who is coming
@@ -5579,7 +5644,7 @@ function updateCircling(dt) {
     DIST_TARGET = nearestNode(S.camp.cx, S.camp.cz, id => id[0] !== 'P' && id !== 'K'); for (const k2 in fleeCache) delete fleeCache[k2];
     keep.pos.set(S.camp.cx, 0, S.camp.cz);
     campfire.position.set(S.camp.cx, 1.2, S.camp.cz);
-    applyPalisades(); refreshGaps();
+    applyPalisades(); refreshGaps(); pitchCamp(S.camp.cx, S.camp.cz);
     convoyHomes();
     toPrep({ x: S.camp.cx, z: S.camp.cz }, true);
     banner('Place your defences', 'Move carts, bar the roads, post soldiers. Beat the drum in the ring when you are ready.', 5);
@@ -5892,6 +5957,10 @@ function convoyDawn() {
     else abandoned.push(DEFS[p.cartKind].name);
   }
   for (let i = convoy.length - 1; i >= 0; i--) if (!convoy[i].building) { if (convoy[i].ruin) scene.remove(convoy[i].ruin.g); convoy.splice(i, 1); }
+  // a near miss is worth a moment (Spelunky, Hades): the food wagon came through the night nearly burned
+  const fw = convoy.find(p => p.cartKind === 'food' && p.building), held = fw ? fw.building.hp / fw.building.max : 1;
+  const nearMiss = held < 0.15 && S.nightType !== 'boss';
+  if (nearMiss) { runLog({ t: 'nearMiss', held: Math.round(held * 100) }); S.nearMisses = (S.nearMisses || 0) + 1; }
   for (const b of buildings) if (b.hp < b.max) b.hp = Math.min(b.max, b.hp + b.max * 0.3);
   for (const r of S.roster) r.hp = Math.min(r.max, r.hp + r.max * 0.15);
   checkUnlocks();
@@ -5901,8 +5970,9 @@ function convoyDawn() {
   for (const r of RES) S.res[r] += spoils[r];
   refreshHUD(); refreshSacks();
   const foundTxt = RES.filter(r => found[r]).map(r => `${found[r]} ${resWord(r)}`).join(', ');
-  $('#dawnT').textContent = boss ? 'The border fort held' : 'Dawn';
+  $('#dawnT').textContent = boss ? 'The border fort held' : nearMiss ? 'The grain held' : 'Dawn';
   $('#ledger').innerHTML = [
+    nearMiss ? `<div class="nearMiss">By first light the food wagon stood at <b>${Math.max(1, Math.round(held * 100))}%</b>. The carters are still beating out the embers.</div>` : '',
     `<div>Stripped from the fallen: <b>${yieldText(spoils)}</b>.</div>`,
     battleReport(fell, wounded),
     yieldText(owed) ? `<div>At first light the crews finished their work: <b>${yieldText(owed)}</b>.</div>` : '',
@@ -5916,6 +5986,7 @@ function convoyDawn() {
   ].join('');
   S.picksLeft = elite || boss ? 2 : 1;
   offerRewards(); playReport();
+  if (nearMiss) { setTimeout(() => { Sound.play('wardrum'); kick(0.3); }, 350); }
 }
 // who did the killing tonight, and what it cost: the plainest way to see what each purchase does
 const KILLER = { tower: 'Crossbow carts', rockets: 'Rocket carts', bombard: 'Bombard carts', spears: 'Spearmen', archers: 'Archers', horse: 'Horsemen', hero: 'Commander\u2019s bow and charge', blade: 'Commander\u2019s sabre', caltrops: 'Caltrops', fire: 'Fire', keep: 'The keep', other: 'Other' };
@@ -6302,10 +6373,54 @@ function highlightMap() {
 function confirmMap() { const k = mapOpts[mapSel]; if (k === undefined) return; S.backShop = null; travelTo(k); }
 
 /* ---------------- endings ---------------- */
+/* The end of the road deserves a moment before the numbers (the design's "moments of joy"): the column is drawn up on
+   the road below the breach in the Great Wall, the men cheer, the gong sounds, and the camera rises to the Wall. Then the
+   sheet names every man who came home and counts the food that made it. */
+let endingT = -1, homeTally = null;
+const smooth01 = x => x * x * (3 - 2 * x);
 function convoyWin() {
-  S.state = 'won'; ['#smap', '#shop'].forEach(s => $(s).hidden = true); runLog({ t: 'end', result: 'won' }); keepReport(); $('#endHonour').innerHTML = honours();
+  S.state = 'ending'; endingT = 0; document.body.classList.add('ending'); ['#smap', '#shop', '#dawn'].forEach(s => $(s).hidden = true); runLog({ t: 'end', result: 'won' }); keepReport();
+  const pn = NODES.PN || NODES[ENTRIES[0].id], nb = pn.adj && pn.adj.length ? NODES[pn.adj[0].a === pn.id ? pn.adj[0].b : pn.adj[0].a] : null;
+  const jx = nb ? nb.pos.x : pn.pos.x, jz = nb ? nb.pos.z : pn.pos.z + 20, rot = Math.atan2(pn.pos.x - jx, pn.pos.z - jz);
+  const gd = Math.hypot(jx - pn.pos.x, jz - pn.pos.z) || 1, cx = pn.pos.x + (jx - pn.pos.x) * Math.min(0.9, 13 / gd), cz = pn.pos.z + (jz - pn.pos.z) * Math.min(0.9, 13 / gd);
+  // the gate in the breach, open: two brick towers either side of the road, a lintel under a tiled roof, the red banner
+  const gy = Math.max(hgt(pn.pos.x, pn.pos.z), 0), g = new THREE.Group(); g.position.set(pn.pos.x, gy, pn.pos.z); g.rotation.y = rot; beaconGroup.add(g);
+  for (const sx of [-1, 1]) { part(CYL(1.6, 2.0, 6, 4), C.stone, sx * 3.4, 3, 0, g).rotation.y = Math.PI / 4; part(B(3.2, 0.4, 3.2), C.brick, sx * 3.4, 6.2, 0, g);
+    for (const mz of [-1, 1]) part(B(0.5, 0.5, 0.3), C.brick, sx * 3.4 + 0.8, 6.6, mz * 1.4, g), part(B(0.5, 0.5, 0.3), C.brick, sx * 3.4 - 0.8, 6.6, mz * 1.4, g); }
+  part(B(9.6, 1.2, 2.6), C.stone, 0, 5.6, 0, g); part(B(10.4, 0.3, 3.2), C.brick, 0, 6.35, 0, g);
+  part(new THREE.CylinderGeometry(0.05, 3.2, 1.5, 4, 1).scale(1.8, 1, 0.9), TILE, 0, 7.3, 0, g).rotation.y = Math.PI / 4;
+  part(CYL(0.06, 0.06, 3.4, 4), C.woodDark, 3.4, 8, 0, g); const fl = part(B(0.05, 1.1, 1.6), C.lacquer, 3.4, 9.1, 0.8, g); fl.userData.flag = true;
+  hero.alive = true; hero.m.g.visible = true; hero.pos.set(cx + Math.sin(rot) * 3, 0, cz + Math.cos(rot) * 3); hero.face = rot;
+  camFocus.set(hero.pos.x, 0, hero.pos.z);
+  layoutColumn(cx, cz, rot); musterSoldiers(); convoyHomes();
+  // the men line the road at the head of the column, two by two, facing the gate
+  const ux = Math.sin(rot), uz = Math.cos(rot);
+  soldiers.forEach((m, i) => { const row = Math.floor(i / 2), side = i % 2 ? 1 : -1, bx = hero.pos.x - ux * (row * 1.4 + 1) + uz * side * 2.4, bz = hero.pos.z - uz * (row * 1.4 + 1) - ux * side * 2.4;
+    m.home.set(bx, 0, bz); m.home.y = Math.max(groundY(m.home), 0); m.pos.copy(m.home); m.following = false; m.atConvoy = false; });
+  S.endWall = { x: pn.pos.x, z: pn.pos.z };
+  banner('The Great Wall', `After ${S.day} days on the road, the gate at the breach stands open.`, 6);
+  Sound.play('horn'); setTimeout(() => Sound.play('wardrum'), 900);
+}
+function updateEnding(dt) {
+  endingT += dt;
+  updateSoldiers(dt);
+  if (S.state === 'ending' && endingT > 7.5) winSheet();
+  if (homeTally) {   // the food and the men come home as a count, one pentatonic step at a time
+    homeTally.t += dt;
+    const k = Math.min(1, homeTally.t / 1.8), f = Math.round(homeTally.food * (1 - Math.pow(1 - k, 3))), m = Math.round(homeTally.men * Math.min(1, k * 1.4));
+    setText($('#homeFood'), String(f)); setText($('#homeMen'), String(m));
+    if (Math.floor(homeTally.t / 0.22) > homeTally.step && k < 1) { homeTally.step++; Sound.play('tally', Math.min(8, homeTally.step), { ui: true }); }
+    if (k >= 1) homeTally = null;
+  }
+}
+function winSheet() {
+  S.state = 'won';
   $('#endSeal').textContent = '达'; $('#endT').textContent = 'Through the Wall';
-  $('#endP').textContent = `The convoy broke through all ${CONVOY.regions} regions in ${S.day} days. ${S.kills} raiders fell, ${S.fought} nights held, ${S.roster.length} soldiers still standing, ${S.starved} lost to hunger.`;
+  $('#endP').textContent = `In ${S.day} days the column crossed ${CONVOY.regions} regions and came through the Great Wall. ${S.kills} raiders fell and ${S.fought} nights were held${S.starved ? `; ${S.starved} ${S.starved > 1 ? 'men were' : 'man was'} lost to hunger` : ''}.`;
+  const names = S.roster.map(r => r.name).filter(Boolean), shown = names.slice(0, 14);
+  $('#endHonour').innerHTML = `<span class="homeRow"><b id="homeFood">0</b> food brought home \u00b7 <b id="homeMen">0</b> men</span>`
+    + (names.length ? `<br><b style="color:var(--gold)">Home</b><br>${shown.join(', ')}${names.length > shown.length ? `, and ${names.length - shown.length} more` : ''}.<br>` : '<br>') + honours();
+  homeTally = { t: 0, step: 0, food: Math.max(0, Math.round(S.res.grain)), men: names.length };
   $('#end').hidden = false;
 }
 // Every loss should feel like your own fault (Into the Breach): say what did it, and what would have stopped it
@@ -6760,7 +6875,7 @@ const RUN = { v: 1, started: new Date().toISOString(), events: [] };
 function runLog(ev) { RUN.events.push({ day: S.day, region: S.region + 1, floor: S.floor, ...ev }); }
 function runReport() {
   const build = (document.querySelector('.buildTag') || {}).textContent || '';
-  return { ...RUN, build, daily: DAILY, end: { state: S.state, region: S.region + 1, floor: S.floor, day: S.day, kills: S.kills, soldiers: S.roster.length, why: (RUN.events.find(e => e.t === 'end') || {}).why || null, honoured: honourList().slice(0, 3).map(m => ({ name: m.name, type: m.type, kills: m.kills, dead: m.dead })) } };
+  return { ...RUN, build, daily: DAILY, end: { state: S.state === 'ending' ? 'won' : S.state, nearMisses: S.nearMisses || 0, region: S.region + 1, floor: S.floor, day: S.day, kills: S.kills, soldiers: S.roster.length, why: (RUN.events.find(e => e.t === 'end') || {}).why || null, honoured: honourList().slice(0, 3).map(m => ({ name: m.name, type: m.type, kills: m.kills, dead: m.dead })) } };
 }
 function keepReport() { forgetRun(); dailyBest(); try { const k = 'wagon-road-runs', all = JSON.parse(localStorage.getItem(k) || '[]'); all.push(runReport()); localStorage.setItem(k, JSON.stringify(all.slice(-30))); } catch (e) { /* private window: nothing kept */ } }
 $('#copyRun').addEventListener('click', () => {
@@ -6863,7 +6978,27 @@ function regMark(key, quiet) {
   if (regMet.has(key)) return; regMet.add(key); regFresh.add(key);
   try { localStorage.setItem('wagon-road-register', JSON.stringify([...regMet])); } catch (e) {}
   const r = REGISTER.find(x => x[0] === key);
-  if (r && !quiet && r[1] === 'r') regQueue.push(r);
+  if (r && !quiet && r[1] === 'r') regQueue.push({ title: 'New raider: ' + r[2], sub: r[5] });
+}
+/* Named combinations to find (Balatro's named hands, Hades' duo boons): two things the column already has, used
+   together, do something neither does alone. They add a way to play, not a bigger number, and each is lit in the
+   register when first found, with a hint for the ones not yet found. */
+const COMBOS = [
+  { key: 'firedragon', name: 'Fire dragon', zh: '火龙出水', img: 'firearrows', hint: 'rockets, and arrows that burn',
+    text: 'Rockets and fire arrows together: every rocket burst leaves the ground burning.', short: 'Rocket bursts leave the ground burning',
+    on: () => !!S.fire && convoy.some(p => p.cartKind === 'rockets' && p.building) },
+  { key: 'wagonfort', name: 'Wagon fort', zh: '车营', img: 'barricade', hint: 'a ring with no gap in it',
+    text: 'The ring closed on every side when the drum is beaten: the men take heart, and the war drum starts half full.', short: 'A closed ring: the war drum starts half full',
+    on: () => !!(S.camp && S.camp.slots && S.camp.slots.every(q => closed(q) || q.plot)) },
+];
+// at the drum: which combinations hold tonight, and the first time each is found, say so
+function comboCheck() {
+  S.combo = {};
+  for (const c of COMBOS) if (c.on()) {
+    S.combo[c.key] = true;
+    if (!regMet.has('c_' + c.key)) { regMark('c_' + c.key, true); regQueue.push({ title: 'A combination: ' + c.name, sub: c.short }); }
+  }
+  if (S.combo.wagonfort) S.drum = 4;
 }
 // what the column owns is in the register from the start: the commander, the men and the carts it has
 function regOwned() {
@@ -6874,7 +7009,7 @@ function regOwned() {
 // one new raider at a time, under the phase strip, when no other callout is showing
 function regCallouts() {
   if (!regQueue.length || calloutT > 0) return;
-  const r = regQueue.shift(); banner('New raider: ' + r[2], r[5], 4);   // the short answer; the register has the rest
+  const r = regQueue.shift(); banner(r.title, r.sub, 4);   // the short answer; the register has the rest
 }
 function showRegister() {
   regMark('commander', true); regMark('barricade', true); if (S.state !== 'title') regOwned();
@@ -6882,7 +7017,9 @@ function showRegister() {
     return `<div class="regCard${met ? '' : ' locked'}${regFresh.has(r[0]) ? ' new' : ''}">${src ? `<img alt="" src="${src}">` : ''}<div><b>${met ? r[2] : 'Not yet met'}</b>${met ? `<span class="zh">${r[3]}</span>` : ''}</div><p>${met ? r[4] : (r[1] === 'r' ? 'Met on the road, it will be drawn here.' : 'Not yet with the column.')}</p></div>`; };
   const nr = REGISTER.filter(r => r[1] === 'r'), na = REGISTER.filter(r => r[1] === 'a');
   $('#regList').innerHTML = `<h3>Raiders \u00b7 ${nr.filter(r => regMet.has(r[0])).length} of ${nr.length} met</h3><div class="regGrid">${nr.map(card).join('')}</div>`
-    + `<h3>Our arms</h3><div class="regGrid">${na.map(card).join('')}</div>`;
+    + `<h3>Our arms</h3><div class="regGrid">${na.map(card).join('')}</div>`
+    + `<h3>Combinations \u00b7 ${COMBOS.filter(c => regMet.has('c_' + c.key)).length} of ${COMBOS.length} found</h3><div class="regGrid">${COMBOS.map(c => { const met = regMet.has('c_' + c.key), src = thumb(c.img);
+      return `<div class="regCard${met ? '' : ' locked'}${regFresh.has('c_' + c.key) ? ' new' : ''}">${src ? `<img alt="" src="${src}">` : ''}<div><b>${met ? c.name : 'Not yet found'}</b>${met ? `<span class="zh">${c.zh}</span>` : ''}</div><p>${met ? c.text : 'Try ' + c.hint + '.'}</p></div>`; }).join('')}</div>`;
   regFresh.clear();
   $('#reg').hidden = false;
 }
@@ -6891,7 +7028,7 @@ function showChronicle() {
   const nm = t => t === 'archer' ? 'archer' : t === 'horse' ? 'horseman' : 'spearman';
   $('#chronList').innerHTML = runs.length ? runs.slice().reverse().map(r => { const e = r.end || {}, hon = (e.honoured || []);
     return `<div class="chronRun"><span class="d">${(r.started || '').slice(0, 10)}${r.daily ? ' \u00b7 today\u2019s road' : ''}</span><b>${e.state === 'won' ? 'Reached the Great Wall' : `Fell in region ${e.region}, floor ${e.floor}`}</b>
-      <p>${e.kills || 0} raiders fell${e.why ? ` \u00b7 ${e.why}` : ''}.${hon.length ? ` Remembered: ${hon.map(m => `${m.name} (${nm(m.type)}, ${m.kills}${m.dead ? ', fell' : ''})`).join(', ')}.` : ''}</p></div>`; }).join('')
+      <p>${e.kills || 0} raiders fell${e.nearMisses ? ` \u00b7 the grain held by a thread ${e.nearMisses > 1 ? e.nearMisses + ' times' : 'once'}` : ''}${e.why ? ` \u00b7 ${e.why}` : ''}.${hon.length ? ` Remembered: ${hon.map(m => `${m.name} (${nm(m.type)}, ${m.kills}${m.dead ? ', fell' : ''})`).join(', ')}.` : ''}</p></div>`; }).join('')
     : '<p class="lead">No roads yet. The chronicle fills as you play.</p>';
   $('#chron').hidden = false;
 }
@@ -6970,10 +7107,11 @@ function update(dt) {
   } else if (active) { active = null; renderPrompt(); }
   if (playing) updateFire(dt);
   updateAbilityBar(dt);
-  updateWorkers(dt); updateBridges(dt, clock); updateBeacons(dt);
+  updateWorkers(dt); updateBridges(dt, clock); updateBeacons(dt); if (campLife && S.state !== 'ending') updateCampLife(dt);
+  if (S.state === 'ending' || homeTally) updateEnding(dt);
 
   // the night ends on the gong and a lone erhu, carried through the dawn; a lost run gets its lament
-  Sound.setMood(S.state === 'title' ? 'menu' : S.state === 'lost' ? 'lament' : S.state === 'dawn' || (S.state === 'night' && S.clearT > 0) ? 'after' : S.state === 'night' ? 'night' : 'day');
+  Sound.setMood(S.state === 'title' ? 'menu' : S.state === 'lost' ? 'lament' : S.state === 'dawn' || S.state === 'ending' || S.state === 'won' || (S.state === 'night' && S.clearT > 0) ? 'after' : S.state === 'night' ? 'night' : 'day');
   if (S.state === 'night' && Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) {   // how close the fight is, twice a second
     const c = S.camp ? new V3(S.camp.cx, 0, S.camp.cz) : hero.pos; let near = 0, out = 0;
     for (const e of enemies) if (e.alive) { if (Math.hypot(e.pos.x - c.x, e.pos.z - c.z) < 16) near++; else out++; }
@@ -7000,7 +7138,7 @@ function update(dt) {
 
   for (const b of buildings) if (b.pop < 1) { b.pop = Math.min(1, b.pop + dt * 3.2); const k = b.pop; b.g.scale.setScalar(Math.max(0.05, 1 + 2.2 * Math.pow(k - 1, 3) + 1.2 * Math.pow(k - 1, 2))); }
   const wave = o => { if (o.userData.flag) o.rotation.y = Math.sin(clock * 4 + o.id) * 0.25; };
-  keepModel.traverse(wave); flareGroup.traverse(wave);
+  keepModel.traverse(wave); flareGroup.traverse(wave); if (S.state === 'ending' || S.state === 'won') beaconGroup.traverse(wave);
   // every cart's pennant too: the flag list is gathered once per model, not traversed each frame
   if (BAG.cart) BAG.cart.traverse(wave);
   if (WAGON) for (const b of buildings) { if (!b.g) continue; if (!b.g.userData.flags) { const l = []; b.g.traverse(o => { if (o.userData.flag) l.push(o); }); b.g.userData.flags = l; } for (const o of b.g.userData.flags) wave(o); }
@@ -7026,6 +7164,11 @@ function update(dt) {
     const dist = (WAGON ? (narrow ? 3.4 : 2.25) : (narrow ? 4.3 : 2.9)) * (1 + overviewK * 1.5);
     const fx = camFocus.x + (VALLEY.cx - camFocus.x) * overviewK * 0.7, fz = camFocus.z + (VALLEY.cz - camFocus.z) * overviewK * 0.7;
     camera.position.set(fx, 21 * dist, fz + 16 * dist); camera.lookAt(fx, 0.5, fz - 1);
+    if (S.state === 'ending' || (S.state === 'won' && S.endWall)) {   // the camera leaves the rider and rises to frame the Wall
+      // the usual angle (the art is made to be seen from it), eased over to frame the column and the gate together
+      const k = smooth01(Math.min(1, endingT / 5)), W = S.endWall, ex = lerp(fx, (hero.pos.x + W.x) / 2, k), ez = lerp(fz, (hero.pos.z + W.z) / 2, k), d2 = dist * (1 + 0.3 * k);
+      camera.position.set(ex, 21 * d2, ez + 16 * d2); camera.lookAt(ex, 0.5, ez - 1);
+    }
     if (window.__camOverride) { const o = window.__camOverride; camera.position.set(...o.pos); camera.lookAt(...o.look); }   // test harness overview shots
     // trauma shake (Eiserloh): the strength is the square of the trauma, and it moves on smooth noise, mostly as a small
     // rotation, rather than jumping to a new random spot every frame (which reads as a glitch, not a blow)
