@@ -543,7 +543,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 41 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 42 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -811,7 +811,7 @@ function hgt(x, z) {
   const rd = roadDist(x, z), rv = riverDist(x, z);
   const { amt, far } = mountainAmount(x, z);
   let m = amt * (16 + 34 * ridged(x * 0.021 + 3.1, z * 0.021 + 7.7)) + far * 22;
-  m += amt * amt * (5 * ridged(x * 0.075 + 1.7, z * 0.075 + 4.2) + 1.6 * vnoise(x * 0.23, z * 0.23));   // spurs, gullies and knuckles of rock: the slopes were smooth planes
+  if (!FIELD.castle) m += amt * amt * (5 * ridged(x * 0.075 + 1.7, z * 0.075 + 4.2) + 1.6 * vnoise(x * 0.23, z * 0.23));   // spurs, gullies and knuckles of rock: the slopes were smooth planes
   m *= smooth(2.5, 9, rd) * smooth(3, 10, rv);
   // the camera looks north: on generated ground the southern rim is kept low so it never walls off the view
   if (!FIELD.southWall) m *= lerp(1, 0.32, smooth(VALLEY.cz + VALLEY.rz * 0.2, VALLEY.cz + VALLEY.rz * 1.1, z));
@@ -2397,6 +2397,7 @@ function updateBellTag() {
   const el = document.getElementById('bellTag');
   if (WAGON && S.phase !== 'prep') { setHidden(el, true); bellMark.visible = false; return; }
   const show = S.state === 'day' && !(active && active.key === 'bell') && !paused;
+  if (active && active.key === 'bell') setHidden(el, true);   // its own prompt says the same thing: go at once, not after the usual grace
   if (!steady(el, show, 0.5)) { bellMark.visible = false; return; }
   bellMark.visible = true;
   bellMark.position.set(bellPos.x, 4.2 + Math.sin(clock * 3) * 0.25, bellPos.z); bellMark.rotation.y = clock * 1.4;
@@ -2470,7 +2471,9 @@ function setClass(el, c, on) { on = !!on; if (el && el.classList.contains(c) !==
 function setFill(el, f) { setStyle(el, 'transform', `scaleX(${Math.max(0, Math.min(1, f)).toFixed(3)})`); }
 // a screen label moves by transform only, and is measured only when its text or class changes
 function placeAt(el, x, y, anchor) { setStyle(el, 'transform', `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) ${anchor || 'translate(-50%,-100%)'}`); }
-function sizeOf(el) { return el._size || (el._size = { w: el.offsetWidth, h: el.offsetHeight }); }
+// a size read while the element was hidden is 0 x 0 and must not be kept: markers measured that way thought they were
+// flat and slid up under the panels (the playtest harness saw the Soldiers panel cover a pass marker in 180 shots)
+function sizeOf(el) { if (el._size) return el._size; const z = { w: el.offsetWidth, h: el.offsetHeight }; if (z.w && z.h) el._size = z; return z; }
 // shows at once, hides only once it has been unwanted for a moment, so a condition that wavers cannot blink it
 function steady(el, show, hold) { if (show) { el._offAt = null; setHidden(el, false); return true; }
   if (el._offAt == null) el._offAt = clock; if (clock - el._offAt > (hold || 0.35)) setHidden(el, true); return !el.hidden; }
@@ -5607,7 +5610,9 @@ function enterField(type) {
   refreshSacks(); refreshHUD();
   const names = S.preEntries.map(p => ENTRIES.find(e => e.id === p).name);
   // the carts bought since the last fight carry a label on the field, so a purchase is seen
-  for (const p of convoy) if (p.isNew && p.building) { floatText(p.pos, 'New: ' + DEFS[p.cartKind].name.toLowerCase(), 7); p.isNew = false; }
+  // one label per kind, with a count: three carts bought at once used to stack three labels into an unreadable pile
+  { const fresh = {}; for (const p of convoy) if (p.isNew && p.building) { (fresh[p.cartKind] = fresh[p.cartKind] || []).push(p); p.isNew = false; }
+    Object.entries(fresh).forEach(([k, ps], i) => floatText(ps[0].pos.clone().setY(ps[0].pos.y + i * 0.9), 'New: ' + (ps.length > 1 ? ps.length + ' \u00d7 ' : '') + DEFS[k].name.toLowerCase(), 7)); }
   if (type === 'boss') return toFortPrep(names);
   S.phase = 'dusk'; S.cartMoved = false; refreshHUD();
   const fk = FIELD_KIND[FIELD.kind];
@@ -6132,7 +6137,7 @@ function supplyLost(b) {
   const sp = SUPPLY[b.kind], lost = S.res[sp.res];
   S.res[sp.res] = 0; refreshHUD(); refreshSacks();
   if (b.kind === 'food') return convoyLose('The food wagon is burned', `Every sack went up with it. There is no road to the Wall on an empty stomach.`);
-  banner(`The ${sp.word} wagon is burning`, `${lost} ${sp.word} lost with it. It will be patched up at dawn, empty.`, 3);
+  banner(lost ? `The ${sp.word} wagon is burning` : `The empty ${sp.word} wagon is burning`, lost ? `${lost} ${sp.word} lost with it. It will be patched up at dawn, empty.` : 'Nothing was in it. It will be patched up at dawn.', 3);
 }
 function updateSacks(dt) {
   for (let i = sacks.length - 1; i >= 0; i--) {
@@ -6756,7 +6761,10 @@ function convoyPrompt() {
   const anchor = hero.pos.clone();
   // a bridge under the rider comes before anything else, in every phase of the field
   const bg = baggagePrompt(); if (bg) return bg;
-  const brNear = ['dusk', 'prep', 'night'].includes(S.phase) && !S.towing && CROSSINGS.find(c => c.bridge && c.intact && hero.pos.distanceTo(tmp2.set(c.x, hero.pos.y, c.z)) < (c.span || RIVER_HALF) + 1.6 + (lastKey === 'br' + c.key ? 0.9 : 0));
+  // except the war drum or the bell: a camp pitched beside a bridge put the drum inside the bridge's reach, and the night
+  // could never be begun (found by the playtest harness)
+  const atBell = S.state === 'day' && S.phase === 'prep' && hero.pos.distanceTo(tmp2.set(bellPos.x, hero.pos.y, bellPos.z)) < 2.2 + (lastKey === 'bell' ? 0.9 : 0);
+  const brNear = !atBell && ['dusk', 'prep', 'night'].includes(S.phase) && !S.towing && CROSSINGS.find(c => c.bridge && c.intact && hero.pos.distanceTo(tmp2.set(c.x, hero.pos.y, c.z)) < (c.span || RIVER_HALF) + 1.6 + (lastKey === 'br' + c.key ? 0.9 : 0));
   if (brNear) return { key: 'br' + brNear.key, anchor, hold: 0.8, opts: [{ n: 'Burn the bridge', c: {}, d: S.state === 'night' ? 'Anyone on it goes into the river' : 'Raiders take another road, or stop to lash it together', run: () => burnBridge(brNear) }] };
   if (S.state === 'day' && S.phase === 'dusk') {
     const plan = ringPlan(hero.pos.x, hero.pos.z);
@@ -6907,7 +6915,7 @@ function screenTag(el, p, y, pin) {
   if (behind) { x = innerWidth - x; yy = innerHeight - m; }
   // anchored at its foot, so it clears the panels by its own height; pushed off its spot it loses its pointer
   el._px = clamp(x, m + 50, innerWidth - m - 50);
-  const floor = clearTop(el._px, sizeOf(el).w) + sizeOf(el).h + 12;
+  const floor = clearTop(el._px, sizeOf(el).w) + sizeOf(el).h + 12; el._floor = floor;
   setClass(el, 'edge', (off && pin) || yy < floor);
   el._py = belowPrompt(el._px, sizeOf(el).w, clamp(yy, floor, innerHeight - m));
   el._offAt = off && !pin ? el._offAt : null;
@@ -6956,7 +6964,10 @@ function updateTags() {
     const x = el._px, sz = sizeOf(el), w = sz.w, h = sz.h + 4; let y = el._py;
     for (let guard = 0; guard < 8; guard++) {
       const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h));
-      if (!hit) break; y = hit.y - Math.max(hit.h, h);
+      if (!hit) break;
+      // make room upward, unless that would put it under a panel (the playtest harness found two edge markers
+      // stacked into the Soldiers panel): then below
+      const up = hit.y - Math.max(hit.h, h); y = up >= (el._floor || 0) ? up : hit.y + Math.max(hit.h, h);
     }
     el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : damp(el._y, y, 0.045, animDt);
     placeAt(el, x, el._y); placed.push({ x, y, w, h });
@@ -7044,8 +7055,19 @@ function updateConvoy(dt) {
     gl.t = Math.min(1, gl.t + dt / 0.28); const k = 1 - Math.pow(1 - gl.t, 3);
     g.position.x = gl.x0 + (p.x - gl.x0) * k; g.position.z = gl.z0 + (p.z - gl.z0) * k; g.rotation.y = gl.r0 + angDiff(p.rotY, gl.r0) * k;
     if (gl.t >= 1) { g.userData.glide = null; puff(p.pos, '#c8b48a', 2, 0.5); } }
+  // nobody left to fight (the commander down, every man fallen): there is nothing for the player to do but watch, so
+  // the night hurries (double speed) and the stragglers leave three times sooner (the playtest harness sat through
+  // more than a minute of this)
+  const helpless = WAGON && S.state === 'night' && !hero.alive && !soldiers.some(q => q.alive);
+  if (helpless && !S.helplessSaid) { S.helplessSaid = true; fast = true; speedChip(); banner('No one left to hold them', 'The night hurries on to dawn.', 3); }
+  if (S.state !== 'night') S.helplessSaid = false;
   if (S.state === 'night' && !S.spawnQ.length) {
-    S.tailT = (S.tailT || 0) + dt;
+    S.tailT = (S.tailT || 0) + dt * (helpless ? 3 : 1);
+    // an engine crew left alone once its warband is spent packs up and goes: a lone trebuchet shelling an empty field
+    // for a minute and more was the longest dull stretch the playtest harness found
+    const left = enemies.filter(e => e.alive && !e.fleeing);
+    if (left.length && left.every(e => e.etype === 'engine')) { S.engineAlone = (S.engineAlone || 0) + dt; if (S.engineAlone > 15) { for (const e of left) startFlee(e); banner('The engine crew packs up', 'With the warband gone, they drag it off into the dark.', 2.5); S.engineAlone = 0; } }
+    else S.engineAlone = 0;
     if (S.tailT > 75) for (const e of enemies) if (e.alive && !e.fleeing && e.pos.distanceTo(hero.pos) > 14) { e.alive = false; e.dying = 0.01; e.gone = true; scene.remove(e.bar); }
     // and past that nobody lingers: thieves still on the loose get away with what they carry
     if (S.tailT > 110) for (const e of enemies) if (e.alive) { if (e.fleeing) escaped(e); else { e.alive = false; e.dying = 0.01; e.gone = true; scene.remove(e.bar); } }
@@ -7446,7 +7468,8 @@ setTimeout(() => {
   } catch (e) { console.info('shader warm-up skipped', e); }
   seed = seed0;
 }, 600);
-window.__ff = { get campLife() { return campLife; }, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) update(dt); }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
+// step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
+window.__ff = { get campLife() { return campLife; }, bellPos, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
 })();
 </script>
 </body>
