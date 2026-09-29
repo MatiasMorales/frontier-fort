@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 66 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 67 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -6568,6 +6568,9 @@ function rankOffers() {
   const rares = RARES.filter(x => !S.rares[x.id] && x.ok());
   if (S.fought >= 2 && rares.length && Math.random() < 0.18) { const x = rares[Math.floor(Math.random() * rares.length)];
     out[Math.min(out.length, 2)] = { name: x.name, img: x.img, rare: true, desc: x.desc + (x.with ? `<br><span style="color:#f0c96a">Works with: ${x.with}</span>` : ''), apply: () => { S.rares[x.id] = true; banner(x.name, x.after, 2.6); } }; }
+  // every arm owned at rank 5 left a dawn with no card and no way out (QA r6 B1): the plain boons fill the empty places
+  if (out.length < 3) { const fill = BOONS.filter(x => x.name !== 'A captured cart' && (!x.ok || x.ok())).sort(() => Math.random() - 0.5);
+    while (out.length < 3 && fill.length) out.push(fill.shift()); }
   // when food is short, the third choice is food instead
   if (daysOfFood() < 3 && out.length === 3) out[2] = BOONS.find(b => b.name.startsWith('Millet'));
   return out;
