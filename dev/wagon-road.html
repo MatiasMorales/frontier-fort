@@ -164,7 +164,7 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #drum{ margin-top:6px; }   /* the label sits over its bar, never inside it: the fill cut through the text */
 #drum .bar{ position:relative; margin-top:0; height:7px; background:#1a0e0c; border-radius:3px; overflow:hidden; box-shadow:inset 0 0 0 1px rgba(224,184,90,.25); }
 #drum i{ position:absolute; inset:0; transform-origin:left center; transform:scaleX(0); background:linear-gradient(90deg,#8e2a1e,#e0b85a); }
-#drum span{ font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#f3e6cc; line-height:15px; display:block; margin-bottom:2px; }
+#drum span{ font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#f3e6cc; line-height:15px; display:block; margin-bottom:2px; }
 #drum em{ font-style:normal; letter-spacing:.04em; text-transform:none; color:var(--gold-dim); }
 #drum.full i{ animation:drumBeat .45s ease-in-out infinite alternate; }
 @keyframes drumBeat{ from{ filter:brightness(1); } to{ filter:brightness(1.6); } }
@@ -597,7 +597,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 74 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 75 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -7651,6 +7651,8 @@ function updateTags() {
     else if (Math.abs(off - el._off) > 2) { if (el._pend !== undefined && Math.abs(el._pend - off) < 3) el._pendT += animDt; else { el._pend = off; el._pendT = 0; } if (el._pendT > 0.25) { el._off = off; el._pendT = 0; } }
     else { el._off = off; el._pendT = 0; }
     const ty = el._py + el._off;
+    // a move too long to ease (over 200 px) is a jump too: it hides and fades back in like the others (BUGS-74 B1)
+    if (el._y !== undefined && Math.abs(el._y - ty) > 200 && !el.hidden) el._hopT = 0.12;
     el._y = el._y === undefined || Math.abs(el._y - ty) > 200 ? ty : damp(el._y, ty, 0.045, animDt);
     // an eased position never passes over a label already placed (where it is drawn or where it is going): it jumps instead
     const over = yy => placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && (Math.abs(p.y - yy) < Math.max(p.h, h) - 1.5 || Math.abs(p.yd - yy) < Math.max(p.h, h) - 1.5));
