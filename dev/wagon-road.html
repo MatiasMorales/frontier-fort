@@ -597,7 +597,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 75 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 76 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3380,10 +3380,33 @@ function updateEnemy(e, dt) {
   // Only after most of a second in the water: brushing the water at a bridge's or ford's side is part of crossing, and
   // snapping back each time held raiders at the crossing (stuck.mjs: 0 to 5 in 14 nights)
   e.wetT = e.alive && RIVER.length && !e.kbx && !e.kbz && riverDist(e.pos.x, e.pos.z) < RIVER_HALF + 0.1 && blocked(e.pos.x, e.pos.z) ? (e.wetT || 0) + dt : 0;
+  let wade = null;
   if (e.wetT > 0.8) {
-    navGrid(); const s = navSnap(e.pos, 6);
-    if (s) moveDirect(e.pos, tmp2.set(s[0] - NAV.half, 0, s[1] - NAV.half), Math.max(e.speed, 2) * dt);
+    navGrid(); const s = wadeCell(e);
+    if (s) { moveDirect(e.pos, tmp2.set(s[0] - NAV.half, 0, s[1] - NAV.half), Math.max(e.speed, 2) * dt); wade = { x: e.pos.x, z: e.pos.z }; }
   }
+  const r = updateEnemyMove(e, dt);
+  // BUGS-75 B2: while he wades out, the wade is his whole move this frame. The path's straight step toward the next junction
+  // (or a bowman's stand-off) pulled the other way, equal and opposite, and a bowman stood in the river for up to a minute
+  if (wade && e.alive && !e.kbx && !e.kbz) { e.pos.x = wade.x; e.pos.z = wade.z; e.m.g.position.x = wade.x; e.m.g.position.z = wade.z; }
+  return r;
+}
+// where a raider in the river wades to: the nearest open ground on or beside the crossing he is using (the deck or the ford,
+// which lie on his way), else the nearest open ground at all. The nearest cell alone was often the bank behind him.
+function wadeCell(e) {
+  const ed = e.from && e.to ? edgeOf(e) : null;
+  let c = ed && ed.cross && Math.hypot(ed.cross.x - e.pos.x, ed.cross.z - e.pos.z) < 8 ? ed.cross : null;
+  if (!c) for (const o of CROSSINGS) if ((o.ford || o.intact) && Math.hypot(o.x - e.pos.x, o.z - e.pos.z) < 5) { c = o; break; }
+  if (c && (c.ford || c.intact)) {
+    const { n, half, walk } = NAV, i0 = Math.round(c.x) + half, j0 = Math.round(c.z) + half; let best = null, bd = 6;
+    for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) { const i = i0 + di, j = j0 + dj;
+      if (di * di + dj * dj > 9 || i < 0 || j < 0 || i >= n || j >= n || !walk[j * n + i]) continue;
+      const d = Math.hypot(i - half - e.pos.x, j - half - e.pos.z); if (d < bd) { bd = d; best = [i, j]; } }
+    if (best) return best;
+  }
+  return navSnap(e.pos, 6);
+}
+function updateEnemyMove(e, dt) {
   if (!PIECES.length || !e.alive) return updateEnemyStep(e, dt);
   const ox = e.pos.x, oz = e.pos.z;
   if (solidAt(ox, oz)) { navGrid(); const s = navSnap(e.pos, 6); if (s) { e.pos.x = s[0] - NAV.half; e.pos.z = s[1] - NAV.half; } return updateEnemyStep(e, dt); }
@@ -7333,8 +7356,10 @@ function guardBaggage() {
 // a guard stands by the cart and fights whoever comes within reach of it; he never goes to the camp
 function guardStep(e, dt) {
   // once the warbands are spent, the guards give it a few seconds and then drive the cart off, so an ignored prize never holds the night open
-  if (BAG.cart && !BAG.taken && !S.spawnQ.length && !enemies.some(o => o.alive && !o.guard)) {
-    BAG.leaveT += dt;
+  // (an unladen runaway no longer counts as the warband: BUGS-75 B1)
+  if (BAG.cart && !BAG.taken && !S.spawnQ.length && !enemies.some(o => o.alive && !o.guard && !(o.fleeing && !o.carry))) {
+    // counted once a frame, by the first living guard: each guard added his own dt, so three drove it off in 2.7 s, not 8
+    if (e === BAG.guards.find(o => o.alive)) BAG.leaveT += dt;
     if (BAG.leaveT > 8) { for (const o of BAG.guards) if (o.alive) { o.alive = false; o.dying = 0.01; o.gone = true; scene.remove(o.bar); }
       puff(BAG.cart.position, '#b9a98a', 8, 2); scene.remove(BAG.cart); BAG.taken = true; banner('The baggage rolls away', 'Its guards drove it off into the hills.', 2); return { attacking: null, look: null }; }
   }
@@ -7499,7 +7524,8 @@ function fieldBrief() {
 function nightTip() {
   // each tip short enough to read at a glance in a fight (the night's word budget is 60)
   if (WAGON && !hero.alive) return hero.downT > 0 ? 'Carried back: <b>your men hold alone</b>' : 'You are down until dawn';
-  const alive = t => enemies.some(e => e.alive && e.etype === t);
+  // a runaway is no threat to answer: a packed-up engine kept its tip while it was dragged off (BUGS-75 B1)
+  const alive = t => enemies.some(e => e.alive && !e.fleeing && e.etype === t);
   if (alive('engine')) return '<b>Siege engine</b>: charge it, or send men out';
   if (alive('firearcher')) return '<b>Fire archers</b> (orange rings): <b>ride them down</b>';
   if (enemies.some(e => e.alive && e.carry)) return 'A thief has your loads: <b>ride him down</b>';
@@ -7806,7 +7832,7 @@ function updateConvoy(dt) {
     // an engine crew left alone once its warband is spent packs up and goes: a lone trebuchet shelling an empty field
     // for a minute and more was the longest dull stretch the playtest harness found
     const left = enemies.filter(e => e.alive && !e.fleeing);
-    if (left.length && left.every(e => e.etype === 'engine')) { S.engineAlone = (S.engineAlone || 0) + dt; if (S.engineAlone > 15) { for (const e of left) startFlee(e); banner('The engine crew packs up', 'With the warband gone, they drag it off into the dark.', 2.5); S.engineAlone = 0; } }
+    if (left.length && left.every(e => e.etype === 'engine')) { S.engineAlone = (S.engineAlone || 0) + dt; if (S.engineAlone > 15) { for (const e of left) startFlee(e); banner('The engine crew packs up', 'With the warband gone, they drag it off into the dark.', 2.5); S.engineAlone = 0; refreshGoal(); } }
     else S.engineAlone = 0;
     // the last one or two horse archers of a spent warband ride off after 15 s rather than lead the commander round the
     // field until the 75 s cleanup (BALANCE-69: at the border fort, 5 of 21 nights had 37-59 s of only horse archers)
@@ -7815,7 +7841,16 @@ function updateConvoy(dt) {
     if (S.tailT > 75) for (const e of enemies) if (e.alive && !e.fleeing && e.pos.distanceTo(hero.pos) > 14) { e.alive = false; e.dying = 0.01; e.gone = true; scene.remove(e.bar); }
     // and past that nobody lingers: thieves still on the loose get away with what they carry
     if (S.tailT > 110) for (const e of enemies) if (e.alive) { if (e.fleeing) escaped(e); else { e.alive = false; e.dying = 0.01; e.gone = true; scene.remove(e.bar); } }
-  } else { S.tailT = 0; S.haAlone = 0; }
+    // BUGS-75 B1: nobody left but runaways carrying nothing (a packed-up engine, horse archers riding off): they have nothing
+    // the column wants and nothing to fight, so after a few seconds they are gone into the dark rather than walked to their
+    // pass (at the border fort an engine held the night open 55 s). One still within the commander's reach is left for him
+    // to run down, and a thief with a load must still be caught before the pass
+    const all = enemies.filter(e => e.alive);
+    if (all.length && all.every(e => e.fleeing && !e.carry)) {
+      S.runT = (S.runT || 0) + dt;
+      if (S.runT > 3) for (const e of all) if (!hero.alive || e.pos.distanceTo(hero.pos) > 12) { e.alive = false; e.dying = 0.01; e.gone = true; scene.remove(e.bar); }
+    } else S.runT = 0;
+  } else { S.tailT = 0; S.haAlone = 0; S.runT = 0; }
   campfire.intensity = S.state === 'night' && S.camp ? 9 * (0.9 + Math.sin(clock * 11) * 0.1) : 0;
   for (const s of soldiers) if (s.alive && s.roster) s.roster.hp = s.hp;
   if (S.state === 'night') { S.drumT = Math.max(0, (S.drumT || 0) - dt); if (!(S.drumT > 0)) S.drum = Math.max(0, (S.drum || 0) - dt * 0.12); }
