@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 60 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 61 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2711,6 +2711,7 @@ function moveDirect(p, goal, spd) { tmp3.subVectors(goal, p); tmp3.y = 0; const 
 function moveLand(p, goal, spd, forHero) {
   const ox = p.x, oz = p.z; moveDirect(p, goal, spd);
   if (!blocked(p.x, p.z, forHero)) return;
+  if (blocked(ox, oz, forHero)) return;   // already on blocked ground (pushed into the water at a bridge's edge): any step is a way out
   // an axis try that does not move at all is no escape (holding one key, it "succeeded" and the rider stood dead at a
   // bridge rail: round 6 measured 64% of bridge crossings failing)
   const nx = p.x, nz = p.z; p.x = nx; p.z = oz; if (Math.abs(nx - ox) > 1e-5 && !blocked(p.x, p.z, forHero)) return;
@@ -3252,7 +3253,9 @@ function blockerAhead(e) {
 function followPath(e, dt) {
   if (!e.to) return;
   const ed = edgeOf(e), np = NODES[e.to].pos, c = ed && ed.cross;
-  if (c && c.bridge && !c.intact) {
+  // a broken bridge with a sound crossing right beside it (two roads bridging the river close together): no need to wait
+  const alt = c && c.bridge && !c.intact && CROSSINGS.some(o => o !== c && (o.ford || o.intact) && Math.hypot(o.x - c.x, o.z - c.z) < 8);
+  if (c && c.bridge && !c.intact && !alt) {
     const ahead = (c.x - e.pos.x) * (np.x - e.pos.x) + (c.z - e.pos.z) * (np.z - e.pos.z) > 0;
     const d = Math.hypot(c.x - e.pos.x, c.z - e.pos.z);
     if (ahead && d < RIVER_HALF + 4) {
@@ -3271,7 +3274,8 @@ function followPath(e, dt) {
   }
   let spd = e.speed * dt * (e.slowT > 0 ? 0.5 : 1) * (S.morale < 1 ? 1.15 : 1);
   if (c && c.ford && Math.hypot(c.x - e.pos.x, c.z - e.pos.z) < 3.5) spd *= 0.5;
-  moveDirect(e.pos, np, spd);
+  // off the road (a thief running from inside the ring) the way to the junction may be walled: walk round, as raidStep does
+  if (roadDist(e.pos.x, e.pos.z) > 2) raidStep(e, np, spd); else moveDirect(e.pos, np, spd);
   if (e.pos.distanceTo(tmp.set(np.x, e.pos.y, np.z)) < 1.2) {
     if (e.fleeing && e.to === e.fleeTo) { escaped(e); return; }
     if (e.to === DIST_TARGET && !e.fleeing) { e.inCamp = true; return; }
@@ -6207,7 +6211,24 @@ function convoyEnemy(e, dt) {
     if (e.to === DIST_TARGET && e.pos.distanceTo(tmp.set(NODES[DIST_TARGET].pos.x, e.pos.y, NODES[DIST_TARGET].pos.z)) < 2) e.inCamp = true;
     return null;
   }
-  if (e.etype === 'horse' || e.etype === 'torch') {
+  if (e.etype === 'horse') {
+    // Horse archers never ride into the ring (they used to follow the road to its centre and pin themselves against the
+    // wagons: Matias). They circle it at a bow's range, as the steppe did, and loose at whatever they can reach.
+    const inR = o => o && o.alive && o.pos.distanceTo(e.pos) - (o.radius || 0.4) < e.t.range;
+    const foe = nearest(soldiers, e.pos, inR) || (hero.alive && inR(hero) ? hero : null) || nearest(buildings, e.pos, b => b.plot && b.plot.cart && !isSupply(b.kind) && b.hp < Infinity && inR(b));
+    // nothing in the camp to shoot at all (a dead camp): they ride off. Something seen but out of reach: ride at it
+    const far = nearest(soldiers, e.pos, o => o.alive && canReach(o.pos, e.pos)) || (hero.alive ? hero : null) || nearest(buildings, e.pos, b => b.alive && b.plot && b.plot.cart && !isSupply(b.kind));
+    if (!foe && !far) { startFlee(e); return { attacking: null, look: null }; }
+    const sp = e.speed * dt * (e.slowT > 0 ? 0.5 : 1);
+    if (!foe && far && far.pos.distanceTo(e.pos) > e.t.range + 1 && far.pos.distanceTo(tmp2.set(c.cx, 0, c.cz)) > c.R + 1) { raidStep(e, far.pos, sp); return { attacking: null, look: far.pos }; }
+    const orbitR = c.R + 4.2, a = Math.atan2(e.pos.x - c.cx, e.pos.z - c.cz) + (e.orbitDir || (e.orbitDir = Math.random() < 0.5 ? 1 : -1)) * 0.55;
+    const gx = c.cx + Math.sin(a) * orbitR, gz = c.cz + Math.cos(a) * orbitR, step = sp * (foe && e.cd <= 0 ? 0 : 0.8);
+    if (step > 0 && !(e.orbitHold > 0)) { const bx = e.pos.x, bz = e.pos.z; moveLand(e.pos, tmp2.set(gx, 0, gz), step);
+      if (Math.hypot(e.pos.x - bx, e.pos.z - bz) < step * 0.2) { e.orbitDir = -e.orbitDir; e.flips = (e.flips || 0) + 1; if (e.flips > 3) { e.orbitHold = 4; e.flips = 0; } } else e.flips = 0; }   // blocked both ways (water): hold and shoot a while
+    if (e.orbitHold > 0) e.orbitHold -= dt;
+    return { attacking: foe && e.cd <= 0 ? foe : null, look: foe ? foe.pos : null };
+  }
+  if (e.etype === 'torch') {
     // the road ends at the nearest junction, which can be well short of the ring: close the rest straight
     if (dc > c.R + 6) { raidStep(e, new V3(c.cx, 0, c.cz), e.speed * dt * (e.slowT > 0 ? 0.5 : 1)); return { attacking: null, look: null }; }
     return null;
@@ -6237,11 +6258,26 @@ function lootOrFight(e, dt, step) {
   if (!sup) {
     // nothing left to steal: they turn on the war carts, not on empty supply wagons (burning an
     // empty food wagon used to end the run for a wagon with nothing in it)
-    const t = nearest(buildings, e.pos, b => b.alive && b.plot.cart && !isSupply(b.kind)); if (!t) return null;
+    const t = nearest(buildings, e.pos, b => b.alive && b.plot.cart && !isSupply(b.kind));
+    if (!t) {   // a dead camp: nothing to steal, burn or fight here. They go, rather than stand about until the clear-out
+      const foe = nearest([hero, ...soldiers], e.pos, f => f.alive && f.pos.distanceTo(e.pos) < 10);
+      if (foe) { if (foe.pos.distanceTo(e.pos) < 1.4 + e.t.rad) return { attacking: foe, look: foe.pos }; raidStep(e, foe.pos, step); return { attacking: null, look: foe.pos }; }
+      startFlee(e); return { attacking: null, look: null };
+    }
     if (t.pos.distanceTo(e.pos) < t.radius + e.t.rad + 0.4) return { attacking: t, look: t.pos };
     raidStep(e, t.pos, step); return { attacking: null, look: t.pos };
   }
-  if (sup.pos.distanceTo(e.pos) > sup.radius + e.t.rad + 0.4) { e.lootT = 0; raidStep(e, sup.pos, step); return { attacking: null, look: sup.pos }; }
+  if (sup.pos.distanceTo(e.pos) > sup.radius + e.t.rad + 0.4) {
+    e.lootT = 0;
+    // crowded out: those who cannot reach a wagon turn on what they can (a whole warband stood idle behind the few at the
+    // wagons: the QA stuck-unit check counted about forty a night)
+    const d0 = sup.pos.distanceTo(e.pos); e.lootWait = d0 > (e.lootD || 1e9) - 0.05 ? (e.lootWait || 0) + dt : 0; e.lootD = d0;
+    if (e.lootWait > 1.5) {
+      const t = nearest([hero, ...soldiers], e.pos, f => f.alive && f.pos.distanceTo(e.pos) < 7) || nearest(buildings, e.pos, b => b.alive && b.plot && b.plot.cart && !isSupply(b.kind) && b.pos.distanceTo(e.pos) < 9);
+      if (t) { if (t.pos.distanceTo(e.pos) < (t.radius || 0.4) + e.t.rad + 1.0) return { attacking: t, look: t.pos }; raidStep(e, t.pos, step); return { attacking: null, look: t.pos }; }
+    }
+    raidStep(e, sup.pos, step); return { attacking: null, look: sup.pos };
+  }
   e.lootT = (e.lootT || 0) + dt; e.atkT = 0.3;
   if (e.lootT >= 1.3) {
     const sp = SUPPLY[sup.kind], take = Math.min(CONVOY.sack, S.res[sp.res]);
@@ -7659,7 +7695,7 @@ setTimeout(() => {
 }, 600);
 // step ends as a real frame does (tweens, fresh panel boxes): stale boxes made harness shots show overlaps the game never has
 window.__ff = { get campLife() { return campLife; }, musterSoldiers, bellPos, CASTLE_R, solidAt, riverDist, SOLID, PIECES, showChoice, pickChoice, get choice() { return choiceCur; }, FEATS, feat, COMMANDERS, envoy, refugees, deserters, chooseCommander, beacons, bsmoke, smokeMesh, byPass: () => S.byPass, saveRun, savedRun, resumeRun, forgetRun, showChronicle, DAILY_TWISTS, get fast() { return fast; }, set fast(v) { fast = v; }, get lookPause() { return lookPause; }, set lookPause(v) { lookPause = v; }, setSeed: n => { seed = n; }, render: () => { bloom.enabled = QUALITY.bloom; composer.render(); }, camFocus, sfxAt, kick, volley, killEnemy, makeHeroModel, animArcher, makeEnemyModel, animFoot, fallPose, convoyLose, lossCause, BAG, placeBaggage, takeBaggage, baggagePrompt, fallenMesh, stuckMesh, scene, perf, addFallen, runReport, RIVER, ETYPES, DEFS, HERO, CHARGE, COMMAND, waveFor, veterans, roadDist, inGate, PIECES, pickEntries, treeSpots, VALLEY, hgt, thumb, rankOffers, spawnEnemy, damage, dropSpot, setDown, dash, crossesRiver, navGoal, PASS_KEEP, blocked, NAV, firePools, nextRegion, cartSpotOk, leaveShop, quietNight, placeSoldiers, atConvoyOf, callSoldiers, sendBack, crewUnits, CREW, SOLDIER_TYPE, CART_KINDS, convoy, CONVOY, LEVELS, genRegion, openMap, confirmMap, travelTo, openShop, pickShop, shopOpts: () => shopOpts, mapOpts: () => mapOpts, foodPerDay, ringPlan, circleWagons, enterField, genField, loadFort, hitch, setDown, roadBuild, postSoldiers, beginNight, convoyPrompt, followers, nearestEdgeKey, FIELD, thumb, combatCarts, supplyWagons, removeBuilding, dangers, volley, rally, occl, heroM, renderer, composer, scene, camera, puffs, enemies_: enemies, setWeapon, damage, SPRINT, BLADE, QUALITY, Sound, inkPass, keys, stick, useAbility, abCd, ABILITIES, firePools, KEEP_HP, WAVES, ETYPES, HERO, VOLLEY, CHARGE, ridgeHidesHero, pathFrom, refreshDist, plotMods, UPGRADES, cardAvailable, takeCard, ABILITIES, step: (dt, n) => { for (let i = 0; i < (n || 1); i++) { update(dt); stepTweens(dt); clearTopMemo = null; promptMemo = null; } }, S, plots, buildings, enemies, soldiers, workers, hero, keep, build, upgrade, startNight, start, DEFS, CROSSINGS, burnBridge, buildBridge, NODES, EDGES, ENTRIES, moveLand, blocked, decide, choose };
-Object.assign(window.__ff, { addSoldiers, joinConvoy, SFX_MIN, heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
+Object.assign(window.__ff, { CROSSINGS, addSoldiers, joinConvoy, SFX_MIN, heroRing, THREE_Raycaster: THREE.Raycaster, banner, WOODS, decor, MOUNDS, NAV, navGrid, navOpen, ringPlan, clearCampGround, segDist, solidNear, get circling() { return circling; } });   // for the audits in tools/scratch
 })();
 </script>
 </body>
