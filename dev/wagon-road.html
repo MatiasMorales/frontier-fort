@@ -171,6 +171,8 @@ button.go:focus-visible, .tablet:focus-visible{ outline:3px solid var(--paper); 
 #phases span.on{ background:var(--lacquer); color:var(--paper); box-shadow:inset 0 0 0 1px var(--gold); }
 #phases span.on i{ background:var(--gold); color:#2a1411; font-weight:700; }
 #phases span.done{ color:#c7b48f; }
+/* a narrow window: the strip keeps its numbers and the current phase's name, and stands to the right of the resource box (fitPhases) */
+#phases.tight span:not(.on){ font-size:0; gap:0; padding:4px; }
 @media (max-width:760px){ #phases span{ font-size:11px; padding:3px 7px 3px 3px; } #phases{ top:calc(4px + env(safe-area-inset-top,0px)); } }
 .is-paused #threats{ display:none !important; }
 #smap, #shop, #dawn{ padding-top:58px; }
@@ -551,7 +553,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 61 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 62 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -621,7 +623,8 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 // title's button reloads the page with the day's seed set, and every random draw from here on follows it, so the map
 // and the fields are the same for everyone that day.
 const HOOF_GAIN = 0.4;   // the commander's own hooves: about 8 dB under Build 34 (Matias, twice: too loud)
-const DAILY = (() => { try { const d = sessionStorage.getItem('wagon-road-daily'); if (d) { sessionStorage.removeItem('wagon-road-daily'); return d; } } catch (e) {} return null; })();
+// let: a resumed daily road sets it again from the save (resumeRun)
+let DAILY = (() => { try { const d = sessionStorage.getItem('wagon-road-daily'); if (d) { sessionStorage.removeItem('wagon-road-daily'); return d; } } catch (e) {} return null; })();
 if (DAILY) { let q = [...DAILY].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 2147483647, 7) || 7; Math.random = () => (q = (q * 16807) % 2147483647) / 2147483647; }
 import { Pass, FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 (() => {
@@ -3255,7 +3258,7 @@ function followPath(e, dt) {
   const ed = edgeOf(e), np = NODES[e.to].pos, c = ed && ed.cross;
   // a broken bridge with a sound crossing right beside it (two roads bridging the river close together): no need to wait
   const alt = c && c.bridge && !c.intact && CROSSINGS.some(o => o !== c && (o.ford || o.intact) && Math.hypot(o.x - c.x, o.z - c.z) < 8);
-  if (c && c.bridge && !c.intact && !alt) {
+  if (c && c.bridge && !c.intact && !(alt && e.detour !== null)) {   // detour null: no way round was found, so wait and rebuild
     const ahead = (c.x - e.pos.x) * (np.x - e.pos.x) + (c.z - e.pos.z) * (np.z - e.pos.z) > 0;
     const d = Math.hypot(c.x - e.pos.x, c.z - e.pos.z);
     if (ahead && d < RIVER_HALF + 4) {
@@ -3274,12 +3277,21 @@ function followPath(e, dt) {
   }
   let spd = e.speed * dt * (e.slowT > 0 ? 0.5 : 1) * (S.morale < 1 ? 1.15 : 1);
   if (c && c.ford && Math.hypot(c.x - e.pos.x, c.z - e.pos.z) < 3.5) spd *= 0.5;
-  // off the road (a thief running from inside the ring) the way to the junction may be walled: walk round, as raidStep does
-  if (roadDist(e.pos.x, e.pos.z) > 2) raidStep(e, np, spd); else moveDirect(e.pos, np, spd);
+  // a broken bridge with a sound crossing beside it: go round over that one on the walk grid (which only opens water at a
+  // standing bridge or the ford), never along the edge over the water where the deck was. Kept until he reaches the junction.
+  if (alt && e.detour !== c) {
+    const ahead = (c.x - e.pos.x) * (np.x - e.pos.x) + (c.z - e.pos.z) * (np.z - e.pos.z) > 0;
+    if (ahead && Math.hypot(c.x - e.pos.x, c.z - e.pos.z) < RIVER_HALF + 4) { navGrid(); e.detour = findPath(e.pos, np) ? c : null; e.path = null; }
+  }
+  if (e.detour && (e.detour !== c || c.intact)) e.detour = undefined;
+  if (e.detour) moveDirect(e.pos, navGoal(e, np), spd);
+  // off the road (a thief running from inside the ring), or making for a first junction with no road under him (from = to:
+  // a fleer), the way may be walled or cross the river: walk round, as raidStep does
+  else if (e.from === e.to || roadDist(e.pos.x, e.pos.z) > 2) raidStep(e, np, spd); else moveDirect(e.pos, np, spd);
   if (e.pos.distanceTo(tmp.set(np.x, e.pos.y, np.z)) < 1.2) {
     if (e.fleeing && e.to === e.fleeTo) { escaped(e); return; }
     if (e.to === DIST_TARGET && !e.fleeing) { e.inCamp = true; return; }
-    const came = e.from; e.from = e.to; e.to = decide(e, e.to, came);
+    const came = e.from; e.from = e.to; e.to = decide(e, e.to, came); e.detour = undefined;
   }
 }
 // No raider ends a frame inside a wall: pushed in by a charge he is set on open ground, and a step
@@ -3435,6 +3447,9 @@ function updateEnemyStep(e, dt) {
   }
   return true;
 }
+// a crowd's push never shoves anyone off a bridge deck or the ford into the water (QA: raiders pressed off the sides of a
+// crossing walked on through the river beside it); already on blocked ground, any push is a way out
+function nudge(p, dx, dz) { if (!RIVER.length || blocked(p.x, p.z) || !blocked(p.x + dx, p.z + dz)) { p.x += dx; p.z += dz; } }
 function separate() {
   // our men keep a little room too, and are not walked through by raiders
   if (WAGON) {
@@ -3444,13 +3459,13 @@ function separate() {
       for (let j = i + 1; j < men.length; j++) { const b = men[j].pos, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = 0.85;
         if (d > 0.001 && d < min) { const p = (min - d) / 2 / d; a.x -= dx * p; a.z -= dz * p; b.x += dx * p; b.z += dz * p; } }
       for (const e of foes) { const b = e.pos, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = 0.45 + e.t.rad;
-        if (d > 0.001 && d < min) { const p = (min - d) / 2 / d; a.x -= dx * p; a.z -= dz * p; b.x += dx * p; b.z += dz * p; } }
+        if (d > 0.001 && d < min) { const p = (min - d) / 2 / d; nudge(a, -dx * p, -dz * p); nudge(b, dx * p, dz * p); } }
     }
   }
   const all = enemies.filter(e => e.alive);
   for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) {
     const a = all[i].pos, b = all[j].pos, dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = all[i].t.rad + all[j].t.rad;
-    if (d > 0.001 && d < min) { const push = (min - d) / 2 / d; a.x -= dx * push; a.z -= dz * push; b.x += dx * push; b.z += dz * push; }
+    if (d > 0.001 && d < min) { const push = (min - d) / 2 / d; nudge(a, -dx * push, -dz * push); nudge(b, dx * push, dz * push); }
   }
   if (FIELD.castle) for (const e of all) { const d = Math.hypot(e.pos.x, e.pos.z); if (d < keep.radius + e.t.rad) { const k = (keep.radius + e.t.rad) / Math.max(d, 0.01); e.pos.x *= k; e.pos.z *= k; } }
 }
@@ -5015,10 +5030,12 @@ const FOOD_BASE = 2, SPOIL_CHANCE = 0.08;
 const HUNGER_HIT = 0.34;        // share of a soldier's max HP lost for each day without food
 const REPAIR = { tower: 4, rockets: 5, bombard: 6, barricade: 3, palisade: 4 };   // in wood
 const LEVELS = [   // convoy level: how many soldiers the column can feed and command, and how tough its carts are
-  { cost: null,                    soldiers: 22, crew: 5, hp: 1.0 },
-  { cost: { wood: 14, stone: 6 },  soldiers: 32, crew: 7, hp: 1.2 },
-  { cost: { wood: 20, stone: 14 }, soldiers: 42, crew: 9, hp: 1.45 },
+  { cost: null,                    soldiers: 22, crew: 5, carts: 7,  hp: 1.0 },
+  { cost: { wood: 14, stone: 6 },  soldiers: 32, crew: 7, carts: 9,  hp: 1.2 },
+  { cost: { wood: 20, stone: 14 }, soldiers: 42, crew: 9, carts: 11, hp: 1.45 },
 ];
+// war carts the ring can stand (wrecks in the baggage count): with no cap the shop sold 150 and the ring set them down inside each other
+const cartRoom = () => combatCarts().length + convoy.filter(p => p.wreck).length < LEVELS[S.level].carts;
 const CART_KINDS = ['tower', 'rockets', 'bombard', 'barricade', 'palisade'];
 const CART_COST = { tower: { wood: 8 }, rockets: { wood: 8, stone: 4 }, bombard: { wood: 6, stone: 10 }, barricade: { wood: 5 }, palisade: { wood: 10, stone: 2 } };
 // crews work wherever the convoy stops: a few trips each, and what they carry back is yours
@@ -5785,7 +5802,7 @@ function waveFor() {
   const g = runStep(), d = Math.min(7, 1 + g * 0.36);
   const W = WAVES[Math.min(Math.round(d) - 1, WAVES.length - 1)], T = tier(), kind = FIELD.kind || 'valley';
   // a smoother curve than before: harder from the first night, gentler later on
-  const t = S.nightType, k = (t === 'boss' ? 1.1 : t === 'elite' ? 1.6 : 1.3) * (1.0 + S.region * 0.16);
+  const t = S.nightType, k = (t === 'boss' ? 1.1 : t === 'elite' ? 1.6 : 1.3) * (1.0 + S.region * 0.08);
   // the first nights are for learning the tools you have; the curve climbs as the tools arrive
   const kb = k * WAR.bodies * [0.85, 0.75, 0.68, 0.7, 0.9][T];
   const horseK = kind === 'steppe' ? 2 : kind === 'gorge' ? 0.5 : 1, heavyK = kind === 'gorge' ? 1.6 : kind === 'steppe' ? 0.6 : 1;
@@ -5799,7 +5816,7 @@ function waveFor() {
     bowman: Math.round((3 + g * 0.5) * (kind === 'steppe' ? 1.5 : 1) * (t === 'elite' || t === 'boss' ? 1.4 : 1)),
     potter: T >= 2 ? Math.round((1 + g * 0.3) * (kind === 'gorge' ? 1.5 : 1)) : 0,
     lasso: T >= 3 ? Math.round((1 + g * 0.25) * (kind === 'steppe' ? 1.6 : 1)) : 0,
-    firearcher: T >= 2 ? Math.max(2, Math.round((W.firearcher || 0) * k * (t === 'boss' ? 0.8 : 1.3))) : 0,
+    firearcher: T >= 2 ? Math.max(2, Math.round((W.firearcher || 0) * (k / (1.0 + S.region * 0.08)) * (t === 'boss' ? 0.8 : 1.3))) : 0,
     engine: T >= 2 && (S.region > 0 || t !== 'fight') ? (t === 'boss' && S.region > 0 ? 2 : 1) + Math.floor(g / 7) : 0,
     captain: t === 'boss' ? 1 + S.region : t === 'elite' ? 1 : 0,
     entries: kind === 'gorge' ? 2 : kind === 'front' || kind === 'twin' ? 3 : t === 'boss' || t === 'elite' || S.region >= 2 ? 3 : 2,
@@ -5839,7 +5856,7 @@ function veterans(W) {
   W.foot -= n;
   // heavier types cost two foot raiders apiece, so the count drops while the weight rises
   while (n > 0) { const k = pool[Math.floor(Math.random() * pool.length)], cost = ['ironcoat', 'spearhedge', 'lancer', 'shield'].includes(k) ? 2 : 1; W[k] = (W[k] || 0) + 1; n -= cost; }
-  W.hardness = 1 + 0.12 * S.region + 0.01 * (S.floor || 0);     // every raider's health
+  W.hardness = 1 + 0.06 * S.region + 0.01 * (S.floor || 0);     // every raider's health
   // Found by the Rust simulator's tuner (tools/sim --tune): once horse archers stopped shooting the loads,
   // sitting in the ring stopped losing. One more fire archer and a tenth fewer bodies puts active play at about
   // 10% of nights lost and turtling at about 50%.
@@ -6206,7 +6223,7 @@ function convoyEnemy(e, dt) {
   if (e.etype === 'bowman' || e.etype === 'potter' || e.etype === 'lasso') { const r2 = standOff(e, dt); if (r2) return r2; }
   const c = S.camp; if (!c) return null;
   const dc = Math.hypot(e.pos.x - c.cx, e.pos.z - c.cz);
-  if (!e.inCamp && dc < c.R + 8) e.inCamp = true;
+  if (!e.inCamp && dc < c.R + 8 && !crossesRiver(e.pos.x, e.pos.z, c.cx, c.cz)) e.inCamp = true;   // not from the far bank: the road brings him over a crossing first
   if (!e.inCamp) {
     if (e.to === DIST_TARGET && e.pos.distanceTo(tmp.set(NODES[DIST_TARGET].pos.x, e.pos.y, NODES[DIST_TARGET].pos.z)) < 2) e.inCamp = true;
     return null;
@@ -6252,7 +6269,9 @@ function convoyEnemy(e, dt) {
 }
 // A raider off the road walks straight at what he wants, unless a wall, a wood or a house is in the
 // way: then he takes the walkers' path round it (through a gate, round the end of the woods).
-function raidStep(e, goal, step) { moveDirect(e.pos, PIECES.length && solidLine(e.pos, goal) ? navGoal(e, goal) : goal, step); }
+// straight at the goal, unless a wall or the river is in the way: then the walk grid, which opens water only at a standing
+// bridge or the ford (a straight line had half a warband wading beside a bridge to a camp on the near bank)
+function raidStep(e, goal, step) { moveDirect(e.pos, (PIECES.length && solidLine(e.pos, goal)) || crossesRiver(e.pos.x, e.pos.z, goal.x, goal.z) ? navGoal(e, goal) : goal, step); }
 function lootOrFight(e, dt, step) {
   const sup = nearest(buildings, e.pos, b => b.alive && isSupply(b.kind) && S.res[SUPPLY[b.kind].res] > 0);
   if (!sup) {
@@ -6289,9 +6308,23 @@ function lootOrFight(e, dt, step) {
 }
 function startFlee(e) {
   e.anchor = null; e.fleeing = true; e.inCamp = false; e.inside = false; e.speed *= 0.92; e.opp = null;
-  const nn = nearestNode(e.pos.x, e.pos.z, id => id[0] !== 'P');
-  let best = null, bc = Infinity;
-  for (const en of ENTRIES) { const D = fleeDist(en.id); if (D[nn] < bc) { bc = D[nn]; best = en.id; } }
+  // away from the camp, not back to it: the first junction is the one that makes the shortest run to a pass from where he
+  // stands, never the camp's own (the food wagon stands on it, so nobody could arrive there: they milled in the ring for 12 s).
+  // Across the river counts extra, as the way there goes round by a crossing, and so does a way through the ring for one
+  // who stands outside it (a horse archer rode straight through the wagons to a junction beyond).
+  const c = S.camp, inRing = id => c && Math.hypot(NODES[id].pos.x - c.cx, NODES[id].pos.z - c.cz) < c.R + 1;
+  const outside = c && Math.hypot(e.pos.x - c.cx, e.pos.z - c.cz) > c.R;
+  let nn = null, best = null, bc = Infinity;
+  for (const id in NODES) {
+    if (id[0] === 'P' || inRing(id)) continue;
+    const q = NODES[id].pos, d0 = Math.hypot(q.x - e.pos.x, q.z - e.pos.z) + (crossesRiver(e.pos.x, e.pos.z, q.x, q.z) ? 20 : 0)
+      + (outside && segDist(c.cx, c.cz, e.pos.x, e.pos.z, q.x, q.z) < c.R ? 30 : 0);
+    for (const en of ENTRIES) { const D = fleeDist(en.id); if (d0 + D[id] < bc) { bc = d0 + D[id]; best = en.id; nn = id; } }
+  }
+  if (!nn) {   // no junction outside the ring (should not happen): the nearest, as before
+    nn = nearestNode(e.pos.x, e.pos.z, id => id[0] !== 'P');
+    for (const en of ENTRIES) { const D = fleeDist(en.id); if (D[nn] < bc) { bc = D[nn]; best = en.id; } }
+  }
   e.fleeTo = best; e.from = nn; e.to = nn;
 }
 const resWord = r => r === 'grain' ? 'food' : r;
@@ -6592,10 +6625,15 @@ function soldierOpts(k) {
 function cartOpts() {
   const open = { tower: has.xbow(), barricade: has.wood(), rockets: has.heavy(), bombard: has.levels() && S.commander !== 'liaodong', palisade: has.palisade() };
   const out = convoy.filter(p => p.wreck).map(p => ({ n: 'Mend the ' + DEFS[p.wreck.kind].name.toLowerCase(), img: p.wreck.kind, c: { wood: REPAIR[p.wreck.kind] || 4 }, d: 'Wrecked in the night, carried in the baggage', run: () => mendWreck(p), sec: 'Wagons', once: true }))
-    .concat(CART_KINDS.filter(k => open[k]).map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), sec: 'Wagons', key: k })));
-  const L = LEVELS[S.level + 1];
-  if (L && has.levels()) out.push({ n: `Convoy level ${S.level + 2}`, img: 'level', c: L.cost, d: `Room for ${L.soldiers} soldiers and ${L.crew} crew, and every cart ${Math.round((L.hp / LEVELS[S.level].hp - 1) * 100)}% tougher`, run: levelUp, sec: 'Wagons' });
+    .concat(CART_KINDS.filter(k => open[k]).map(k => ({ n: DEFS[k].name, img: k, c: CART_COST[k], d: DEFS[k].desc, run: () => joinConvoy(k), ok: cartRoom, sec: 'Wagons', key: k })));
+  const lc = levelCard(); if (lc) out.push(lc);
   return out;
+}
+// the level card is bought once at its own price; buying it puts the next level's card in its place (none after the last)
+function levelCard() {
+  const L = LEVELS[S.level + 1];
+  if (!L || !has.levels()) return null;
+  return { n: `Convoy level ${S.level + 2}`, img: 'level', c: L.cost, d: `Room for ${L.soldiers} soldiers, ${L.crew} crew and ${L.carts} war carts, and every cart ${Math.round((L.hp / LEVELS[S.level].hp - 1) * 100)}% tougher`, run: levelUp, sec: 'Wagons', once: true, then: levelCard };
 }
 function openShop(kind, reopen) {
   shopKind = kind; S.phase = 'shop'; S.state = 'day'; S.backShop = kind;
@@ -6634,12 +6672,13 @@ function updateQuiet(dt) {
   if (S.phase === 'quietNight' && S.quietT > 2.4) { S.state = 'day'; openMap(); }
 }
 function levelUp() {
+  if (S.level >= LEVELS.length - 1) return;   // past the last level LEVELS[S.level] is undefined and every frame throws
   S.level++; const m = LEVELS[S.level].hp / LEVELS[S.level - 1].hp;
   S.cartHpMul *= m; for (const b of buildings) { b.max *= m; b.hp *= m; }
 }
 function shopBlocked(o) {
   if (o.gift) return S.gifted ? 'They have given what they can' : '';
-  if (o.ok && !o.ok()) return 'No room: raise the convoy level';
+  if (o.ok && !o.ok()) return has.levels() && LEVELS[S.level + 1] ? 'No room: raise the convoy level' : 'No room in the column';   // no level to raise yet, or the last
   if (o.c && !afford(o.c)) return 'Needs ' + missing(o.c).replace('grain', 'food') + ' more';
   return '';
 }
@@ -6706,7 +6745,11 @@ function pickShop() {
   if (o.c) pay(o.c);
   runLog({ t: 'buy', item: (o.n || '').replace(/<[^>]+>/g, ''), cost: o.c || null, gift: !!o.gift });
   o.run(); if (o.gift) S.gifted = true;
-  if (o.once) { shopOpts.splice(shopSel, 1); shopSel = Math.min(shopSel, shopOpts.length - 1); }   // a mended wreck is mended
+  if (o.once) {   // a mended wreck is mended; a bought level gives way to the next level's card
+    const nx = o.then && o.then();
+    if (nx) shopOpts[shopSel] = nx;
+    else { shopOpts.splice(shopSel, 1); shopSel = Math.min(shopSel, shopOpts.length - 1); }
+  }
   S.lastBought = o.key || null;
   Sound.ui('build'); refreshHUD(); refreshSacks(); renderShop();
 }
@@ -7240,6 +7283,20 @@ function updatePhases() {
   el.hidden = S.state === 'title' || S.state === 'won' || S.state === 'lost';
   const order = ['road', 'build', 'position', 'night'], at = order.indexOf(p);
   el.querySelectorAll('span').forEach((sp, i) => { sp.classList.toggle('on', i === at); sp.classList.toggle('done', i < at); });
+  if (!el.hidden) fitPhases(el);
+}
+// Centred, the strip sat on the food count at 1024x600 once wood was unlocked (and hid it with stone). On the field, when it
+// would meet the resource box, it drops to its numbers and moves right of the box. Measured four times a second, not every frame.
+let phaseFitT = 0;
+function fitPhases(el) {
+  if (--phaseFitT > 0) return; phaseFitT = 15;
+  const st = $('#status'), field = st && !st.hidden && S.phase !== 'map' && S.phase !== 'shop';
+  const a = field ? st.getBoundingClientRect().right + 10 : 0;
+  if (!el.classList.contains('tight')) el._fullW = el.offsetWidth;
+  const tight = field && a > (innerWidth - (el._fullW || 0)) / 2;
+  setClass(el, 'tight', tight);
+  const dx = tight ? Math.max(0, a - (innerWidth - el.offsetWidth) / 2) : 0;
+  setStyle(el, 'marginLeft', dx ? Math.round(dx) + 'px' : '');
 }
 function updateConvoy(dt) {
   updatePhases();
@@ -7362,7 +7419,8 @@ function saveRun() {
   if (!(S.path && S.path.length > 1)) { forgetRun(); return; }   // nothing to continue until the column has taken a road
   try {
     const st = {}; for (const k in S) if (!SAVE_SKIP.has(k) && typeof S[k] !== 'function') st[k] = S[k];
-    const col = convoy.filter(p => p.building).map(p => ({ k: p.cartKind, lv: p.building.level || 0, hp: p.building.hp, max: p.building.max }));
+    // wrecks carried in the baggage are kept too, to be mended later (they were lost on every resume)
+    const col = convoy.filter(p => p.building || p.wreck).map(p => p.wreck ? { k: p.cartKind, wreck: p.wreck } : { k: p.cartKind, lv: p.building.level || 0, hp: p.building.hp, max: p.building.max });
     // Sets (the map's roads, among others) are written as lists and read back as Sets, at any depth
     localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, build: ((document.querySelector('.buildTag') || {}).textContent || ''), at: new Date().toISOString(), daily: DAILY, S: st, col, run: RUN, hero: { hp: hero.hp, max: hero.max } }, (k, v) => v instanceof Set ? { __set: [...v] } : v));
   } catch (e) { /* a private window or a full store: the run simply isn't kept */ }
@@ -7373,7 +7431,12 @@ function resumeRun(sv) {
   Object.assign(S, sv.S); S.taken = new Set(); S.announced = new Set(); S.spawnQ = []; S.entries = []; S.preEntries = null; S.camp = null; S.towing = null;
   for (const p of convoy) { if (p.building) { scene.remove(p.building.g); if (p.building.bar) scene.remove(p.building.bar); const i = buildings.indexOf(p.building); if (i >= 0) buildings.splice(i, 1); } if (p.ruin) scene.remove(p.ruin.g); }
   convoy.length = 0;
-  for (const c of sv.col) { const p = addWagon(c.k, c.lv, 0, 0, 0); p.building.max = c.max; p.building.hp = Math.min(c.hp, c.max); }
+  for (const c of sv.col) {
+    if (c.wreck) { convoy.push({ kind: 'cart', cart: true, cartKind: c.k, x: 0, z: 0, rotY: 0, pos: new V3(), options: [], building: null, ruin: null, spots: [], edgeKey: null, wreck: c.wreck }); continue; }
+    const p = addWagon(c.k, c.lv, 0, 0, 0); p.building.max = c.max; p.building.hp = Math.min(c.hp, c.max);
+  }
+  // a daily road stays one: DAILY was read once at load, so in this page it is not set; its twists that live outside S go back on
+  if (sv.daily) { DAILY = sv.daily; CONVOY.regions = 1; const tw = dailyTwist(DAILY); if (tw.again) tw.again(); }
   layoutColumn(2, -46, Math.PI / 2); hero.pos.set(4, 0, -43); hero.face = Math.PI / 2;
   if (sv.hero) { hero.max = sv.hero.max; hero.hp = sv.hero.hp; }
   if (sv.run) { RUN.events = sv.run.events || []; RUN.started = sv.run.started || RUN.started; }
@@ -7383,7 +7446,7 @@ function resumeRun(sv) {
 const DAILY_TWISTS = [
   { name: 'A lean autumn', text: 'The column sets out with 28 food instead of 40.', apply: () => { S.res.grain = 28; } },
   { name: 'Old soldiers', text: 'Three veteran archers march with you from the start.', apply: () => addSoldiers(3, 'archer') },
-  { name: 'Strong horses', text: 'The commander can gallop half as long again.', apply: () => { SPRINT.max *= 1.5; hero.stam = SPRINT.max; } },
+  { name: 'Strong horses', text: 'The commander can gallop half as long again.', apply: () => { SPRINT.max *= 1.5; hero.stam = SPRINT.max; }, again: () => { SPRINT.max *= 1.5; hero.stam = SPRINT.max; } },   // again: on a resume, SPRINT is not in the save
   { name: 'Hungry roads', text: 'The column eats 1 more food a day.', apply: () => { S.rationCut -= 1; } },
 ];
 const dailyTwist = d => DAILY_TWISTS[[...d].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9973, 3) % DAILY_TWISTS.length];
