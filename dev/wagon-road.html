@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 67 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 68 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3444,10 +3444,14 @@ function updateEnemyStep(e, dt) {
   e.bob += Math.min(0.9, Math.hypot(mv.x, mv.z) / Math.max(0.5, e.speed) * (e.m.rider ? 13 : 9) * e.cad);
   if (attacking || mv.lengthSq() > 1e-4) e.idleT = 0;
   else if ((e.idleT = (e.idleT || 0) + dt) > 6) {
-    e.idleT = 0; e.opp = null; e.oppT = 6; e.waitT = 0;
-    let nn = null, nd = Infinity;
-    for (const id in NODES) { const d = NODES[id].pos.distanceTo(e.pos); if (d < nd) { nd = d; nn = id; } }
-    if (nn) { e.from = nn; e.to = decide(e, nn, null); }
+    e.idleT = 0;
+    // a runaway is sent on his way out, not back across the field (QA r7 B3); startFlee's slowing is for the first flight only
+    if (e.fleeing) { const en = ENTRIES.find(x => NODES[x.id].pos.distanceTo(e.pos) < 10);
+      if (en) e.to = en.id; else { const sp = e.speed; startFlee(e); e.speed = sp; } }
+    else { e.opp = null; e.oppT = 6; e.waitT = 0;
+      let nn = null, nd = Infinity;
+      for (const id in NODES) { const d = NODES[id].pos.distanceTo(e.pos); if (d < nd) { nd = d; nn = id; } }
+      if (nn) { e.from = nn; e.to = decide(e, nn, null); } }
   }
   if (moving) g.rotation.y += angDiff(Math.atan2(mv.x, mv.z), g.rotation.y) * Math.min(1, dt * 10);
   else if (look && e.etype !== 'horse') g.rotation.y += angDiff(Math.atan2(look.x - e.pos.x, look.z - e.pos.z), g.rotation.y) * Math.min(1, dt * 10);
@@ -6572,7 +6576,7 @@ function rankOffers() {
   if (out.length < 3) { const fill = BOONS.filter(x => x.name !== 'A captured cart' && (!x.ok || x.ok())).sort(() => Math.random() - 0.5);
     while (out.length < 3 && fill.length) out.push(fill.shift()); }
   // when food is short, the third choice is food instead
-  if (daysOfFood() < 3 && out.length === 3) out[2] = BOONS.find(b => b.name.startsWith('Millet'));
+  if (daysOfFood() < 3 && out.length === 3 && !out.some(u => u && u.name.startsWith('Millet'))) out[2] = BOONS.find(b => b.name.startsWith('Millet'));   // never twice (QA r7 B1)
   return out;
 }
 function offerRewards() {
@@ -6606,11 +6610,11 @@ choose = function (u) {
 const BOONS = [
   { name: 'Drill the ranks', img: 'drill', desc: 'Every soldier hits 25% harder', apply: () => { S.soldierStr *= 1.25; } },
   { name: 'Lamellar for the men', img: 'coats', desc: 'Every soldier gains 30% max HP, and is healed', apply: () => { S.soldierHpMul *= 1.3; for (const r of S.roster) { r.max = Math.round(r.max * 1.3); r.hp = r.max; } } },
-  { name: 'Volunteers', img: 'recruit', desc: 'Six men join the column', apply: () => { addSoldiers(3, 'spear'); addSoldiers(3, has.archers() ? 'archer' : 'spear'); }, ok: () => S.roster.length < LEVELS[S.level].soldiers },
+  { name: 'Volunteers', img: 'recruit', desc: 'Six men join the column', apply: () => { addSoldiers(3, 'spear'); addSoldiers(3, has.archers() ? 'archer' : 'spear'); }, ok: () => S.roster.length + 6 <= LEVELS[S.level].soldiers },   // only with room for all six (QA r7 B2)
   { name: 'A captured cart', img: 'tower', desc: 'A crossbow cart joins the convoy', apply: () => joinConvoy('tower'), ok: () => has.xbow() },
   { name: 'Millet from the raiders', img: 'food', desc: '+18 food', apply: () => { S.res.grain += 18; } },
   { name: 'Salvage', img: 'salvage', desc: '+10 wood, +6 stone', apply: () => { S.res.wood += 10; S.res.stone += 6; }, ok: () => has.stone() },
-  { name: 'Field hospital', img: 'coats', desc: 'Every soldier healed to full', apply: () => { for (const r of S.roster) r.hp = r.max; } },
+  { name: 'Field hospital', img: 'coats', desc: 'Every soldier healed to full', apply: () => { for (const r of S.roster) r.hp = r.max; }, ok: () => S.roster.some(r => r.hp < r.max) },   // never a wasted card
 ];
 function nextRegion() {
   clearField();
