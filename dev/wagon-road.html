@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 70 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 71 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -7023,7 +7023,8 @@ function guardBaggage() {
   if (!BAG.cart || BAG.taken) return; BAG.guards = [];
   const p = BAG.cart.position, en = BAG.entry; if (!NODES[en]) return;
   S.announced.add(en); S.bagPass = en;   // its guards are no warband: no horn, no banner
-  for (let i = 0; i < 3; i++) { spawnEnemy(i === 2 && tier() >= 2 ? 'shield' : 'foot', en); const e = enemies[enemies.length - 1];
+  // a shieldman guard only once shieldmen have been met in a warband (QA r10: from tier 2 he came before his time and broke the two-new-kinds cap)
+  for (let i = 0; i < 3; i++) { spawnEnemy(i === 2 && tier() >= 3 && S.metKinds && S.metKinds.has('shield') ? 'shield' : 'foot', en); const e = enemies[enemies.length - 1];
     const a = i / 3 * TAU; e.pos.set(p.x + Math.sin(a) * 2.2, 0, p.z + Math.cos(a) * 2.2); e.guard = { x: e.pos.x, z: e.pos.z }; BAG.guards.push(e); }
 }
 // a guard stands by the cart and fights whoever comes within reach of it; he never goes to the camp
