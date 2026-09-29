@@ -347,6 +347,8 @@ body:has(:is(#smap, #shop, #dawn, #end, #choice):not([hidden])) :is(#status, #ke
 @starting-style{ :is(#prompt, #goal, #bellTag, #help, #hint, .wtag, .rtag, .threat, #status, #keepBox, #phases, #callout):not([hidden]){ opacity:0; scale:.94; }
   :is(#smap, #shop, #dawn, #end):not([hidden]){ opacity:0; scale:1.015; } }
 .wtag, .rtag, .threat, #bellTag{ transition-property:opacity, scale, display; }
+/* a label that must jump past another is hidden for the jump and fades in where it lands (BUGS-73 B2) */
+:is(.wtag, .rtag, #bellTag).hop{ visibility:hidden; opacity:0; transition:none; }
 button, .opt, .tablet, .card{ transition:transform var(--tap), border-color var(--tap), background-color var(--tap), filter var(--tap); }
 button:active, .tablet:active, .card:active{ transform:scale(.97); }
 @media (prefers-reduced-motion: reduce){ #banner{ transition:none; } .tablet{ transition:none; } *{ scale:none !important; } }
@@ -595,7 +597,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 73 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 74 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2495,6 +2497,8 @@ function updateBellTag() {
   let x = s.x, y = s.y, edge = behind || x < m || x > innerWidth - m || y < m + 40 || y > innerHeight - m;
   if (behind) { x = innerWidth - x; y = innerHeight - m; }
   x = clamp(x, m + 40, innerWidth - m - 40); y = clamp(y, m + 60, innerHeight - m);
+  // BUGS-73 B4: like the pass markers, it is anchored at its foot and floored under the panels, the banner and the callout
+  if (WAGON) { const fl = clearTop(x, sizeOf(el).w) + sizeOf(el).h + 12; el._floor = fl; if (y < fl) { y = fl; edge = true; } }
   setClass(el, 'edge', edge);
   el._px = x; el._py = WAGON ? belowPrompt(x, sizeOf(el).w, y) : y; if (!WAGON) placeAt(el, x, y);   // it steps above the docked action box (they overlapped in the playtests)   // in the convoy game the label stacker places it with the others
 }
@@ -4046,9 +4050,16 @@ function updateNight(dt) {
     S.retreatOpen = true; setHTML($('#bellTag'), '<b>Sound the retreat</b>Hold Space at the drum<i></i>');
     // the banner and toll only the first time: food can dip to 0 and come back more than once in a night
     if (!S.retreatWarned) { S.retreatWarned = true; banner('The night is lost', 'Ride to the drum and sound the retreat', 4); Sound.play('toll'); }
+    // BUGS-73 B3: once the goal has said "Hold until dawn" again, a re-opening needs a cue in the centre too (quiet: no toll, no banner)
+    else banner('The food is gone again', 'Sound the retreat at the drum', 3);
+    refreshHUD();
   } else if (S.retreatOpen && !retreatDue()) {
     // BUGS-72 B1: the reason is gone (the food is back, or the field is clear and the men cheer): a won night can't be thrown away
     S.retreatOpen = false; refreshHUD();
+    // BUGS-73 B1: the callout that asked for the retreat goes with it, and so does a copy waiting behind a banner
+    const co = $('#callout');
+    if (!co.hidden && /^The (night is lost|food is gone again)/.test(co._key || '')) { setHidden(co, true); calloutT = 0; }
+    if (banner.q) banner.q = banner.q.filter(a => !/^The (night is lost|food is gone again)/.test(a[0]));
   }
   if (!S.spawnQ.length && !enemies.some(e => e.alive)) {
     if (WAGON && S.nightType === 'boss' && !S.passHeld && keep.alive) passHeld();
@@ -7643,7 +7654,13 @@ function updateTags() {
     el._y = el._y === undefined || Math.abs(el._y - ty) > 200 ? ty : damp(el._y, ty, 0.045, animDt);
     // an eased position never passes over a label already placed (where it is drawn or where it is going): it jumps instead
     const over = yy => placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && (Math.abs(p.y - yy) < Math.max(p.h, h) - 1.5 || Math.abs(p.yd - yy) < Math.max(p.h, h) - 1.5));
-    if (el._y !== ty && over(el._y)) el._y = ty;
+    if (el._y !== ty && over(el._y)) {
+      // BUGS-73 B2: the jump is never seen: it hides at once and fades back in (250 ms) at its new place a moment later
+      if (Math.abs(el._y - ty) > 24) el._hopT = 0.12;
+      el._y = ty;
+    }
+    if (el._hopT > 0) el._hopT -= animDt;
+    setClass(el, 'hop', el._hopT > 0);
     placeAt(el, x, el._y); placed.push({ x, y: ty, yd: el._y, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
