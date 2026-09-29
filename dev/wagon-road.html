@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 65 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 66 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3359,7 +3359,7 @@ function updateEnemyStep(e, dt) {
   // road graph, which always leads to the keep. Walking it there in a straight line does not
   // work: the river is in the way and it would simply pin itself against the bank.
   e.lifeT = (e.lifeT || 0) + dt;
-  if (!S.spawnQ.length && e.lifeT > 55 && !e.recalled) {
+  if (!S.spawnQ.length && e.lifeT > 55 && !e.recalled && !e.fleeing) {   // a runaway already has his road out (QA r5 B4: thieves were turned back across the field)
     e.recalled = true; e.opp = null; e.oppT = 1e4; e.waitT = 0; e.stuckT = 0;
     let nn = null, nd = Infinity;
     for (const id in NODES) { const d = NODES[id].pos.distanceTo(e.pos); if (d < nd) { nd = d; nn = id; } }
@@ -4241,7 +4241,11 @@ function setPaused(v) {
   if (v) { for (const k in keys) keys[k] = false; holdInput = false; }
 }
 function wireOptions() {
-  const bind = (id, get, set) => { const el = $(id); set(el); el.addEventListener('input', () => get(el)); };
+  // music, effects, volumes and bloom are kept too: every new run reloads the page (QA r5 B1)
+  const KEEP = 'wagon-road-sound';
+  try { const o = JSON.parse(localStorage.getItem(KEEP) || 'null'); if (o) { for (const k of ['music', 'sfx', 'musicVol', 'sfxVol']) if (k in o) Sound.st[k] = o[k]; if ('bloom' in o) QUALITY.bloom = o.bloom; Sound.volumes(); } } catch (e) {}
+  const keep = () => { try { localStorage.setItem(KEEP, JSON.stringify({ music: Sound.st.music, sfx: Sound.st.sfx, musicVol: Sound.st.musicVol, sfxVol: Sound.st.sfxVol, bloom: QUALITY.bloom })); } catch (e) {} };
+  const bind = (id, get, set) => { const el = $(id); set(el); el.addEventListener('input', () => { get(el); if (/^#o(Music|Sfx|Bloom)/.test(id)) keep(); }); };
   bind('#oMusic',  el => { Sound.st.music = el.checked; Sound.volumes(); }, el => el.checked = Sound.st.music);
   bind('#oSfx',    el => { Sound.st.sfx = el.checked; Sound.volumes(); },   el => el.checked = Sound.st.sfx);
   bind('#oMusicV', el => { Sound.st.musicVol = el.value / 100; Sound.volumes(); }, el => el.value = Sound.st.musicVol * 100);
@@ -4989,6 +4993,8 @@ addEventListener('keydown', e => {
     if ((S.state === 'won' || S.state === 'lost') && !$('#end').hidden) { if (freshKey(e, 'end', 1000)) $('#againBtn').click(); e.preventDefault(); return; }
     // a button left focused by a closed screen must not take the key (it used to eat the hold)
     if (document.activeElement && document.activeElement !== document.body && !document.activeElement.closest('#pause')) document.activeElement.blur();
+    // an auto-repeat of a key pressed on another screen is not a hold: held out of the build screen it pitched the camp unseen (QA r5 B3)
+    if (e.repeat && !holdInput) { e.preventDefault(); return; }
     holdInput = true; e.preventDefault();
     if (S.state === 'night' && !active && !e.repeat) volley();
   }
@@ -7563,7 +7569,7 @@ const dailyTwist = d => DAILY_TWISTS[[...d].reduce((h, c) => (h * 31 + c.charCod
 const today = () => new Date().toISOString().slice(0, 10);
 function dailyBest() {
   if (!DAILY) return;
-  try { const k = 'wagon-road-daily-best', all = JSON.parse(localStorage.getItem(k) || '{}'), now = { region: S.region + 1, floor: S.floor, kills: S.kills, won: S.state === 'won' }, old = all[DAILY];
+  try { const k = 'wagon-road-daily-best', all = JSON.parse(localStorage.getItem(k) || '{}'), now = { region: S.region + 1, floor: S.floor, kills: S.kills, won: S.state === 'won' || S.state === 'ending' }, old = all[DAILY];
     const score = x => (x.won ? 1000 : 0) + x.region * 100 + x.floor * 10 + x.kills / 1000;
     if (!old || score(now) > score(old)) { all[DAILY] = now; localStorage.setItem(k, JSON.stringify(all)); } } catch (e) {}
 }
