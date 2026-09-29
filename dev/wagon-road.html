@@ -553,7 +553,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 62 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 63 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3145,7 +3145,8 @@ function spawnEnemy(type, entry) {
     S.announced.add(entry); if (!WAGON) flare(entry);
     const name = ENTRIES.find(x => x.id === entry).name;
     banner(`Raiders at ${name}!`, S.announced.size > 1 ? 'Another warband is coming down from the mountains.' : 'Watch which roads they take.', 3);
-    sfxAt('horn', NODES[entry].pos, 1, 400, 0.7); kick(0.3);   // from the pass they come through: you hear which side
+    sfxAt('horn', NODES[entry].pos, 1, 400, 0.7); kick(0.3);
+    if (S.announced.size === 1) setTimeout(() => Sound.play('wardrum'), 650);   // the first warband, answered like every assault   // from the pass they come through: you hear which side
   }
 }
 function lancerTurn(e, dt) { // returns true while the lancer is winding up, charging or recovering
@@ -3298,6 +3299,15 @@ function followPath(e, dt) {
 // into one slides along it or is taken back.
 function updateEnemy(e, dt) {
   if (e.brand) { e.brand.scale.set(1, 0.85 + Math.sin(clock * 13 + e.bob) * 0.18, 1); if (!e.alive) e.brand.visible = false; }   // the brand flickers; it goes out when he falls
+  // QA N2: a live raider in the river (a crowd's push at a bridge's side, then worked deeper) stood there shooting where
+  // no one could reach him. He wades out to the nearest open ground. The charge's throw is not this: it drowns him at once.
+  // Only after most of a second in the water: brushing the water at a bridge's or ford's side is part of crossing, and
+  // snapping back each time held raiders at the crossing (stuck.mjs: 0 to 5 in 14 nights)
+  e.wetT = e.alive && RIVER.length && !e.kbx && !e.kbz && riverDist(e.pos.x, e.pos.z) < RIVER_HALF + 0.1 && blocked(e.pos.x, e.pos.z) ? (e.wetT || 0) + dt : 0;
+  if (e.wetT > 0.8) {
+    navGrid(); const s = navSnap(e.pos, 6);
+    if (s) moveDirect(e.pos, tmp2.set(s[0] - NAV.half, 0, s[1] - NAV.half), Math.max(e.speed, 2) * dt);
+  }
   if (!PIECES.length || !e.alive) return updateEnemyStep(e, dt);
   const ox = e.pos.x, oz = e.pos.z;
   if (solidAt(ox, oz)) { navGrid(); const s = navSnap(e.pos, 6); if (s) { e.pos.x = s[0] - NAV.half; e.pos.z = s[1] - NAV.half; } return updateEnemyStep(e, dt); }
@@ -3448,8 +3458,13 @@ function updateEnemyStep(e, dt) {
   return true;
 }
 // a crowd's push never shoves anyone off a bridge deck or the ford into the water (QA: raiders pressed off the sides of a
-// crossing walked on through the river beside it); already on blocked ground, any push is a way out
-function nudge(p, dx, dz) { if (!RIVER.length || blocked(p.x, p.z) || !blocked(p.x + dx, p.z + dz)) { p.x += dx; p.z += dz; } }
+// crossing walked on through the river beside it); already on blocked ground, a push is a way out only if it leads
+// away from the water (QA N2: the crowd worked a horse archer from the bank into the middle of the river)
+function nudge(p, dx, dz) {
+  if (!RIVER.length || !blocked(p.x + dx, p.z + dz)) { p.x += dx; p.z += dz; return; }
+  if (!blocked(p.x, p.z)) return;
+  const r0 = riverDist(p.x, p.z); if (r0 >= RIVER_HALF + 0.1 || riverDist(p.x + dx, p.z + dz) >= r0) { p.x += dx; p.z += dz; }
+}
 function separate() {
   // our men keep a little room too, and are not walked through by raiders
   if (WAGON) {
@@ -3582,7 +3597,7 @@ function downHero() {
   const back = WAGON && S.state === 'night';   // the ring, or at the border fort the courtyard
   ui.heroLine.textContent = back ? 'You fell. Carried back to the wagons…' : 'You fell. You will ride again at dawn.';
   hero.downT = back ? 20 : 0;
-  if (S.state === 'night') { S.morale = 0.65; banner('The commander has fallen!', back ? `The men carry him back to ${S.camp ? 'the wagons' : 'the courtyard'}. The garrison wavers until he rides again.` : 'The garrison wavers: towers and spearmen fight at two-thirds strength until dawn.', 4); }
+  if (S.state === 'night') { S.morale = 0.65; Sound.play('fall'); banner('The commander has fallen!', back ? `The men carry him back to ${S.camp ? 'the wagons' : 'the courtyard'}. The garrison wavers until he rides again.` : 'The garrison wavers: towers and spearmen fight at two-thirds strength until dawn.', 4); }
 }
 function updateDown(dt) {
   if (hero.graceT > 0) hero.graceT -= dt;
@@ -3922,7 +3937,7 @@ function updateNight(dt) {
       if (archers >= 2) {
         const p = lead(hero), a = Math.random() * Math.PI, n = Math.min(7, 3 + Math.floor(archers / 3));
         for (let k = 0; k < n; k++) { const o = (k - (n - 1) / 2) * 3.4; circleDanger(p.x + Math.cos(a) * o, p.z + Math.sin(a) * o, 2.4, 1.6, 14); }
-        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); for (let k = 0; k < 4; k++) setTimeout(() => Sound.play('foeBow', 0.9), k * 90); kick(0.2);   // no horn: the horn means only 'they come' (round 7 counted 95 in 27 nights)   // their bows, not the commander's volley
+        banner('Volley!', 'The sky goes dark with arrows. Get out of the red.', 1.4); Sound.play('foeVolley'); kick(0.2);   // no horn: the horn means only 'they come' (round 7 counted 95 in 27 nights)   // their bows, not the commander's volley
       }
     }
   }
@@ -4223,7 +4238,7 @@ function wireOptions() {
 /* ================= sound =================
    Everything here is synthesised in WebAudio: no files, no licensing, and the prototype
    stays a single page. Composed music belongs to the vertical slice, not to this. */
-const SFX_MIN = { loot: 0.3, xbow: 0.08, ourBow: 0.07, rocket: 0.15, burst: 0.12, bombard: 0.2, impact: 0.12, stone: 0.2, meleeHit: 0.05, foeHit: 0.07, woodHit: 0.09, step: 0.055, foeHoof: 0.06, hit: 0.06, death: 0.09, bow: 0.06, foeBow: 0.1, build: 0.14, fire: 0.22, hurt: 0.3, hoof: 0.07, slash: 0.08, clang: 0.12 };
+const SFX_MIN = { loot: 0.3, xbow: 0.08, ourBow: 0.07, rocket: 0.15, burst: 0.12, bombard: 0.2, impact: 0.12, stone: 0.2, meleeHit: 0.05, foeHit: 0.07, woodHit: 0.09, step: 0.055, foeHoof: 0.06, hit: 0.06, death: 0.09, bow: 0.06, foeBow: 0.1, build: 0.14, fire: 0.22, hurt: 0.3, hoof: 0.07, slash: 0.08, clang: 0.12, horn: 0.6, wardrum: 0.5, crash: 0.25 };
 const Sound = (() => {
   let ctx = null, master, musicG, sfxG, started = false, nextNote = 0, timer = 0, mood = 'menu';
   let last = {};
@@ -4258,8 +4273,9 @@ const Sound = (() => {
   //            bow are dry and centred. All of them -> a high shelf, -5 dB above 3.2 kHz (the ear is harshest at
   //            2-5 kHz, and "too high" was the complaint) -> master, and a little into the valley's echo
   //   ui (menus, the dawn tally) -> master, dry and centred, never placed or ducked
-  const MASTER = 1.2;   // tuned by tools/audiomix.mjs to about -17 LUFS at night (it was -29: far too quiet)
-  let musicDuck = null, uiG = null, moodG = null, musicBase = 1;
+  const MASTER = 1.12;   // tuned by tools/audiomix.mjs (loop held, Build 63): night -18 LUFS, peaks under -1 dBFS
+  let musicDuck = null, uiG = null, moodG = null, moodT = null, musicBase = 1;
+  const MOOD_TRIM = { night: 0.4 };   // after the compressor: the night music about 8 dB down (SOUND-61: it buried the fight by 4 LU)
   // the day's music sits under the night's: a battle must be the loudest thing in the game (measured: the day had
   // been as loud as the night, so nights did not feel bigger)
   const MOOD_LEVEL = { menu: 0.14, day: 0.115, night: 3.4, after: 0.4, lament: 0.16 };   // Build 40: every mood about 2 dB down (Matias: the music is sometimes a bit loud)   // set by tools/audiomix.mjs: night about -18 LUFS, the day 5 LU under it, the fight about 6 LU over its music   // night about 7 dB over the day, and level with the fight (tools/audiomix.mjs)
@@ -4270,7 +4286,8 @@ const Sound = (() => {
     // the night music's drums stood 27 dB over its tune (measured), so they hit the limiter while the tune stayed faint:
     // a compressor on the music evens them out and lets the whole piece sit at a proper level
     const mcomp = ctx.createDynamicsCompressor(); mcomp.threshold.value = -26; mcomp.knee.value = 10; mcomp.ratio.value = 4; mcomp.attack.value = 0.004; mcomp.release.value = 0.2;
-    musicG.connect(moodG); moodG.connect(musicDuck); musicDuck.connect(mcomp); mcomp.connect(mt); mt.connect(master);
+    moodT = ctx.createGain(); moodT.gain.value = MOOD_TRIM[mood] || 1;
+    musicG.connect(moodG); moodG.connect(musicDuck); musicDuck.connect(mcomp); mcomp.connect(moodT); moodT.connect(mt); mt.connect(master);
     const stn = ctx.createBiquadFilter(); stn.type = 'highshelf'; stn.frequency.value = 3200; stn.gain.value = -5;
     // a slow, gentle compressor on the effects (about 3:1 above -20 dB): a bombard or a crash no longer stands 20 dB
     // over the fight, so the whole mix can be brought up to a normal loudness without clipping
@@ -4285,7 +4302,7 @@ const Sound = (() => {
   function duck(depth, hold) { if (!musicDuck) return; const t = NOW(), g = musicDuck.gain; g.cancelScheduledValues(t); g.setTargetAtTime(depth * musicBase, t, 0.03); g.setTargetAtTime(musicBase, t + (hold || 0.5), 0.3); }
   // how important each sound is. When many play at once the least important are dropped first: the commander's own
   // actions and threats to him are never dropped; far arrows and footsteps go first (Overwatch's buckets, simplified)
-  const PRI = { loot: 5, horn: 5, wardrum: 5, hurt: 5, volley: 5, bell: 5, ability: 5, tally: 5, dawn: 5, bow: 4, bombard: 4, stone: 4, crash: 4, clang: 3, build: 3, burst: 4, xbow: 4, rocket: 4, impact: 4,   // the column's own guns stay heard when the voices run out
+  const PRI = { loot: 5, horn: 5, wardrum: 5, hurt: 5, volley: 5, foeVolley: 5, fall: 5, bell: 5, ability: 5, tally: 5, dawn: 5, bow: 4, bombard: 4, stone: 4, crash: 4, clang: 3, build: 3, burst: 4, xbow: 4, rocket: 4, impact: 4,   // the column's own guns stay heard when the voices run out
     fire: 2, death: 2, foeHit: 2, woodHit: 2, hit: 1, meleeHit: 1, foeBow: 1, ourBow: 0, step: 0, foeHoof: 0 };
   const LEN = { horn: 1.5, wardrum: 0.9, bombard: 0.7, stone: 0.9, crash: 0.6, fire: 0.6, rocket: 0.8, burst: 0.4, impact: 0.4, bell: 2, volley: 0.6 };
   const VOICE_CAP = 26; let voices = [];
@@ -4671,9 +4688,10 @@ const Sound = (() => {
     src.connect(f); f.connect(a); a.connect(OUT); src.start(t, Math.random() * 0.4); src.stop(t + dur + 0.02);
   }
   function pluck(f, t, g, dur) {   // a plucked string on the effects bus: the Karplus-Strong string the zheng uses
-    const src = ctx.createBufferSource(), a = ctx.createGain(); src.buffer = ksTable(); src.playbackRate.setValueAtTime(f / KS_REF, t);
+    const src = ctx.createBufferSource(), a = ctx.createGain(), lp = ctx.createBiquadFilter(); src.buffer = ksTable(); src.playbackRate.setValueAtTime(f / KS_REF, t);
+    lp.type = 'lowpass'; lp.frequency.value = Math.min(8000, f * 6); lp.Q.value = 0.6;   // a thrum, not a click (SOUND-61: the burst was raw noise)
     a.gain.setValueAtTime(g, t); a.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    src.connect(a); a.connect(OUT); src.start(t); src.stop(t + dur + 0.02);
+    src.connect(lp); lp.connect(a); a.connect(OUT); src.start(t); src.stop(t + dur + 0.02);
   }
   // One hoof on earth. The old sound was a bright click and a hollow ring: a clip-clop, which is iron on stone (or the
   // coconut shells of radio plays). On a dirt road a hoof lands as a dull low thump that does not ring, a soft pat as
@@ -4712,6 +4730,7 @@ const Sound = (() => {
     const v = vol === undefined ? 1 : vol;
     const min = SFX_MIN[kind] || 0.04, now = NOW();
     if (now - (last[kind] || -9) < min) return;
+    if (kind === 'hurt' && now - (play._fallT || -9) < 0.5) return;   // the fall is the sound of that moment
     if (!(at && at.ui) && !room(kind)) return;
     last[kind] = now;
     if (at && at.ui) OUT = uiG;
@@ -4729,6 +4748,10 @@ const Sound = (() => {
       case 'bow':    pluck(88 + Math.random() * 12, now, 0.26, 0.09); noiseAt(now, 0.014, 0.4, 850, 650, 0.7); whooshAt(now + 0.015, 0.26, 0.5, 1100); break;   // the string's damped thrum, the release, the shaft away
       case 'foeBow': pluck(82 + Math.random() * 12, now, 0.12, 0.08); noiseAt(now, 0.012, 0.14, 800, 620, 0.7); whooshAt(now + 0.012, 0.22, 0.16, 950); break;
       case 'ourBow': pluck(96 + Math.random() * 14, now, 0.12, 0.07); noiseAt(now, 0.012, 0.16, 850, 650, 0.7); whooshAt(now + 0.012, 0.2, 0.2, 1000); break;   // our archers: the same bow, quieter   // our archers: the same bow, quieter than the commander's
+      case 'foeVolley':   // the raiders' massed volley: many bows at once, lower and slower than the commander's own
+        for (let k = 0; k < 5; k++) pluck(70 + Math.random() * 16, now + k * 0.045 + Math.random() * 0.02, 0.13, 0.1);
+        noiseAt(now, 0.06, 0.5, 600, 420, 0.7);
+        for (let k = 0; k < 8; k++) whooshAt(now + 0.05 + k * 0.04 + Math.random() * 0.03, 0.45, 0.24, 650 + Math.random() * 300); break;
       case 'volley': for (let k = 0; k < 3; k++) pluck(86 + Math.random() * 20, now + k * 0.025, 0.16, 0.08); noiseAt(now, 0.02, 0.45, 850, 650, 0.7);
         for (let k = 0; k < 6; k++) whooshAt(now + 0.02 + k * 0.035 + Math.random() * 0.02, 0.38, 0.28, 800 + Math.random() * 400); break;   // a flight of them: many shafts through the air   // a flight of them
       // the war carts. A crossbow cart's bolt: a thick string and the thunk of the stock. Rockets: fire-arrows off a
@@ -4737,18 +4760,19 @@ const Sound = (() => {
       case 'xbow':   pluck(66 + Math.random() * 8, now, 0.42, 0.24); noiseAt(now, 0.06, 1.1, 820, 360, 1.2); thumpAt(now, 105, 64, 0.07, 0.12); break;
       case 'rocket': for (let k = 0; k < 3; k++) { const t = now + k * 0.07 + Math.random() * 0.02; noiseAt(t, 0.3, 0.32, 520, 1400, 0.8); noiseAt(t + 0.26, 0.45, 0.22, 1400, 420, 0.7); } break;
       case 'burst':  noiseAt(now, 0.26, 1.9, 700, 150, 0.8); thumpAt(now, 88, 48, 0.16, 0.2); grit(now + 0.02, 0.28, 12, 0.3, 450, 2000); break;
-      case 'bombard': thumpAt(now, 58, 30, 0.6, 0.5); noiseAt(now, 0.55, 3.0, 420, 60, 0.7, 'lowpass'); noiseAt(now, 0.05, 0.9, 1200, 520, 1); noiseAt(now + 0.05, 0.9, 0.45, 260, 90, 0.7); break;
+      case 'bombard': thumpAt(now, 58, 30, 0.6, 0.5); noiseAt(now, 0.3, 9, 340, 190, 1); noiseAt(now, 0.55, 3.0, 420, 60, 0.7, 'lowpass'); noiseAt(now, 0.05, 0.9, 1200, 520, 1); noiseAt(now + 0.05, 0.9, 0.45, 260, 90, 0.7); break;
       case 'impact': noiseAt(now, 0.28, 2.4, 240, 85, 0.8); thumpAt(now, 70, 40, 0.2, 0.26); grit(now + 0.02, 0.3, 14, 0.28, 400, 1800); break;
-      case 'stone':  noiseAt(now, 0.4, 3.2, 200, 60, 0.8); thumpAt(now, 55, 30, 0.42, 0.42); grit(now + 0.03, 0.45, 18, 0.3, 350, 1600); noiseAt(now + 0.1, 0.9, 0.5, 160, 60, 0.7, 'lowpass'); break;
+      case 'stone':  noiseAt(now, 0.4, 3.2, 200, 60, 0.8); noiseAt(now, 0.22, 7, 330, 200, 1); thumpAt(now, 55, 30, 0.42, 0.42); grit(now + 0.03, 0.45, 18, 0.3, 350, 1600); noiseAt(now + 0.1, 0.9, 0.5, 160, 60, 0.7, 'lowpass'); break;
       case 'hit':    { const j = 0.88 + Math.random() * 0.24; noiseAt(now, 0.035, 0.7 * v, 700 * j, 520 * j, 0.8); thumpAt(now, 150 * j, 90, 0.06, 0.1 * v); noiseAt(now, 0.07, 1.2 * v, 260 * j, 180, 0.8, 'lowpass'); break; }   // an arrow striking home: a sharp thock with weight behind it
       // no falling synth tone: a body going down is a heavy thud on earth, gear and dust, and the breath knocked out
       case 'death':  noiseAt(now, 0.2, 0.3 * v, 620, 340, 2.4); noiseAt(now + 0.06, 0.18, 2.2 * v, 240, 120, 0.9); thumpAt(now + 0.06, 74, 42, 0.16, 0.18 * v); grit(now + 0.07, 0.14, 8, 0.24 * v, 700, 2600); break;
+      case 'fall':   play._fallT = now; noiseAt(now + 0.05, 0.3, 3.0, 260, 110, 0.9); thumpAt(now + 0.05, 70, 36, 0.3, 0.5); grit(now + 0.07, 0.2, 12, 0.3, 600, 2200); gong(now + 0.12, 0.22, OUT); break;
       case 'hurt':   noiseAt(now, 0.1, 2.0, 420, 200, 1); thumpAt(now, 110, 60, 0.1, 0.14); grit(now, 0.1, 10, 0.3, 1700, 3800); break;   // the blow, and his lamellar plates knocking
       case 'build':  noiseAt(now, 0.08, 1.5, 900, 700, 2.4); thumpAt(now, 140, 90, 0.06, 0.12); noiseAt(now + 0.105, 0.09, 1.2, 720, 560, 2.4); thumpAt(now + 0.105, 120, 80, 0.06, 0.1); break;   // two knocks of a wooden mallet
       case 'fire':   noiseAt(now, 0.6, 0.9 * v, 380, 1100, 0.6); grit(now + 0.05, 0.6, 12, 0.22 * v, 900, 3200); break;   // the whoosh, then it crackles   // the whoosh, then it crackles
       case 'bell':   gong(NOW(), 0.45, OUT); break;
       case 'ability':gong(NOW(), 0.1, OUT); break;
-      case 'crash':  noiseAt(now, 0.55, 0.9 * v, 330, 80, 0.7); thumpAt(now, 72, 40, 0.34, 0.42 * v); grit(now, 0.4, 16, 0.26 * v, 600, 2200); break;   // a cart breaking up: a heavy thud and splintering
+      case 'crash':  noiseAt(now, 0.55, 0.9 * v, 330, 80, 0.7); noiseAt(now, 0.2, 6 * v, 320, 210, 1); thumpAt(now, 72, 40, 0.34, 0.42 * v); grit(now, 0.4, 16, 0.26 * v, 600, 2200); break;   // a cart breaking up: a heavy thud and splintering
       // raiders' horses: one hoof on earth each, fainter and plainer with distance (vol is 1 near, 0 at 20 units)
       case 'foeHoof': hoofFall(now, 0.5 * v, 1 - v); break;
       case 'hoof':    hoofFall(now, v, 0); break;
@@ -4782,6 +4806,7 @@ const Sound = (() => {
           const t0 = NOW() + d, j = 0.95 + Math.random() * 0.1;
           thumpAt(t0, 78 * j, 40, 0.16, 0.42 * g);
           noiseAt(t0, 0.3, 2.4 * g, 240 * j, 90, 0.7, 'lowpass');
+          noiseAt(t0, 0.14, 7 * g, 330 * j, 210, 1.1);   // the shell: the drum's body in the band a small speaker plays
           noiseAt(t0, 0.025, 0.3 * g, 1300 * j, 900, 0.8);
         }
         break;
@@ -4810,7 +4835,7 @@ const Sound = (() => {
                       } }, i * 115)); break;
     }
   }
-  function setMood(m) { if (m !== mood) { mood = m; phrase = null; beat = 0; prevF = 0; nStep = 0; call = null; formI = 0; formLeft = 0; if (moodG) moodG.gain.setTargetAtTime(MOOD_LEVEL[m] || 1, NOW(), 1.2); } }
+  function setMood(m) { if (m !== mood) { mood = m; phrase = null; beat = 0; prevF = 0; nStep = 0; call = null; formI = 0; formLeft = 0; if (moodG) moodG.gain.setTargetAtTime(MOOD_LEVEL[m] || 1, NOW(), 1.2); if (moodT) moodT.gain.setTargetAtTime(MOOD_TRIM[m] || 1, NOW(), 1.2); } }
   function setIntensity(x) { inten = x; }
   function tick(dt) { timer -= dt; if (timer <= 0) { timer = 0.2; schedule(); breathe(); } }
   // ---- offline render, so the sound can actually be inspected instead of assumed ----
@@ -4822,13 +4847,13 @@ const Sound = (() => {
     const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OAC) return { error: 'no OfflineAudioContext' };
     const sr = 44100, oc = new OAC(2, Math.ceil(sr * seconds), sr);
-    const save = { ctx, master, musicG, sfxG, nb, ksBuf, mood, phrase, pi, beat, prevF, nextNote, last, started, musicDuck, uiG, OUT, voices, satCurve };
+    const save = { ctx, master, musicG, sfxG, nb, ksBuf, mood, phrase, pi, beat, prevF, nextNote, last, started, musicDuck, uiG, OUT, voices, satCurve, moodG, moodT };
     ctx = oc; nb = null; ksBuf = null; last = {}; started = true;
     master = ctx.createGain(); master.gain.value = MASTER;
     master.connect(makeLimiter()).connect(ctx.destination);
     voices = []; buildBuses();
     musicG.gain.value = st.musicVol * 1.4; sfxG.gain.value = st.sfxVol; uiG.gain.value = st.sfxVol;
-    mood = m; phrase = null; pi = 0; beat = 0; prevF = 0; nextNote = 0; const saveStep = nStep; nStep = 0; call = null; moodG.gain.value = MOOD_LEVEL[m] || 1;
+    mood = m; phrase = null; pi = 0; beat = 0; prevF = 0; nextNote = 0; const saveStep = nStep; nStep = 0; call = null; moodG.gain.value = MOOD_LEVEL[m] || 1; moodT.gain.value = MOOD_TRIM[m] || 1;
     const iev = (events || []).filter(e => e[1] === 'intensity').sort((x, y) => x[0] - y[0]); inten = 0; lvl = 0; formI = 0; formLeft = 0;
     if (m) for (let t = 0; t < seconds; t += 0.2) { while (iev.length && iev[0][0] <= t) inten = iev.shift()[2]; schedule(t); }
     if (sfxKinds) sfxKinds.forEach(k => { last = {}; play(k); });
@@ -4848,7 +4873,7 @@ const Sound = (() => {
     for (let i = 0; i < L.length; i++) d[i] = (L[i] + Rc[i]) * 0.5;
     window.__audioOut = d; window.__audioL = L; window.__audioR = Rc;   // tools/audiowav.mjs saves them as a WAV, to be listened to
     Object.assign({}, save);
-    ctx = save.ctx; master = save.master; musicG = save.musicG; sfxG = save.sfxG; nb = save.nb; ksBuf = save.ksBuf; musicDuck = save.musicDuck; uiG = save.uiG; OUT = save.OUT; voices = save.voices; satCurve = save.satCurve;
+    ctx = save.ctx; master = save.master; musicG = save.musicG; sfxG = save.sfxG; nb = save.nb; ksBuf = save.ksBuf; musicDuck = save.musicDuck; uiG = save.uiG; OUT = save.OUT; voices = save.voices; satCurve = save.satCurve; moodG = save.moodG; moodT = save.moodT;
     mood = save.mood; phrase = save.phrase; pi = save.pi; beat = save.beat; prevF = save.prevF;
     nextNote = save.nextNote; last = save.last; started = save.started; nStep = saveStep;
     return analyse(d, sr);
@@ -7295,8 +7320,16 @@ function fitPhases(el) {
   if (!el.classList.contains('tight')) el._fullW = el.offsetWidth;
   const tight = field && a > (innerWidth - (el._fullW || 0)) / 2;
   setClass(el, 'tight', tight);
-  const dx = tight ? Math.max(0, a - (innerWidth - el.offsetWidth) / 2) : 0;
+  let dx = tight ? Math.max(0, a - (innerWidth - el.offsetWidth) / 2) : 0, dy = 0;
+  // QA N1: with larger text at 1024x600 there is no room between the resource box and the Soldiers panel either; then
+  // the strip drops below the resource box's row, right of the goal panel that hangs under it
+  const kb = $('#keepBox');
+  if (tight && kb && !kb.hidden) { const k = kb.getBoundingClientRect(); if (k.width && a + el.offsetWidth > k.left - 10) {
+    const gl = $('#goal'), g = gl && !gl.hidden ? gl.getBoundingClientRect() : null;
+    dx = g && g.width ? Math.max(0, g.right + 10 - (innerWidth - el.offsetWidth) / 2) : 0;
+    dy = st.getBoundingClientRect().bottom + 6 - (el.getBoundingClientRect().top - (parseFloat(el.style.marginTop) || 0)); } }
   setStyle(el, 'marginLeft', dx ? Math.round(dx) + 'px' : '');
+  setStyle(el, 'marginTop', dy > 0 ? Math.round(dy) + 'px' : '');
 }
 function updateConvoy(dt) {
   updatePhases();
