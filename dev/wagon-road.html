@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 64 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 65 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -4970,13 +4970,13 @@ function freshKey(e, id, ms = 250) { return !e.repeat && performance.now() - (op
 addEventListener('keydown', e => {
   Sound.init();
   if (choiceKeys(e)) return;
-  if (WAGON && S.phase === 'welcome') { if (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape') endWelcome(); e.preventDefault(); return; }
+  if (WAGON && S.phase === 'welcome') { if (!e.repeat && (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape')) endWelcome(); e.preventDefault(); return; }   // a held key from the map is not a skip (QA r4 B2)
   if (WAGON && convoyKeys(e)) return;
   if (e.code === 'Escape') { if (!$('#reg').hidden) $('#reg').hidden = true; else if (!$('#chron').hidden) $('#chron').hidden = true; else if (S.state !== 'title') setPaused(!paused); e.preventDefault(); return; }
   if (paused) return;
   keys[e.code] = true;
   if (S.state === 'dawn') {
-    if (e.repeat || (e.code === 'Space' || e.code === 'Enter' || /^Digit[123]$/.test(e.code)) && !freshKey(e, 'dawn')) { if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault(); return; }
+    if (e.repeat && !e.code.startsWith('Arrow') || (e.code === 'Space' || e.code === 'Enter' || /^Digit[123]$/.test(e.code)) && !freshKey(e, 'dawn')) { if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault(); return; }
     if (e.code === 'ArrowRight' || e.code === 'ArrowDown' || e.code === 'KeyD' || e.code === 'KeyS') { focusTablet(dawnSel + 1); e.preventDefault(); }
     if (e.code === 'ArrowLeft' || e.code === 'ArrowUp' || e.code === 'KeyA' || e.code === 'KeyW') { focusTablet(dawnSel - 1); e.preventDefault(); }
     if (e.code === 'Space' || e.code === 'Enter') { const u = S.dawnPicks[dawnSel]; if (u) choose(u); e.preventDefault(); }
@@ -4984,7 +4984,7 @@ addEventListener('keydown', e => {
     return;
   }
   if (e.code === 'Space' || e.code === 'Enter') {
-    if (S.state === 'title') { start(); e.preventDefault(); return; }
+    if (S.state === 'title') { if (!e.repeat) { if (savedRun()) resuming = true; start(); } e.preventDefault(); return; }   // with a save the gold button is Continue: a key must not throw the road away (QA r4 B1)
     // the end sheet is read first: at night Space is the volley, and is often down as the run is lost
     if ((S.state === 'won' || S.state === 'lost') && !$('#end').hidden) { if (freshKey(e, 'end', 1000)) $('#againBtn').click(); e.preventDefault(); return; }
     // a button left focused by a closed screen must not take the key (it used to eat the hold)
@@ -5676,7 +5676,7 @@ function pickChoice(i) {
 function choiceKeys(e) {
   if (!choiceCur) return false;
   e.preventDefault();
-  if (e.repeat) return true;
+  if (e.repeat && !e.code.startsWith('Arrow')) return true;   // a held arrow still walks the options (QA r4 B3)
   if ((/^Digit[1-4]$/.test(e.code) || e.code === 'Enter' || e.code === 'Space') && !freshKey(e, 'choice')) return true;
   const n = choiceCur.opts.length, step = d => { for (let k = 1; k <= n; k++) { const j = (choiceSel + d * k + n * 4) % n; if (!choiceCur.opts[j].off) { choiceSel = j; break; } } renderChoice(); };
   if (/^Digit[1-4]$/.test(e.code)) pickChoice(+e.code.slice(5) - 1);
@@ -7060,7 +7060,7 @@ function convoyKeys(e) {
   const decide = e.code === 'Space' || e.code === 'Enter' || n >= 0 || e.code === 'KeyR';
   if (!$('#smap').hidden) {
     const len = mapOpts.length;
-    if (e.repeat || decide && !freshKey(e, 'smap')) { if (decide || e.code.startsWith('Arrow')) { e.preventDefault(); return true; } return false; }
+    if (e.repeat && !e.code.startsWith('Arrow') || decide && !freshKey(e, 'smap')) { if (decide || e.code.startsWith('Arrow')) { e.preventDefault(); return true; } return false; }
     if (e.code === 'Space' || e.code === 'Enter') confirmMap();
     else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') { mapSel = (mapSel + 1) % len; highlightMap(); }
     else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') { mapSel = (mapSel - 1 + len) % len; highlightMap(); }
@@ -7069,7 +7069,7 @@ function convoyKeys(e) {
   }
   if (!$('#shop').hidden) {
     const len = shopOpts.length + 1;
-    if (e.repeat || decide && !freshKey(e, 'shop')) { if (decide || e.code.startsWith('Arrow')) { e.preventDefault(); return true; } return false; }
+    if (e.repeat && !e.code.startsWith('Arrow') || decide && !freshKey(e, 'shop')) { if (decide || e.code.startsWith('Arrow')) { e.preventDefault(); return true; } return false; }
     if (e.code === 'Space' || e.code === 'Enter') pickShop();
     else if (e.code === 'ArrowRight' || e.code === 'ArrowDown') shopStep(1);
     else if (e.code === 'ArrowLeft' || e.code === 'ArrowUp') shopStep(-1);
