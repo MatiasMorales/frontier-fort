@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 68 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 69 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3446,8 +3446,9 @@ function updateEnemyStep(e, dt) {
   else if ((e.idleT = (e.idleT || 0) + dt) > 6) {
     e.idleT = 0;
     // a runaway is sent on his way out, not back across the field (QA r7 B3); startFlee's slowing is for the first flight only
-    if (e.fleeing) { const en = ENTRIES.find(x => NODES[x.id].pos.distanceTo(e.pos) < 10);
-      if (en) e.to = en.id; else { const sp = e.speed; startFlee(e); e.speed = sp; } }
+    if (e.fleeing) { const en = ENTRIES.find(x => Math.hypot(NODES[x.id].pos.x - e.pos.x, NODES[x.id].pos.z - e.pos.z) < 10);   // on the ground: a pass node stands high
+      // he escapes by the pass he reaches (QA r8 B1)
+      if (en) { e.to = en.id; e.fleeTo = en.id; } else { const sp = e.speed; startFlee(e); e.speed = sp; } }
     else { e.opp = null; e.oppT = 6; e.waitT = 0;
       let nn = null, nd = Infinity;
       for (const id in NODES) { const d = NODES[id].pos.distanceTo(e.pos); if (d < nd) { nd = d; nn = id; } }
