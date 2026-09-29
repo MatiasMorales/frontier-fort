@@ -567,7 +567,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 69 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 70 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -5938,7 +5938,8 @@ function veterans(W) {
   // sitting in the ring stopped losing. One more fire archer and a tenth fewer bodies puts active play at about
   // 10% of nights lost and turtling at about 50%.
   for (const k of ['foot', 'horse', 'lancer', 'shield', 'torch', 'ironcoat', 'spearhedge', 'firearcher', 'bowman', 'potter', 'lasso', 'engine'])
-    if (W[k]) W[k] = Math.round(W[k] * WAVE_TUNE.all * (k === 'firearcher' ? WAVE_TUNE.fire : 1));
+    // region 1 had turtling almost as safe as riding out (BALANCE-69: +0-14 points): half again as many fire archers there
+    if (W[k]) W[k] = Math.round(W[k] * WAVE_TUNE.all * (k === 'firearcher' ? WAVE_TUNE.fire * (S.region ? 1 : 1.4) : 1));
   return W;
 }
 /* ---------------- crews at work ----------------
