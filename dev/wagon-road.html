@@ -551,7 +551,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 59 · dev · 28 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 60 · dev · 28 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -7129,15 +7129,23 @@ function updateTags() {
   for (const el of shown) {
     const x = el._px, sz = sizeOf(el), w = sz.w, h = sz.h + 4; let y = el._py, dir = 0;
     for (let guard = 0; guard < 12; guard++) {
-      const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h));
+      const hit = placed.find(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - y) < Math.max(p.h, h) - 1.5);   // a pixel and a half of give: labels exactly a height apart flipped on rounding
       if (!hit) break;
       if (dir) { y = dir < 0 ? hit.y - Math.max(hit.h, h) : hit.y + Math.max(hit.h, h); if (dir < 0 && y < (el._floor || 0)) { dir = 1; y = hit.y + Math.max(hit.h, h); } continue; }   // keep going the way it went: flipping could end on top of another label
       // make room upward, unless that would put it under a panel (the playtest harness found two edge markers
       // stacked into the Soldiers panel): then below
       const up = hit.y - Math.max(hit.h, h); dir = up >= (el._floor || 0) ? -1 : 1; y = dir < 0 ? up : hit.y + Math.max(hit.h, h);
     }
-    el._y = el._y === undefined || Math.abs(el._y - y) > 200 ? y : damp(el._y, y, 0.045, animDt);
-    placeAt(el, x, el._y); placed.push({ x, y, w, h });
+    // hysteresis on the stacking nudge only (the offset from the label's own spot), never on following its object: a new
+    // offset must hold a quarter of a second before the label takes it (a one-frame flip yanked supply labels onto each
+    // other), unless the old offset would overlap something now
+    const off = y - el._py, blockedAt = ty => placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - ty) < Math.max(p.h, h) - 1.5) || belowPrompt(x, w, ty) < ty - 1;
+    if (el._off === undefined || blockedAt(el._py + el._off)) { el._off = off; el._pendT = 0; }
+    else if (Math.abs(off - el._off) > 2) { if (el._pend !== undefined && Math.abs(el._pend - off) < 3) el._pendT += animDt; else { el._pend = off; el._pendT = 0; } if (el._pendT > 0.25) { el._off = off; el._pendT = 0; } }
+    else { el._off = off; el._pendT = 0; }
+    const ty = el._py + el._off;
+    el._y = el._y === undefined || Math.abs(el._y - ty) > 200 ? ty : damp(el._y, ty, 0.045, animDt);
+    placeAt(el, x, el._y); placed.push({ x, y: ty, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
   const hs = toScreen(tmp.set(hero.pos.x, hero.pos.y + 1.2, hero.pos.z));
