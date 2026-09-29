@@ -595,7 +595,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 72 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 73 · dev · 29 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -3976,7 +3976,7 @@ function startNight() {
   S.armourUsed = false; S.longWallUsed = false; for (const c of CROSSINGS) c.burnedTonight = false;
   // the drum advances, the gong withdraws (击鼓进军，鸣金收兵): the ring's night starts on the war drum; the fort still rings its bell
   Sound.play(FIELD.castle ? 'bell' : 'wardrum');
-  S.retreatOpen = false; S.retreated = false; S.retreatDawn = false; S.grainAtNight = S.res.grain; S.passHeld = null;
+  S.retreatOpen = false; S.retreatWarned = false; S.retreated = false; S.retreatDawn = false; S.grainAtNight = S.res.grain; S.passHeld = null;
   active = null; renderPrompt();
   // the warband was drawn when the column arrived (enterField), so the pass markers could say exactly who is coming
   const W = S.nightW || (WAGON ? veterans(waveFor(S.day)) : waveFor(S.day)), f = W.foot, h = W.horse, cap = W.captain, ne = W.entries; S.nightW = null;
@@ -4044,7 +4044,11 @@ function updateNight(dt) {
   }
   if (WAGON && !S.retreatOpen && !S.retreated && retreatDue()) {
     S.retreatOpen = true; setHTML($('#bellTag'), '<b>Sound the retreat</b>Hold Space at the drum<i></i>');
-    banner('The night is lost', 'Ride to the drum and sound the retreat', 4); Sound.play('toll');
+    // the banner and toll only the first time: food can dip to 0 and come back more than once in a night
+    if (!S.retreatWarned) { S.retreatWarned = true; banner('The night is lost', 'Ride to the drum and sound the retreat', 4); Sound.play('toll'); }
+  } else if (S.retreatOpen && !retreatDue()) {
+    // BUGS-72 B1: the reason is gone (the food is back, or the field is clear and the men cheer): a won night can't be thrown away
+    S.retreatOpen = false; refreshHUD();
   }
   if (!S.spawnQ.length && !enemies.some(e => e.alive)) {
     if (WAGON && S.nightType === 'boss' && !S.passHeld && keep.alive) passHeld();
@@ -4060,7 +4064,8 @@ function passHeld() {
   const fell = soldiers.filter(x => !x.alive).length, kills = Object.values(S.nightKills || {}).reduce((a, b) => a + b, 0);
   S.passHeld = { region: S.region + 1, fell, kills };
   (S.fortsHeld = S.fortsHeld || []).push(S.passHeld); runLog({ t: 'fortHeld', region: S.region + 1, fell, kills });
-  const next = REGION_NAME[S.region + 1];
+  // BUGS-72 B6: the road's last fort (a daily road has one region) names the Wall, not a region it never reaches
+  const next = S.region + 1 < CONVOY.regions ? REGION_NAME[S.region + 1] : null;
   // the toll is left out rather than read "0 raiders fell"
   const toll = [kills ? `${kills} raiders fell` : '', fell ? `${fell} of ours fell` : ''].filter(Boolean).join(', and ');
   banner('The pass is held', `${next ? next + ' lies beyond' : 'The Great Wall lies beyond'}.${toll ? ' ' + toll + '.' : ''}`, 5.5);
@@ -4085,7 +4090,7 @@ function retreatDue() {
   return (S.grainAtNight > 0 && S.res.grain <= 0 && foes > 0) || (fw.building.hp < fw.building.max * 0.15 && foes > 20);
 }
 function soundRetreat() {
-  if (!S.retreatOpen || S.state !== 'night') return;
+  if (!S.retreatOpen || S.state !== 'night' || S.clearT > 0 || !retreatDue()) return;
   S.retreatOpen = false; S.retreated = true; S.retreatLeft = [];
   const cx = S.camp.cx, cz = S.camp.cz;
   if (S.towing) S.towing = null;
@@ -4093,6 +4098,10 @@ function soundRetreat() {
     S.retreatLeft.push(DEFS[p.cartKind].name); const b = p.building;
     b.alive = false; scene.remove(b.g); if (b.bar) scene.remove(b.bar); p.building = null; p.wreck = null;
     const i = buildings.indexOf(b); if (i >= 0) buildings.splice(i, 1);
+  }
+  // BUGS-72 B2: a wreck out there is left behind too (the dawn drops a cart with neither building nor wreck from the column)
+  for (const p of convoy) if (p.ruin && !p.building && !isSupply(p.cartKind) && Math.hypot(p.x - cx, p.z - cz) > CONVOY.ringR + 2) {
+    S.retreatLeft.push(DEFS[p.cartKind].name); scene.remove(p.ruin.g); p.ruin = null; p.wreck = null;
   }
   // the raiders take the field; loads they carry are gone with them, and they leave no bodies
   for (const e of enemies) if (e.alive) { if (e.carry) { S.stolen += e.carry; S.nightStolen = (S.nightStolen || 0) + e.carry; e.carry = 0; } escaped(e); }
@@ -7591,7 +7600,9 @@ function updateTags() {
     const el = rTags[id] || (rTags[id] = Object.assign(document.createElement('div'), { className: 'rtag' }));
     if (!el.parentNode) tagBox.appendChild(el);
     const en = ENTRIES.find(e => e.id === id); if (!en || !NODES[id]) { setHidden(el, true); continue; }
-    if (S.state === 'night' && S.spawnQ && !S.spawnQ.some(q => q.entry === id)) { steady(el, false, 1.5); continue; }   // everyone from this pass is out: the edge arrows follow them now
+    // everyone from this pass is out: the edge arrows follow them now. It goes at once (BUGS-72 B5: held 1.5 s, it still read
+    // "Raiders 1"); the queue is never refilled in a night, so there is nothing to flicker
+    if (S.state === 'night' && S.spawnQ && !S.spawnQ.some(q => q.entry === id)) { setHidden(el, true); continue; }
     const g = S.byPass && S.byPass[ids.indexOf(id)];
     // by night the marker says how many are still to come by this pass (review-61/72 Implement); the arrows carry the rest
     setHTML(el, S.state === 'night' ? `<b>Raiders ${S.spawnQ.reduce((n, q) => n + (q.entry === id), 0)}</b><i></i>` : g ? `<b>${g.n} raiders</b><span class="wb">${warbandHTML(g)}</span><i></i>` : `<b>${S.passCount} raiders</b>${en.name.replace(/^the /, '')}<i></i>`);   // by night the arrows carry the count
@@ -7610,7 +7621,10 @@ function updateTags() {
       if (dir) { y = dir < 0 ? hit.y - Math.max(hit.h, h) : hit.y + Math.max(hit.h, h); if (dir < 0 && y < (el._floor || 0)) { dir = 1; y = hit.y + Math.max(hit.h, h); } continue; }   // keep going the way it went: flipping could end on top of another label
       // make room upward, unless that would put it under a panel (the playtest harness found two edge markers
       // stacked into the Soldiers panel): then below
-      const up = hit.y - Math.max(hit.h, h); dir = up >= (el._floor || 0) ? -1 : 1; y = dir < 0 ? up : hit.y + Math.max(hit.h, h);
+      // BUGS-72 B3: toward the label's own side of the one it hit. Always up made a label whose spot drifted past another's
+      // flip from below it to above it, and the easing slid it straight through
+      const up = hit.y - Math.max(hit.h, h), below = el._py - h / 2 > hit.y - hit.h / 2;
+      dir = !below && up >= (el._floor || 0) ? -1 : 1; y = dir < 0 ? up : hit.y + Math.max(hit.h, h);
     }
     // a pass marker that found no free spot (pushed down under the banner onto the supply signs) steps out rather than cover them
     if (el.classList.contains('rtag')) {
@@ -7627,7 +7641,10 @@ function updateTags() {
     else { el._off = off; el._pendT = 0; }
     const ty = el._py + el._off;
     el._y = el._y === undefined || Math.abs(el._y - ty) > 200 ? ty : damp(el._y, ty, 0.045, animDt);
-    placeAt(el, x, el._y); placed.push({ x, y: ty, w, h });
+    // an eased position never passes over a label already placed (where it is drawn or where it is going): it jumps instead
+    const over = yy => placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && (Math.abs(p.y - yy) < Math.max(p.h, h) - 1.5 || Math.abs(p.yd - yy) < Math.max(p.h, h) - 1.5));
+    if (el._y !== ty && over(el._y)) el._y = ty;
+    placeAt(el, x, el._y); placed.push({ x, y: ty, yd: el._y, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
   const hs = toScreen(tmp.set(hero.pos.x, hero.pos.y + 1.2, hero.pos.z));
@@ -7678,13 +7695,27 @@ function updateThreats() {
     el._a = el._a == null ? a : el._a + angDiff(a, el._a) * (1 - Math.pow(2, -animDt / 0.06));
     setStyle(el, '--a', (el._a + Math.PI / 2).toFixed(2) + 'rad'); setText(el.firstChild, String(b.n));
   }
-  // two neighbouring directions can crowd a corner: nudge them apart before placing, so no arrow sits on another
+  // two neighbouring directions can crowd a corner: nudge them apart before placing, so no arrow sits on another.
+  // BUGS-72 B4: the nudge works on copies (the eased spots stay the arrows' own) and every pass is clamped again to the
+  // same limits as a single arrow (under the top panels, above the prompt and the key hint), so a nudge can't carry an
+  // arrow into a panel; a few rounds let the free arrow take the whole nudge when the other is held by its limit
   const live = threatEls.filter(e => e && !e.hidden && e._x != null);
-  for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
-    const A = live[i], B = live[j], dx = B._x - A._x, dy = B._yy - A._yy, d = Math.hypot(dx, dy) || 1;
-    if (d < 50) { const push = (50 - d) / 2, ux = dx / d, uy = dy / d; A._x -= ux * push; A._yy -= uy * push; B._x += ux * push; B._yy += uy * push; }
+  const W2 = innerWidth / 2, H2 = innerHeight / 2;
+  for (const el of live) { el._dx = el._x; el._dy = el._yy; }
+  const hold = el => { el._dx = clamp(el._dx, 22, innerWidth - 22); let y = belowPrompt(el._dx, 46, clamp(el._dy, clearTop(el._dx) + 30, innerHeight - 34));
+    if (hr && hr.width && el._dx > hr.left - 26 && el._dx < hr.right + 26 && y > hr.top - 26) y = hr.top - 30; el._dy = y; };
+  for (let round = 0; round < 6 && live.length > 1; round++) {
+    for (let i = 0; i < live.length; i++) for (let j = i + 1; j < live.length; j++) {
+      const A = live[i], B = live[j]; let dx = B._dx - A._dx, dy = B._dy - A._dy, d = Math.hypot(dx, dy);
+      if (d >= 50) continue;
+      // on one spot (both clamped to the same point) there is no direction: part them along the edge they sit on
+      if (d < 0.5) { const side = Math.abs(Math.abs(A._dx - W2) - (W2 - 40)) < 30; dx = side ? 0 : 1; dy = side ? (A._dy < H2 ? 1 : -1) : 0; d = 0; }
+      else { dx /= d; dy /= d; }
+      const push = (50 - d) / 2; A._dx -= dx * push; A._dy -= dy * push; B._dx += dx * push; B._dy += dy * push;
+    }
+    for (const el of live) hold(el);
   }
-  for (const el of live) placeAt(el, el._x, el._yy, 'translate(-50%,-50%)');
+  for (const el of live) placeAt(el, el._dx, el._dy, 'translate(-50%,-50%)');
 }
 const PHASE_OF = { map: 'road', shop: 'build', dusk: 'position', circling: 'position', prep: 'position', quietPos: 'position', night: 'night', dawn: 'night', quietNight: 'night' };
 S.phaseLog = [];
