@@ -599,7 +599,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 80 · dev · 30 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 81 · dev · 30 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -2586,7 +2586,10 @@ function setClass(el, c, on) { on = !!on; if (el && el.classList.contains(c) !==
 // a fill bar is scaled, not resized: a transform never makes the page lay itself out again
 function setFill(el, f) { setStyle(el, 'transform', `scaleX(${Math.max(0, Math.min(1, f)).toFixed(3)})`); }
 // a screen label moves by transform only, and is measured only when its text or class changes
-function placeAt(el, x, y, anchor) { setStyle(el, 'transform', `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) ${anchor || 'translate(-50%,-100%)'}`); }
+// the position goes in the `translate` property and only the anchor in `transform`: CSS applies `scale` (the show/hide
+// motion) before `transform`, so a position inside `transform` was scaled toward the screen's corner and labels slid in
+// from the top left (QA r20 B1). `translate` is applied after the scale, so the scale only touches the label itself
+function placeAt(el, x, y, anchor) { setStyle(el, 'translate', `${x.toFixed(1)}px ${y.toFixed(1)}px`); setStyle(el, 'transform', anchor || 'translate(-50%,-100%)'); }
 // a size read while the element was hidden is 0 x 0 and must not be kept: markers measured that way thought they were
 // flat and slid up under the panels (the playtest harness saw the Soldiers panel cover a pass marker in 180 shots)
 function sizeOf(el) { if (el._size) return el._size; const z = { w: el.offsetWidth, h: el.offsetHeight }; if (z.w && z.h) el._size = z; return z; }
@@ -4381,13 +4384,16 @@ const leaves = makeMotes(LEAF_N, 0.34, '#c8a24e', 0.75);
 const flies = makeMotes(FLY_N, 0.26, '#ffe6a0', 0.95);
 const smokeP = [], leafP = [], flyP = [];
 function hearths() { return buildings.filter(b => b.alive && b.workers && b.workers.length); }
+// leaves, fireflies and hearth smoke draw from their own generator: drawing from Math.random, they used up the game's seeded
+// stream at a rate that differed from page to page, so the same seed did not replay the same run (QA r20 T1)
+let ambQ = 97531; const ambRand = () => (ambQ = (ambQ * 16807) % 2147483647) / 2147483647;
 function seedFly(i) {
-  const a = Math.random() * TAU, r = CASTLE_R + 4 + Math.random() * 46;
-  flyP[i] = { x: Math.cos(a) * r, z: Math.sin(a) * r, y: 0.5 + Math.random() * 2.2, ph: Math.random() * TAU, sp: 0.5 + Math.random() * 0.8 };
+  const a = ambRand() * TAU, r = CASTLE_R + 4 + ambRand() * 46;
+  flyP[i] = { x: Math.cos(a) * r, z: Math.sin(a) * r, y: 0.5 + ambRand() * 2.2, ph: ambRand() * TAU, sp: 0.5 + ambRand() * 0.8 };
 }
 function seedLeaf(i) {
-  const a = Math.random() * TAU, r = 16 + Math.random() * 56, x = Math.cos(a) * r, z = Math.sin(a) * r;
-  leafP[i] = { x, z, y: 3 + Math.random() * 4, vy: 0.5 + Math.random() * 0.7, ph: Math.random() * TAU, g: Math.max(hgt(x, z), 0) };
+  const a = ambRand() * TAU, r = 16 + ambRand() * 56, x = Math.cos(a) * r, z = Math.sin(a) * r;
+  leafP[i] = { x, z, y: 3 + ambRand() * 4, vy: 0.5 + ambRand() * 0.7, ph: ambRand() * TAU, g: Math.max(hgt(x, z), 0) };
 }
 for (let i = 0; i < FLY_N; i++) seedFly(i);
 for (let i = 0; i < LEAF_N; i++) seedLeaf(i);
@@ -4398,9 +4404,9 @@ function updateAmbience(dt, n) {
   for (let i = 0; i < SMOKE_N; i++) {
     let p = smokeP[i];
     if (!p || p.t > p.life) {
-      if (!hs.length || Math.random() > dt * 2.2) { smoke.a[i * 3 + 1] = -999; continue; }
-      const b = hs[Math.floor(Math.random() * hs.length)];
-      p = smokeP[i] = { x: b.pos.x + (Math.random() - 0.5) * 0.5, y: b.pos.y + 2.4, z: b.pos.z + (Math.random() - 0.5) * 0.5, t: 0, life: 3.4 + Math.random() * 2, dx: (Math.random() - 0.5) * 0.35, dz: 0.25 + Math.random() * 0.3 };
+      if (!hs.length || ambRand() > dt * 2.2) { smoke.a[i * 3 + 1] = -999; continue; }
+      const b = hs[Math.floor(ambRand() * hs.length)];
+      p = smokeP[i] = { x: b.pos.x + (ambRand() - 0.5) * 0.5, y: b.pos.y + 2.4, z: b.pos.z + (ambRand() - 0.5) * 0.5, t: 0, life: 3.4 + ambRand() * 2, dx: (ambRand() - 0.5) * 0.35, dz: 0.25 + ambRand() * 0.3 };
     }
     p.t += dt; p.y += dt * 0.85; p.x += p.dx * dt; p.z += p.dz * dt;
     smoke.a[i * 3] = p.x; smoke.a[i * 3 + 1] = p.y; smoke.a[i * 3 + 2] = p.z;
