@@ -597,7 +597,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 76 · dev · 29 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 77 · dev · 30 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -704,7 +704,7 @@ const SOLDIER = { hp: 50, dmg: 8, reach: 1.7, speed: 4.2, leash: 14 };
 // the convoy's three kinds of soldier: spearmen hold, archers shoot from behind them, horsemen ride things down
 const SOLDIER_TYPE = {
   spear:  { name: 'Spearman', hp: 50, dmg: 8,  reach: 1.7, speed: 4.2, cd: 0.9, walk: 7 },
-  archer: { name: 'Archer',   hp: 34, dmg: 6,  reach: 1.7, speed: 4.0, cd: 1.25, range: 8.5, walk: 7 },
+  archer: { name: 'Archer',   hp: 34, dmg: 9,  reach: 1.7, speed: 4.0, cd: 1.25, range: 8.5, walk: 7 },
   horse:  { name: 'Horseman', hp: 95, dmg: 15, reach: 2.1, speed: 7.5, cd: 1.0, walk: 10 },
 };
 const BRIDGE_COST = { grain: 8 };
@@ -719,7 +719,7 @@ const DEFS = {
               up: { name: 'Sawmill', cost: { stone: 3 }, yield: { wood: 8 }, desc: '+8 wood each dawn' } },
   quarry:   { name: "Miners' camp", cost: { wood: 6 }, hp: 60, yield: { stone: 3 }, workers: 2, desc: '2 miners, +3 stone each dawn',
               up: { name: 'Deep quarry', cost: { wood: 6 }, yield: { stone: 5 }, desc: '+5 stone each dawn' } },
-  tower:    { name: 'Crossbow cart', cart: true, cost: { grain: 14 }, hp: 95, dps: 9, range: 8.8, desc: 'A crossbowman behind a mantlet. Steady damage, one raider at a time',
+  tower:    { name: 'Crossbow cart', cart: true, cost: { grain: 14 }, hp: 95, dps: 12, range: 8.8, desc: 'A crossbowman behind a mantlet. Steady damage, one raider at a time',
               up: { name: 'Repeating-crossbow cart', cost: { grain: 10 }, dps: 15, desc: '15 damage a second' } },
   bombard:  { name: 'Cannon cart', cart: true, cost: { grain: 26 }, hp: 105, dmg: 44, every: 3.2, range: 13, desc: 'A Ming cannon. Long range, one heavy shot at the toughest raider',
               up: { name: 'Great cannon cart', cost: { grain: 16 }, dmg: 68, every: 2.9, range: 15, desc: 'Heavier shot, farther' } },
@@ -824,7 +824,17 @@ function segHit(a, b, c, d) { // intersection of segments ab and cd, or null
   const t = ((c[0] - a[0]) * s[1] - (c[1] - a[1]) * s[0]) / den, u = ((c[0] - a[0]) * r[1] - (c[1] - a[1]) * r[0]) / den;
   return t > 0 && t < 1 && u > 0 && u < 1 ? { t, x: a[0] + r[0] * t, z: a[1] + r[1] * t } : null;
 }
-const riverDist = (x, z) => { let d = Infinity; for (let i = 0; i < RIVER.length - 1; i++) d = Math.min(d, segDist(x, z, ...RIVER[i], ...RIVER[i + 1])); return d; };
+// the same distance as before, without spreading two arrays and taking a square root per segment on every call (a test
+// night's profile: riverDist and segDist were 35% of its time)
+const riverDist = (x, z) => {
+  let d2 = Infinity;
+  for (let i = 0; i < RIVER.length - 1; i++) {
+    const a = RIVER[i], b = RIVER[i + 1], ax = a[0], az = a[1], dx = b[0] - ax, dz = b[1] - az, l2 = dx * dx + dz * dz;
+    let t = l2 ? ((x - ax) * dx + (z - az) * dz) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const ex = x - ax - dx * t, ez = z - az - dz * t, e2 = ex * ex + ez * ez; if (e2 < d2) d2 = e2;
+  }
+  return Math.sqrt(d2);
+};
 function crossesRiver(ax, az, bx, bz) { for (let i = 0; i < RIVER.length - 1; i++) if (segHit([ax, az], [bx, bz], RIVER[i], RIVER[i + 1])) return true; return false; }
 const keyOf0 = (a, b) => [a, b].sort().join('|');
 // every road that meets the river becomes a crossing: one ford, the rest bridges (one of them starts in ruins)
@@ -2208,7 +2218,9 @@ function plantWoods(tree) {
   }
 }
 
+let worldGen = 0;
 function buildWorld() {
+  worldGen++;
   for (const o of [...world.children]) { world.remove(o); o.traverse(n => { if (n.geometry) n.geometry.dispose(); }); }
   treeSpots.length = 0; avoid.length = 0;
   scene.add = function (...o) { return world.add(...o); };
@@ -4087,7 +4099,7 @@ function updateNight(dt) {
   if (!S.spawnQ.length && !enemies.some(e => e.alive)) {
     if (WAGON && S.nightType === 'boss' && !S.passHeld && keep.alive) passHeld();
     // the pass held gets its moment (about 6 s, Space skips it); any other night goes to the dawn after the cheer
-    S.clearT += dt; if (S.clearT > (WAGON ? (S.passHeld ? 6.5 : 2.4) : 1.6) || (S.passHeld && S.clearT > 1 && keys.Space)) toDawn();
+    S.clearT += dt; if (S.clearT > (WAGON ? (S.passHeld ? 6.5 : BAG.cart && !BAG.taken && hero.alive ? 8 : 2.4) : 1.6) || (S.passHeld && S.clearT > 1 && keys.Space)) toDawn();
   }
 }
 // The pass is held (IDEAS-61 #9): the biggest win of a run had the same dawn as any fight. When a border fort holds, the
@@ -4410,7 +4422,9 @@ function updateAmbience(dt, n) {
     for (let i = 0; i < FLY_N; i++) {
       const p = flyP[i]; p.ph += dt * p.sp;
       flies.a[i * 3] = p.x + Math.sin(p.ph) * 1.6;
-      flies.a[i * 3 + 1] = p.y + Math.sin(p.ph * 1.7) * 0.5 + Math.max(hgt(p.x, p.z), 0);
+      // the ground under a firefly never changes on one field: its height is noise, far too dear to recompute every frame
+      if (p.gw !== worldGen) { p.gw = worldGen; p.g = Math.max(hgt(p.x, p.z), 0); }
+      flies.a[i * 3 + 1] = p.y + Math.sin(p.ph * 1.7) * 0.5 + p.g;
       flies.a[i * 3 + 2] = p.z + Math.cos(p.ph * 0.8) * 1.6;
     }
     flies.attr.needsUpdate = true;
@@ -5321,7 +5335,8 @@ const isSupply = k => k in SUPPLY;
 // field is crowded while the weight of each side stays where it was. Captains stay whole.
 const WAR = { bodies: 1.6, hp: 0.65, dmg: 0.72 };
 for (const k in ETYPES) if (k !== 'captain') { ETYPES[k].hp = Math.round(ETYPES[k].hp * WAR.hp); ETYPES[k].dmg = +(ETYPES[k].dmg * WAR.dmg).toFixed(1); }
-for (const k in SOLDIER_TYPE) { SOLDIER_TYPE[k].hp = Math.round(SOLDIER_TYPE[k].hp * WAR.hp); SOLDIER_TYPE[k].dmg = +(SOLDIER_TYPE[k].dmg * WAR.dmg).toFixed(1); }
+// our men keep their full health (BALANCE-76: with WAR.hp every soldier went down on night 1); raiders stay lightened
+for (const k in SOLDIER_TYPE) { SOLDIER_TYPE[k].dmg = +(SOLDIER_TYPE[k].dmg * WAR.dmg).toFixed(1); }
 delete BRIDGE_COST.grain; BRIDGE_COST.wood = 5;
 // ---------------- a little more each night ----------------
 // A first-time player meets one idea at a time: food, farmers and spearmen first; wood and war
@@ -5329,8 +5344,8 @@ delete BRIDGE_COST.grain; BRIDGE_COST.wood = 5;
 // the whole column from the second region. Raiders are introduced the same way.
 const TIERS = [
   null,
-  { name: 'Wood', text: 'A <b>wood wagon</b> joins the column. <b>Woodcutters</b> bring wood, and wood buys <b>war carts</b>. New: the <b>crossbow cart</b> and <b>archers</b>, and before the night you can <b>move your carts</b> (stand by one and hold Space). Horse archers ride with the raiders from now on, and the warband looses <b>massed volleys</b>: ride out of the red.', gives: () => { joinConvoy('wood'); S.res.wood += 12; S.crew.woodcutter += 1; } },
-  { name: 'Road works', text: 'Before the night you can now <b>barricade a road</b> or <b>scatter caltrops</b> on it: stand on a road and hold Space. Raiders must break through, or take another road. Watch for <b>fire archers</b> (orange rings), who burn your loads from beyond your carts\u2019 reach, and <b>pot throwers</b> (yellow rings), whose fire pots leave burning ground: ride them down.' },
+  { name: 'Wood', text: 'A <b>wood wagon</b> joins the column. <b>Woodcutters</b> bring wood, and wood buys <b>war carts</b>. New: the <b>crossbow cart</b> and <b>archers</b>, and before the night you can <b>move your carts</b> (stand by one and hold Space). Horse archers ride with the raiders from now on, and <b>fire archers</b> (orange rings) burn your loads from beyond your carts\u2019 reach: ride them down. The warband looses <b>massed volleys</b>: ride out of the red.', gives: () => { joinConvoy('wood'); S.res.wood += 12; S.crew.woodcutter += 1; } },
+  { name: 'Road works', text: 'Before the night you can now <b>barricade a road</b> or <b>scatter caltrops</b> on it: stand on a road and hold Space. Raiders must break through, or take another road. Watch for <b>pot throwers</b> (yellow rings), whose fire pots leave burning ground: ride them down.' },
   { name: 'Stone', text: 'A <b>stone wagon</b> joins. <b>Miners</b> bring stone, and stone buys heavier carts. New: the <b>rocket cart</b> and <b>horsemen</b>. Armoured raiders appear from now on: <b>ironcoats</b> shrug off arrows, so <b>ride them down at a gallop</b>; <b>spear hedges</b> break a charge, so shoot them. <b>Lasso riders</b> throw a line: step out of it.', gives: () => { joinConvoy('stone'); S.res.stone += 8; S.crew.miner += 1; } },
   { name: 'The whole column', text: 'New: the <b>bombard cart</b>, one heavy shot at the toughest raider; the <b>palisade wagon</b>, which closes the ring on both sides of it; and <b>convoy levels</b>, which raise how many soldiers and crews you can lead.' },
 ];
@@ -6080,7 +6095,7 @@ function enterField(type) {
   } else S.homeBank = 0;
   S.byPass = warbandByPass(W, S.preEntries.length);
   S.passCount = Math.round(S.byPass.reduce((a, g) => a + g.n, 0) / Math.max(1, S.byPass.length));
-  drawPassZones(); drawCampWash(); placeBaggage(type);
+  drawPassZones(); placeBaggage(type);
   let x, z, rot;
   if (type === 'boss') { x = 0; z = -22; rot = 0; }
   else {
@@ -6149,7 +6164,7 @@ function waveFor() {
   // A new region opens with a step, not a cliff (IDEAS-61 #6): its first fight sent a fifth to a third more than the
   // border fort just held, with a new tier's weight on top. The first floor's main body is eased; floors 2-3 climb as before.
   const ease = S.region > 0 && S.floor === 1 && t !== 'boss' ? 0.8 : 1;
-  return { foot: Math.round(Math.max(Math.round([26, 22, 22, 24, 26][T] * WAR.bodies), Math.round(W.foot * kb)) * ease),
+  return { foot: Math.round(Math.max(Math.round([20, 22, 22, 24, 26][T] * WAR.bodies), Math.round(W.foot * kb)) * ease),
     horse: T >= 1 ? Math.max(kind === 'steppe' ? 3 : 0, Math.round(W.horse * kb * 0.8 * horseK * ease)) : 0,
     lancer: heavy ? Math.round(W.lancer * kb * ease) : 0, shield: heavy ? Math.round(W.shield * kb * heavyK * ease) : 0,
     torch: T >= 2 ? Math.round(W.torch * 0.8 * WAR.bodies) : 0,
@@ -6158,8 +6173,8 @@ function waveFor() {
     bowman: Math.round((3 + g * 0.5) * (kind === 'steppe' ? 1.5 : 1) * (t === 'elite' || t === 'boss' ? 1.4 : 1)),
     potter: T >= 2 ? Math.round((1 + g * 0.3) * (kind === 'gorge' ? 1.5 : 1)) : 0,
     lasso: T >= 3 ? Math.round((1 + g * 0.25) * (kind === 'steppe' ? 1.6 : 1)) : 0,
-    firearcher: T >= 2 ? Math.max(2, Math.round((W.firearcher || 0) * (k / (1.0 + S.region * 0.08)) * (t === 'boss' ? 0.8 : 1.3))) : 0,
-    engine: T >= 2 && (S.region > 0 || t !== 'fight') ? (t === 'boss' && S.region > 0 ? 2 : 1) + Math.floor(g / 7) : 0,
+    firearcher: T >= 1 ? Math.max(T === 1 ? 3 : 2, Math.round((W.firearcher || 0) * (k / (1.0 + S.region * 0.08)) * (t === 'boss' ? 0.8 : 1.3))) : 0,
+    engine: T >= 2 && (S.region > 0 || t !== 'fight' || S.floor >= 3) ? (t === 'boss' ? 3 : 1) + Math.floor(g / 7) : 0,
     captain: t === 'boss' ? 1 + S.region : t === 'elite' ? 1 : 0,
     entries: kind === 'gorge' ? 2 : kind === 'front' || kind === 'twin' ? 3 : t === 'boss' || t === 'elite' || S.region >= 2 ? 3 : 2,
     waves: t === 'boss' ? 4 : t === 'elite' ? 3 : Math.min(3, 2 + Math.floor(g / 7)) };
@@ -6338,36 +6353,8 @@ function drawPassZones() {
       const a0 = k / 24 * TAU, a1 = (k + 1) / 24 * TAU, g = new THREE.RingGeometry(PASS_KEEP - 0.35, PASS_KEEP, 6, 1, a0, a1 - a0);
       const m = new THREE.Mesh(g, mat); m.rotation.x = -Math.PI / 2; m.position.set(P.pos.x, Math.max(P.pos.y, 0) + 0.3, P.pos.z); m.renderOrder = 4; passZones.add(m); } }
 }
-// the positive twin of the red circles: every stretch of road where the wagons may be circled tonight, washed gold at
-// dusk, so a new field does not open on "Cannot camp here" (IDEAS-61 #1: three dusks in seven did). One mesh.
-const campWash = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: '#f0c860', transparent: true, opacity: 0.15, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-campWash.renderOrder = 3; campWash.visible = false; scene.add(campWash);
-// review-72: a gold wash over tan earth could not be seen at all, so the legal stretches are edged with two bright gold kerbs
-// on the grass beside the road, where gold has contrast; they breathe slowly (0.5-0.85 over 1.6 s), like the map's stops
-const campKerb = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ color: '#ffd35a', transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-campKerb.renderOrder = 3; campWash.add(campKerb);
-function drawCampWash() {
-  const pos = [], kerb = [], W = 1.4, step = 1.2, K0 = W + 0.02, K1 = W + 0.37;
-  if (!FIELD.castle) for (const [ax, az, bx, bz] of ROAD_SEGS) {
-    const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(L / step)), nx = -(bz - az) / (L || 1) * W, nz = (bx - ax) / (L || 1) * W;
-    let prev = null;
-    for (let i = 0; i <= n; i++) {
-      const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n, ok = ringPlan(x, z).ok;
-      const y = Math.max(hgt(x, z), 0) + 0.2, cur = ok ? [x + nx, y, z + nz, x - nx, y, z - nz] : null;
-      if (cur && prev) pos.push(...prev.slice(0, 3), ...prev.slice(3), ...cur.slice(0, 3), ...cur.slice(0, 3), ...prev.slice(3), ...cur.slice(3));
-      // each kerb follows its own ground, so it sits on the grass rather than floating at the road's height
-      let kc = null;
-      if (ok) { kc = []; for (const sd of [1, -1]) for (const k of [K0, K1]) { const kx = x + nx / W * k * sd, kz = z + nz / W * k * sd; kc.push([kx, Math.max(hgt(kx, kz), 0) + 0.22, kz]); } }
-      if (kc && prev && prev.kc) for (const j of [0, 2]) { const a = prev.kc[j], b = prev.kc[j + 1], c = kc[j], d = kc[j + 1]; kerb.push(...a, ...b, ...c, ...c, ...b, ...d); }
-      if (cur) cur.kc = kc;
-      prev = cur;
-    }
-  }
-  campWash.geometry.dispose(); campWash.geometry = new THREE.BufferGeometry();
-  campWash.geometry.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  campKerb.geometry.dispose(); campKerb.geometry = new THREE.BufferGeometry();
-  campKerb.geometry.setAttribute('position', new THREE.Float32BufferAttribute(kerb, 3));
-}
+// (Build 72's gold wash and kerbs along the legal roads were removed at Matias's word: no lines painted along the roads,
+// as with the red route ribbons before them. The dashed red circles say where not to camp; the prompt says the rest.)
 function circleWagons(plan) {
   navGrid();   // the soldiers' map of this ground, built while the wagons wheel round
   clearCampGround(plan.cx, plan.cz, CONVOY.ringR + 2.2);
@@ -6582,12 +6569,13 @@ function siegeEngine(e, dt) {
   e.rangeCd -= dt;
   if (e.rangeCd <= 0) {
     e.rangeCd = e.t.rate * (0.85 + Math.random() * 0.3); e.throwT = 1;
-    const tgt = nearest(buildings, e.pos, b => b.alive && b.hp < Infinity && b.plot && b.plot.cart && !isSupply(b.plot.cartKind)) || (keep.alive ? keep : null);
+    // at the border fort the engines shell the keep (BALANCE-76: sitting in the courtyard was safe)
+    const tgt = (FIELD.castle && keep.alive ? keep : null) || nearest(buildings, e.pos, b => b.alive && b.hp < Infinity && b.plot && b.plot.cart && !isSupply(b.plot.cartKind)) || (keep.alive ? keep : null);
     if (tgt) {
       const x = tgt.pos.x + (Math.random() - 0.5) * 1.5, z = tgt.pos.z + (Math.random() - 0.5) * 1.5;
       const dz = circleDanger(x, z, 3, 2.2, 18);
       dz.onLand = () => { sfxAt('stone', { x, z }, 1, 70); for (const b of [...buildings]) if (b.alive && b.hp < Infinity && Math.hypot(b.pos.x - x, b.pos.z - z) < 3 + (b.radius || 1)) damage(b, b.plot && isSupply(b.plot.cartKind) ? e.t.stone / 3 : e.t.stone, null, 'stone');   // it aims at the war carts; the loads only take the splash
-        if (keep.alive && Math.hypot(keep.pos.x - x, keep.pos.z - z) < 4) { damage(keep, e.t.stone / 2); S.engineKeep = (S.engineKeep || 0) + e.t.stone / 2; } puff(new V3(x, 0.4, z), '#8a7a5c', 10, 2); kick(0.3); 0 /* the placed 'stone' carries it: a centred crash made a far stone sound as if it landed on you */; };
+        if (keep.alive && Math.hypot(keep.pos.x - x, keep.pos.z - z) < 4) { damage(keep, e.t.stone); S.engineKeep = (S.engineKeep || 0) + e.t.stone; } puff(new V3(x, 0.4, z), '#8a7a5c', 10, 2); kick(0.3); 0 /* the placed 'stone' carries it: a centred crash made a far stone sound as if it landed on you */; };
       shoot(e.pos.clone().setY(e.pos.y + 3), { pos: new V3(x, 0, z), alive: false }, 0, 'foe', false, { dur: 2.1, arc: 12 });
     }
   }
@@ -6998,6 +6986,8 @@ for (const t of ['foot', 'bowman', 'horse', 'torch', 'firearcher', 'potter', 'en
 THUMBS.r_lancer = () => makeLancerModel().g;
 function thumb(key) {
   if (thumbCache[key] !== undefined) return thumbCache[key];
+  // balance harnesses set window.__lean: no second renderer for card pictures (it cost each test night's page load dearly)
+  if (window.__lean) return (thumbCache[key] = '');
   const make = THUMBS[key]; if (!make) return (thumbCache[key] = '');
   try {
     if (!thumbR) { thumbR = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); thumbR.setSize(240, 170); thumbR.toneMapping = renderer.toneMapping; thumbR.outputColorSpace = renderer.outputColorSpace; }
@@ -7457,8 +7447,8 @@ function convoyPrompt() {
     // moved, or while he is off the road, the box says where to go; "Cannot camp here" is kept for a road that is not legal
     if (!S.duskFrom) S.duskFrom = hero.pos.clone();
     if (!S.duskMoved && Math.hypot(hero.pos.x - S.duskFrom.x, hero.pos.z - S.duskFrom.z) > 1.5) S.duskMoved = true;
-    if (!plan.ok && !FIELD.castle && (!S.duskMoved || roadDist(hero.pos.x, hero.pos.z) > 2.5)) return { key: 'nocamp-ride', anchor, opts: [{ n: 'Ride to a gold road, then hold Space', c: null, d: 'The gold-edged roads are where the wagons can be circled', run: null }] };
-    if (!plan.ok) return { key: 'nocamp' + plan.why, anchor, opts: [{ n: 'Cannot camp here', c: null, d: plan.why + (FIELD.castle ? '' : '. The gold roads are where you can'), run: null }] };
+    if (!plan.ok && !FIELD.castle && (!S.duskMoved || roadDist(hero.pos.x, hero.pos.z) > 2.5)) return { key: 'nocamp-ride', anchor, opts: [{ n: 'Ride onto a road, then hold Space', c: null, d: 'Any road clear of the dashed red circles will do', run: null }] };
+    if (!plan.ok) return { key: 'nocamp' + plan.why, anchor, opts: [{ n: 'Cannot camp here', c: null, d: plan.why + (FIELD.castle ? '' : '. Any road clear of the red circles will do'), run: null }] };
     return { key: `circle${plan.walls}/${plan.gaps}`, anchor, hold: 0.9, opts: [circleOpt(plan)] };
   }
   const prep = S.state === 'day' && S.phase === 'prep';
@@ -7538,7 +7528,7 @@ function convoyGoal(el) {
   const step = (done, t) => `<div class="st${done ? ' done' : ''}">${done ? '\u2713' : '\u203a'} ${t}</div>`;
   const keepLine = keep.alive ? `<div class="sub">The keep: <b>${Math.max(0, Math.round(keep.hp))}</b> / ${keep.max}</div>` : '';
   let h = '';
-  if (S.phase === 'dusk') h = `<b class="ph">Make camp</b>${step(false, FIELD.castle ? 'Ride onto a road and <b>hold Space</b> to circle the wagons' : '<b>Hold Space</b> on a <b>gold road</b> to circle the wagons')}${fieldBrief()}`;
+  if (S.phase === 'dusk') h = `<b class="ph">Make camp</b>${step(false, FIELD.castle ? 'Ride onto a road and <b>hold Space</b> to circle the wagons' : '<b>Hold Space</b> on a road, clear of the red circles, to circle the wagons')}${fieldBrief()}`;
   else if (S.phase === 'circling') h = `<b class="ph">Make camp</b>${step(false, 'Circling the wagons\u2026')}`;
   else if (S.phase === 'prep') {
     const posted = soldiers.some(x => x.alive && x.posted), moved = !!S.cartMoved, none = !soldiers.some(x => x.alive);   // with no men there is nobody to place
@@ -7796,8 +7786,7 @@ function fitPhases(el) {
 }
 function updateConvoy(dt) {
   updatePhases();
-  passZones.visible = S.phase === 'dusk'; campWash.visible = S.phase === 'dusk' && !FIELD.castle;
-  if (campWash.visible) campKerb.material.opacity = 0.675 + 0.175 * Math.sin(clock * TAU / 1.6);
+  passZones.visible = S.phase === 'dusk';
   if (S.state === 'title') return;
   if (S.state !== 'day' && S.state !== 'night') updateThreats();
   if (circling) updateCircling(dt);
@@ -8269,6 +8258,7 @@ requestAnimationFrame(frame);
 // a frame (the first bombard ball, the first fire pool, the first ironcoat). Once the page is up, one of every raider,
 // soldier, cart and effect is shown to the renderer for a single compile, then put away.
 setTimeout(() => {
+  if (window.__lean) return;   // balance harnesses: no shader warm-up, which in software GL is most of a test night's load
   const seed0 = seed;   // the builders draw from the seeded generator: put it back, so warm-up changes nothing
   try {
     const g = new THREE.Group();
