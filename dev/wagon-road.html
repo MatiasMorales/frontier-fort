@@ -349,6 +349,8 @@ body:has(:is(#smap, #shop, #dawn, #end, #choice):not([hidden])) :is(#status, #ke
 .wtag, .rtag, .threat, #bellTag{ transition-property:opacity, scale, display; }
 /* a label that must jump past another is hidden for the jump and fades in where it lands (BUGS-73 B2) */
 :is(.wtag, .rtag, #bellTag).hop{ visibility:hidden; opacity:0; transition:none; }
+:is(.wtag, .rtag, #bellTag).hopin{ animation: tagHopIn .28s ease-out; }
+@keyframes tagHopIn { from { opacity: 0; } to { opacity: 1; } }
 button, .opt, .tablet, .card{ transition:transform var(--tap), border-color var(--tap), background-color var(--tap), filter var(--tap); }
 button:active, .tablet:active, .card:active{ transform:scale(.97); }
 @media (prefers-reduced-motion: reduce){ #banner{ transition:none; } .tablet{ transition:none; } *{ scale:none !important; } }
@@ -597,7 +599,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 79 · dev · 30 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 80 · dev · 30 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -5342,11 +5344,13 @@ delete BRIDGE_COST.grain; BRIDGE_COST.wood = 5;
 // A first-time player meets one idea at a time: food, farmers and spearmen first; wood and war
 // carts after the first fight; road works after the second; stone and heavy carts after the third;
 // the whole column from the second region. Raiders are introduced the same way.
+// each note says what comes that night or soon after; the two-new-kinds rule decides the order (QA r19 B1: the notes
+// promised pot throwers and armour a night or three early, and never named the siege engine)
 const TIERS = [
   null,
   { name: 'Wood', text: 'A <b>wood wagon</b> joins the column. <b>Woodcutters</b> bring wood, and wood buys <b>war carts</b>. New: the <b>crossbow cart</b> and <b>archers</b>, and before the night you can <b>move your carts</b> (stand by one and hold Space). Horse archers ride with the raiders from now on, and <b>fire archers</b> (orange rings) burn your loads from beyond your carts\u2019 reach: ride them down. The warband looses <b>massed volleys</b>: ride out of the red.', gives: () => { joinConvoy('wood'); S.res.wood += 12; S.crew.woodcutter += 1; } },
-  { name: 'Road works', text: 'Before the night you can now <b>barricade a road</b> or <b>scatter caltrops</b> on it: stand on a road and hold Space. Raiders must break through, or take another road. Watch for <b>pot throwers</b> (yellow rings), whose fire pots leave burning ground: ride them down.' },
-  { name: 'Stone', text: 'A <b>stone wagon</b> joins. <b>Miners</b> bring stone, and stone buys heavier carts. New: the <b>rocket cart</b> and <b>horsemen</b>. Armoured raiders appear from now on: <b>ironcoats</b> shrug off arrows, so <b>ride them down at a gallop</b>; <b>spear hedges</b> break a charge, so shoot them. <b>Lasso riders</b> throw a line: step out of it.', gives: () => { joinConvoy('stone'); S.res.stone += 8; S.crew.miner += 1; } },
+  { name: 'Road works', text: 'Before the night you can now <b>barricade a road</b> or <b>scatter caltrops</b> on it: stand on a road and hold Space. Raiders must break through, or take another road. They now bring a <b>siege engine</b>, which stops beyond your carts\u2019 reach and lobs stones: send men out or ride at it. <b>Torchbearers</b> run for the wagons: cut them down.' },
+  { name: 'Stone', text: 'A <b>stone wagon</b> joins. <b>Miners</b> bring stone, and stone buys heavier carts. New: the <b>rocket cart</b> and <b>horsemen</b>. From now on you may meet <b>pot throwers</b> (yellow rings), whose fire pots leave burning ground, and armoured raiders: <b>ironcoats</b> shrug off arrows, so <b>ride them down at a gallop</b>; <b>spear hedges</b> break a charge, so shoot them; <b>lasso riders</b> throw a line: step out of it.', gives: () => { joinConvoy('stone'); S.res.stone += 8; S.crew.miner += 1; } },
   { name: 'The whole column', text: 'New: the <b>bombard cart</b>, one heavy shot at the toughest raider; the <b>palisade wagon</b>, which closes the ring on both sides of it; and <b>convoy levels</b>, which raise how many soldiers and crews you can lead.' },
 ];
 const tier = () => Math.min(4, S.region >= 1 ? 4 : S.fought);
@@ -7668,21 +7672,29 @@ function updateTags() {
     // other), unless the old offset would overlap something now
     const off = y - el._py, blockedAt = ty => placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && Math.abs(p.y - ty) < Math.max(p.h, h) - 1.5) || belowPrompt(x, w, ty) < ty - 1;
     if (el._off === undefined || blockedAt(el._py + el._off)) { el._off = off; el._pendT = 0; }
-    else if (Math.abs(off - el._off) > 2) { if (el._pend !== undefined && Math.abs(el._pend - off) < 3) el._pendT += animDt; else { el._pend = off; el._pendT = 0; } if (el._pendT > 0.25) { el._off = off; el._pendT = 0; } }
+    else if (Math.abs(off - el._off) > 2) { if (el._pend !== undefined && Math.abs(el._pend - off) < 3) el._pendT += animDt; else { el._pend = off; el._pendT = 0; } if (el._pendT > (el._hopAt !== undefined && clock - el._hopAt < 1 ? 0.6 : 0.25)) { el._off = off; el._pendT = 0; } }
     else { el._off = off; el._pendT = 0; }
     const ty = el._py + el._off;
     // a move too long to ease (over 200 px) is a jump too: it hides and fades back in like the others (BUGS-74 B1)
-    if (el._y !== undefined && Math.abs(el._y - ty) > 200 && !el.hidden) el._hopT = 0.12;
+    // (re)appearing now: this loop only sees shown labels, so one unseen for a moment has just come back
+    if (clock - (el._lastSeen ?? -9) > 0.1) el._shownAt = clock;
+    el._lastSeen = clock;
+    if (el._y !== undefined && Math.abs(el._y - ty) > 200 && !el.hidden && clock - el._shownAt > 1) { el._hopT = Math.max(el._hopT || 0, 0.12); el._hopAt = clock; }
     el._y = el._y === undefined || Math.abs(el._y - ty) > 200 ? ty : damp(el._y, ty, 0.045, animDt);
     // an eased position never passes over a label already placed (where it is drawn or where it is going): it jumps instead
     const over = yy => placed.some(p => Math.abs(p.x - x) < (p.w + w) / 2 && (Math.abs(p.y - yy) < Math.max(p.h, h) - 1.5 || Math.abs(p.yd - yy) < Math.max(p.h, h) - 1.5));
     if (el._y !== ty && over(el._y)) {
       // BUGS-73 B2: the jump is never seen: it hides at once and fades back in (250 ms) at its new place a moment later
-      if (Math.abs(el._y - ty) > 24) el._hopT = 0.12;
+      // already hidden by a hop: stay hidden a moment longer rather than blink back and hop again (the UX check saw 4 flips a second)
+      // in its first second on screen a label is still fading in: it moves to its place without a hop (show-hide-show read as flicker)
+      if (Math.abs(el._y - ty) > 24 && clock - (el._shownAt ?? -9) > 1) { el._hopT = Math.max(el._hopT || 0, 0.12); el._hopAt = clock; }
       el._y = ty;
     }
     if (el._hopT > 0) el._hopT -= animDt;
-    setClass(el, 'hop', el._hopT > 0);
+    // coming back from a hop it always fades in (hopin), so it never pops into view
+    const hid = el.classList.contains('hop'); setClass(el, 'hop', el._hopT > 0);
+    if (hid && !(el._hopT > 0)) { el.classList.remove('hopin'); void el.offsetWidth; el.classList.add('hopin'); el._hopinT = 0.3; }
+    if (el._hopinT > 0 && (el._hopinT -= animDt) <= 0) el.classList.remove('hopin');
     placeAt(el, x, el._y); placed.push({ x, y: ty, yd: el._y, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
