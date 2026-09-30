@@ -597,7 +597,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 78 · dev · 30 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 79 · dev · 30 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -6176,7 +6176,8 @@ function waveFor() {
     potter: T >= 2 ? Math.round((1 + g * 0.3) * (kind === 'gorge' ? 1.5 : 1)) : 0,
     lasso: T >= 3 ? Math.round((1 + g * 0.25) * (kind === 'steppe' ? 1.6 : 1)) : 0,
     firearcher: T >= 1 ? Math.max(T === 1 ? 3 : 2, Math.round((W.firearcher || 0) * (k / (1.0 + S.region * 0.08)) * (t === 'boss' ? 0.8 : 1.3))) : 0,
-    engine: T >= 2 && (S.region > 0 || t !== 'fight' || S.floor >= 3) ? (t === 'boss' ? 3 : 1) + Math.floor(g / 7) : 0,
+    // border forts: 3 siege engines in region 1, 4 and 5 later (BALANCE-78: 4 at the first fort made its keep fall on 6 of 14 good nights)
+    engine: T >= 2 && (S.region > 0 || t !== 'fight' || S.floor >= 3) ? (t === 'boss' ? 3 + S.region : 1 + Math.floor(g / 7)) : 0,
     captain: t === 'boss' ? 1 + S.region : t === 'elite' ? 1 : 0,
     entries: kind === 'gorge' ? 2 : kind === 'front' || kind === 'twin' ? 3 : t === 'boss' || t === 'elite' || S.region >= 2 ? 3 : 2,
     waves: t === 'boss' ? 4 : t === 'elite' ? 3 : Math.min(3, 2 + Math.floor(g / 7)) };
