@@ -597,7 +597,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 77 · dev · 30 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 78 · dev · 30 Sep 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -6066,7 +6066,9 @@ function drawWarband(type, kind) {
   S.nightType = nt; FIELD.kind = fk;
   // at most two kinds the column has never faced in one night (the playtest saw region 2 open with five at once): the
   // rest stay foot raiders, of the same weight, until a later night
-  { const met = S.metKinds || (S.metKinds = new Set(['foot'])), fresh = ['bowman', 'horse', 'torch', 'firearcher', 'potter', 'engine', 'shield', 'ironcoat', 'spearhedge', 'lancer', 'lasso'].filter(k => W[k] > 0 && !met.has(k));
+  // the order new raiders are met in: the siege engine comes before torchbearers and pot throwers, because balance leans on
+  // it from floor 3 (QA r17 B1: behind them it was cut from every floor-3 fight of a real run)
+  { const met = S.metKinds || (S.metKinds = new Set(['foot'])), fresh = ['bowman', 'horse', 'firearcher', 'engine', 'torch', 'potter', 'shield', 'ironcoat', 'spearhedge', 'lancer', 'lasso'].filter(k => W[k] > 0 && !met.has(k));
     // bowmen, pot throwers, lasso riders and engines are carved out of the foot count at night, so zeroing them gives the
     // foot back by itself; the others are counted apart and join the foot (heavy ones at the two-foot weight they cost)
     for (const k of fresh.slice(2)) { if (!['bowman', 'potter', 'lasso', 'engine'].includes(k)) W.foot += W[k] * (['ironcoat', 'spearhedge', 'lancer', 'shield'].includes(k) ? 2 : 1); W[k] = 0; }
@@ -7519,7 +7521,8 @@ function nightTip() {
   if (alive('engine')) return '<b>Siege engine</b>: charge it, or send men out';
   if (alive('firearcher')) return '<b>Fire archers</b> (orange rings): <b>ride them down</b>';
   if (enemies.some(e => e.alive && e.carry)) return 'A thief has your loads: <b>ride him down</b>';
-  if (BAG.cart && !BAG.taken) return '<b>Raider baggage</b> waits out there, guarded';
+  // once its guards are down the dawn waits for the cart, so the goal says why (QA r17 B2)
+  if (BAG.cart && !BAG.taken) return BAG.guards.some(e => e.alive) ? '<b>Raider baggage</b> waits out there, guarded' : '<b>The raiders\u2019 baggage</b> is unguarded: take it before dawn';
   return 'Stand still to shoot, gallop to trample';
 }
 function convoyGoal(el) {
