@@ -599,7 +599,7 @@ body:has(#title:not([hidden])) #buildTag, body:has(#opts:not([hidden])) #buildTa
   <div class="sheet choiceSheet"><div class="bigseal" id="choiceSeal">使</div><h2 id="choiceT"></h2><p class="lead" id="choiceP"></p><p class="say" id="choiceSay"></p><div class="choiceOpts" id="choiceOpts"></div></div>
 </div>
 <div id="speedChip" hidden></div>
-<div id="buildTag" class="buildTag">Build 81 · dev · 30 Sep 2026</div>
+<div id="buildTag" class="buildTag">Build 82 · dev · 1 Oct 2026</div>
 
 <div id="smap" class="overlay" hidden>
   <div class="sheet mapSheet">
@@ -7696,12 +7696,19 @@ function updateTags() {
       if (Math.abs(el._y - ty) > 24 && clock - (el._shownAt ?? -9) > 1) { el._hopT = Math.max(el._hopT || 0, 0.12); el._hopAt = clock; }
       el._y = ty;
     }
+    // an earlier label still easing toward a clear spot may be drawn where this one now stands: it ends its slide at once
+    // (Build 81, r12 seed 3: a marker faded in over one sliding away); a long move hides first, like any jump
+    const lap = (a, b, hh) => Math.abs(a - b) < hh - 1.5;
+    for (const q of placed) if (q.yd !== q.y && Math.abs(q.x - x) < (q.w + w) / 2 && lap(q.yd, el._y, Math.max(q.h, h)) && !lap(q.y, el._y, Math.max(q.h, h))) {
+      if (Math.abs(q.yd - q.y) > 24) { q.el._hopT = Math.max(q.el._hopT || 0, 0.12); q.el._hopAt = clock; setClass(q.el, 'hop', true); }
+      q.el._y = q.yd = q.y; placeAt(q.el, q.x, q.y);
+    }
     if (el._hopT > 0) el._hopT -= animDt;
     // coming back from a hop it always fades in (hopin), so it never pops into view
     const hid = el.classList.contains('hop'); setClass(el, 'hop', el._hopT > 0);
     if (hid && !(el._hopT > 0)) { el.classList.remove('hopin'); void el.offsetWidth; el.classList.add('hopin'); el._hopinT = 0.3; }
     if (el._hopinT > 0 && (el._hopinT -= animDt) <= 0) el.classList.remove('hopin');
-    placeAt(el, x, el._y); placed.push({ x, y: ty, yd: el._y, w, h });
+    placeAt(el, x, el._y); placed.push({ el, x, y: ty, yd: el._y, w, h });
   }
   // nothing may hide the rider: any label over him fades almost away
   const hs = toScreen(tmp.set(hero.pos.x, hero.pos.y + 1.2, hero.pos.z));
